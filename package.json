@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
+        "export": "node scripts/export-static.mjs",
         "preview": "vite preview"
     },
     "dependencies": {
