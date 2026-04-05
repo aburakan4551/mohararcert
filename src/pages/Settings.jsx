@@ -5,6 +5,12 @@ import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine'
 import LayersPanel from '../components/LayersPanel'
 import PropertiesPanel from '../components/PropertiesPanel'
 import { pdfPageToDataURL, readFileAsArrayBuffer, readFileAsDataURL } from '../utils/pdfToImage'
+import { useLocalStorage } from '../hooks/useLocalStorage'
+import {
+    CERTIFICATE_SCREENSHOT_PRESET_SETTINGS,
+    createScreenshotPresetLayers,
+} from '../config/certificatePreset'
+import { TEMPLATE_PRESETS } from '../config/assetPresets'
 
 /**
  * Settings – Professional Layer-based Design Editor
@@ -33,6 +39,7 @@ export default function Settings() {
         bringForward, sendBackward,
         addLayer, alignLayer,
         resetLayers,
+        replaceLayers,
         undo, redo, pushHistory,
         saveStatus,
         setCanvasWidth,
@@ -43,6 +50,7 @@ export default function Settings() {
     const [showGuides, setShowGuides] = useState(true)
     const [zoom, setZoom] = useState(100)
     const [uploadError, setUploadError] = useState(null)
+    const [, setCertificateSettings] = useLocalStorage('certSettings', CERTIFICATE_SCREENSHOT_PRESET_SETTINGS)
     const fileRef = useRef(null)
 
     const selectedLayer = layers.find(l => l.id === selectedId) || null
@@ -144,6 +152,47 @@ export default function Settings() {
         }
     }
 
+    const handleApplyScreenshotPreset = useCallback(() => {
+        replaceLayers(createScreenshotPresetLayers())
+        setCertificateSettings((current) => ({
+            ...current,
+            ...CERTIFICATE_SCREENSHOT_PRESET_SETTINGS,
+        }))
+        setSelectedId(null)
+    }, [replaceLayers, setCertificateSettings])
+
+    const handleAddTemplatePreset = useCallback(async (preset) => {
+        setUploadError(null)
+        try {
+            const existing = templates.find((template) => template.name === preset.name)
+            if (existing) {
+                setActiveTemplateId(existing.id)
+                return
+            }
+
+            const response = await fetch(preset.src)
+            if (!response.ok) throw new Error('تعذر تحميل القالب الجاهز')
+
+            let dataURL
+            if (preset.type === 'pdf') {
+                dataURL = await pdfPageToDataURL(await response.arrayBuffer(), 2.5)
+            } else {
+                const blob = await response.blob()
+                dataURL = await new Promise((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onload = () => resolve(reader.result)
+                    reader.onerror = reject
+                    reader.readAsDataURL(blob)
+                })
+            }
+
+            const id = addTemplate(preset.name, dataURL, preset.type)
+            setActiveTemplateId(id)
+        } catch (error) {
+            setUploadError(error.message)
+        }
+    }, [addTemplate, setActiveTemplateId, templates])
+
     /* ── Save status badge ── */
     const saveIcon = saveStatus === 'saved' ? '🟢' : saveStatus === 'saving' ? '🟡' : '🔴'
     const saveLabel = saveStatus === 'saved' ? 'محفوظ' : saveStatus === 'saving' ? 'جارِ الحفظ...' : 'خطأ'
@@ -167,6 +216,7 @@ export default function Settings() {
                         ))}
                     </select>
                     <button className="de-btn" onClick={() => fileRef.current?.click()} title="رفع قالب جديد">📄+</button>
+                    <button className="de-btn" onClick={() => handleAddTemplatePreset(TEMPLATE_PRESETS[0])} title="إضافة قالب الفرع الجاهز">⭐</button>
                     <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
                         onChange={e => handleUpload(e.target.files[0])} />
                     {uploadError && <span style={{ color: '#f44', fontSize: '0.75rem' }}>⚠️ {uploadError}</span>}
@@ -202,6 +252,7 @@ export default function Settings() {
                     <button className="de-btn" onClick={undo} title="تراجع (Ctrl+Z)">↩</button>
                     <button className="de-btn" onClick={redo} title="إعادة (Ctrl+Y)">↪</button>
                     <span className="de-sep" />
+                    <button className="de-btn" onClick={handleApplyScreenshotPreset} title="تطبيق إعدادات الصورة">مطابقة</button>
                     <button className="de-btn danger" onClick={resetLayers} title="إعادة تعيين الطبقات">🔄</button>
                 </div>
             </div>

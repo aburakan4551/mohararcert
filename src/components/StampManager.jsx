@@ -1,8 +1,9 @@
 import React from 'react'
 import SignatureUploader from './SignatureUploader'
+import { STAMP_PRESETS } from '../config/assetPresets'
 
 /**
- * Stamp Manager - controls stamp upload, size, opacity, rotation
+ * Stamp Manager - controls stamp upload, presets, size, opacity, and rotation.
  */
 export default function StampManager({ settings, onSettingsChange }) {
     const { stamp, stampSize = 120, stampOpacity = 0.85, stampRotation = -8 } = settings
@@ -13,26 +14,28 @@ export default function StampManager({ settings, onSettingsChange }) {
 
     return (
         <div className="card" style={{ marginBottom: '16px' }}>
-            <div className="card-title">🔵 الختم الرسمي</div>
+            <div className="card-title">الختم الرسمي</div>
 
             <SignatureUploader
                 label="صورة الختم"
                 value={stamp}
                 onChange={(v) => update('stamp', v)}
                 hint="PNG بخلفية شفافة - الختم سيظهر في وسط أسفل الشهادة"
+                presets={STAMP_PRESETS}
             />
 
             {stamp && (
                 <>
-                    {/* Preview */}
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '20px',
-                        background: 'repeating-conic-gradient(#f0f0f0 0% 25%, #fff 0% 50%) 0 0 / 16px 16px',
-                        borderRadius: '8px',
-                        marginBottom: '16px',
-                        border: '1px solid var(--border)'
-                    }}>
+                    <div
+                        style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            background: 'repeating-conic-gradient(#f0f0f0 0% 25%, #fff 0% 50%) 0 0 / 16px 16px',
+                            borderRadius: '8px',
+                            marginBottom: '16px',
+                            border: '1px solid var(--border)',
+                        }}
+                    >
                         <img
                             src={stamp}
                             alt="معاينة الختم"
@@ -44,7 +47,6 @@ export default function StampManager({ settings, onSettingsChange }) {
                         />
                     </div>
 
-                    {/* Size */}
                     <div className="form-group">
                         <label className="form-label">الحجم: {stampSize}px</label>
                         <div className="slider-group">
@@ -54,14 +56,13 @@ export default function StampManager({ settings, onSettingsChange }) {
                                 min="60"
                                 max="250"
                                 value={stampSize}
-                                onChange={(e) => update('stampSize', parseInt(e.target.value))}
+                                onChange={(e) => update('stampSize', parseInt(e.target.value, 10))}
                                 style={{ flex: 1, accentColor: 'var(--primary)' }}
                             />
                             <span style={{ fontSize: '0.8rem' }}>250px</span>
                         </div>
                     </div>
 
-                    {/* Opacity */}
                     <div className="form-group">
                         <label className="form-label">الشفافية: {Math.round(stampOpacity * 100)}%</label>
                         <div className="slider-group">
@@ -79,7 +80,6 @@ export default function StampManager({ settings, onSettingsChange }) {
                         </div>
                     </div>
 
-                    {/* Rotation */}
                     <div className="form-group">
                         <label className="form-label">زاوية التدوير: {stampRotation}°</label>
                         <div className="slider-group">
@@ -89,7 +89,7 @@ export default function StampManager({ settings, onSettingsChange }) {
                                 min="-45"
                                 max="45"
                                 value={stampRotation}
-                                onChange={(e) => update('stampRotation', parseInt(e.target.value))}
+                                onChange={(e) => update('stampRotation', parseInt(e.target.value, 10))}
                                 style={{ flex: 1, accentColor: 'var(--primary)' }}
                             />
                             <span style={{ fontSize: '0.8rem' }}>+45°</span>
@@ -105,7 +105,7 @@ export default function StampManager({ settings, onSettingsChange }) {
                         }}
                         type="button"
                     >
-                        ↺ إعادة ضبط الختم
+                        إعادة ضبط الختم
                     </button>
                 </>
             )}

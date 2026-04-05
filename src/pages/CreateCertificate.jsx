@@ -7,6 +7,10 @@ import { useSerial } from '../hooks/useSerial'
 import { useTemplates } from '../hooks/useTemplates'
 import { useLayers } from '../hooks/useLayers'
 import { exportSinglePDF, printElements } from '../utils/pdfExport'
+import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../config/certificatePreset'
+import { DIRECTOR_SIGNATURE_PRESETS, VISA_PRESETS } from '../config/assetPresets'
+
+const BRANCH_TEMPLATE_NAME = 'شهادة شكر وتقدير الفرع'
 
 /* ─────────────────────────────────────────
    useScaleFactor – measures the preview
@@ -63,7 +67,7 @@ const DataTab = memo(function DataTab({ formData, setFormData, settings, setSett
                         <option value="">🎨 التصميم الكلاسيكي (بدون قالب)</option>
                         {templates.map(t => (
                             <option key={t.id} value={t.id}>
-                                {t.isDefault ? '⭐ ' : ''}{t.name}
+                                {t.isDefault ? '⭐ ' : ''}{t.name === 'قالب شهادة' ? BRANCH_TEMPLATE_NAME : t.name}
                             </option>
                         ))}
                     </select>
@@ -75,7 +79,7 @@ const DataTab = memo(function DataTab({ formData, setFormData, settings, setSett
                 <input
                     type="text"
                     className="form-control"
-                    placeholder="مثال: محمد أحمد علي"
+                    placeholder="اسم الموظف"
                     value={formData.recipientName}
                     onChange={e => {
                         const v = e.target.value
@@ -218,7 +222,12 @@ const SignaturesTab = memo(function SignaturesTab({ settings, setSettings }) {
                     <label className="form-label">المسمى الوظيفي</label>
                     <input className="form-control" value={settings.directorTitle} onChange={e => upd('directorTitle', e.target.value)} />
                 </div>
-                <SignatureUploader label="التوقيع" value={settings.directorSignature} onChange={v => upd('directorSignature', v)} />
+                <SignatureUploader
+                    label="التوقيع"
+                    value={settings.directorSignature}
+                    onChange={v => upd('directorSignature', v)}
+                    presets={DIRECTOR_SIGNATURE_PRESETS}
+                />
             </fieldset>
 
             {/* Visa */}
@@ -232,7 +241,12 @@ const SignaturesTab = memo(function SignaturesTab({ settings, setSettings }) {
                     <label className="form-label">اسم صاحب التأشيرة</label>
                     <input className="form-control" value={settings.visaName} onChange={e => upd('visaName', e.target.value)} />
                 </div>
-                <SignatureUploader label="توقيع التأشيرة" value={settings.visaSignature} onChange={v => upd('visaSignature', v)} />
+                <SignatureUploader
+                    label="توقيع التأشيرة"
+                    value={settings.visaSignature}
+                    onChange={v => upd('visaSignature', v)}
+                    presets={VISA_PRESETS}
+                />
             </fieldset>
 
             {/* Stamp */}
@@ -280,31 +294,11 @@ const ExportTab = memo(function ExportTab({ onExportPDF, onPrint, exporting, sav
 ──────────────────────────────────────────── */
 export default function CreateCertificate() {
     /* ── State ── */
-    const [settings, setSettings] = useLocalStorage('certSettings', {
-        orgName: 'الجهة الحكومية',
-        orgSubName: '',
-        orgLogo: null,
-        directorName: 'اسم المدير العام',
-        directorTitle: 'المدير العام',
-        directorSignature: null,
-        visaLabel: 'التأشيرة',
-        visaSignature: null,
-        visaName: '',
-        stamp: null,
-        stampSize: 120,
-        stampOpacity: 0.85,
-        stampRotation: -8,
-        primaryColor: '#1a3a6b',
-        goldColor: '#c9a227',
-        certTitle: 'شهادة شكر وتقدير',
-        certSubTitle: 'Certificate of Appreciation',
-        reasonPrefix: 'نظيرًا لـ',
-        reasonText: 'مشاركته الفعالة في',
-    })
+    const [settings, setSettings] = useLocalStorage('certSettings', CERTIFICATE_SCREENSHOT_PRESET_SETTINGS)
 
     const [registry, setRegistry] = useLocalStorage('certificateRegistry', [])
     const { getNextSerial, consumeSerial, resetSerial } = useSerial()
-    const { templates, getTemplate, activeTemplateId, setActiveTemplateId } = useTemplates()
+    const { templates, getTemplate, activeTemplateId, setActiveTemplateId, updateTemplate } = useTemplates()
 
     // Template is now shared via localStorage — same ID used in /settings
     const selectedTemplateId = activeTemplateId
@@ -318,12 +312,19 @@ export default function CreateCertificate() {
         recipientName: '',
         event: '',
         date: new Date().toLocaleDateString('ar-SA', { dateStyle: 'long' }),
-        showQR: true,
+        showQR: false,
     })
     const [serialInput, setSerialInput] = useState('')
     const [activeTab, setActiveTab] = useState('data')
     const [exporting, setExporting] = useState(false)
     const [saved, setSaved] = useState(false)
+
+    useEffect(() => {
+        const currentTemplate = activeTemplateId ? getTemplate(activeTemplateId) : null
+        if (currentTemplate?.name === 'قالب شهادة') {
+            updateTemplate(currentTemplate.id, { name: BRANCH_TEMPLATE_NAME })
+        }
+    }, [activeTemplateId, getTemplate, updateTemplate])
 
     /* ── Refs ── */
     const certRef = useRef()
