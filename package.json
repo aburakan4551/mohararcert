@@ -10,15 +10,21 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@tailwindcss/vite": "^4.3.0",
+        "autoprefixer": "^10.5.0",
+        "framer-motion": "^12.40.0",
+        "html2canvas": "^1.4.1",
+        "jspdf": "^2.5.2",
+        "lucide-react": "^1.16.0",
+        "pdfjs-dist": "^4.9.155",
+        "postcss": "^8.5.15",
+        "qrcode.react": "^4.1.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-router-dom": "^6.28.0",
-        "xlsx": "^0.18.5",
-        "jspdf": "^2.5.2",
-        "html2canvas": "^1.4.1",
-        "qrcode.react": "^4.1.0",
         "react-to-print": "^3.0.5",
-        "pdfjs-dist": "^4.9.155"
+        "tailwindcss": "^4.3.0",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "@types/react": "^18.3.1",

@@ -2,25 +2,7 @@
  * ╔══════════════════════════════════════════════════════════════════╗
  * ║           UnifiedCertificateEngine                              ║
  * ║  Single source of truth for ALL certificate rendering.          ║
- * ║                                                                  ║
- * ║  Modes:                                                          ║
- * ║   "editor"  → wraps EditorCanvas (drag/resize, no scale)        ║
- * ║   "preview" → scaled A4 display (read-only)                     ║
- * ║   "print"   → mm layout, no transform, @page friendly           ║
- * ║   "pdf"     → same as preview but intended for html2canvas      ║
- * ║                                                                  ║
- * ║  Props:                                                          ║
- * ║   templateId  – active template ID (reads layers internally)    ║
- * ║   template    – template object {image, ...}                    ║
- * ║   data        – { recipientName, event, date, serial }          ║
- * ║   settings    – { orgName, directorName, ... }                  ║
- * ║   mode        – "editor" | "preview" | "print" | "pdf"         ║
- * ║   showQR      – boolean (default true)                          ║
- * ║   certRef     – forwarded ref for the certificate DOM node      ║
- * ║                                                                  ║
- * ║  Editor-only props (passed through to EditorCanvas):            ║
- * ║   layers, selectedId, onSelect, onMove, onResize,               ║
- * ║   onDragStart, onCanvasReady, showGrid, showGuides              ║
+ * ║  Fully Integrated with Enterprise Workflow & Versioned Stamps.  ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -32,22 +14,6 @@ import EditorCanvas from '../components/EditorCanvas'
 const A4_WIDTH_PX = 297 * (96 / 25.4)  // ≈ 1122.5 px
 const A4_HEIGHT_PX = 210 * (96 / 25.4)  // ≈ 793.7  px
 
-/*
- * DEFAULT_LABELS – exact default label strings from useLayers.js
- *
- * These are the PLACEHOLDER labels that useLayers.js assigns to
- * semantic layers when first created.
- *
- * Decision rule:
- *   layer.label === DEFAULT_LABELS[layer.id]
- *     → user never customized it → show DYNAMIC data from contentMap
- *
- *   layer.label !== DEFAULT_LABELS[layer.id]
- *     → user typed custom static text → show layer.label AS-IS
- *
- * This mirrors exactly what EditorCanvas shows:
- *   it always renders layer.label as the visible text.
- */
 const DEFAULT_LABELS = {
     'name': 'اسم المستفيد',
     'reason': 'سبب التكريم',
@@ -58,14 +24,6 @@ const DEFAULT_LABELS = {
     'visa-name': 'اسم صاحب التأشيرة',
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   LayerRenderer  –  renders ONE layer in preview/print/pdf modes.
-
-   All px dimensions (width, height, fontSize…) are stored relative
-   to the EditorCanvas rendered width (canvasWidth).
-   We scale to A4_WIDTH_PX so every layer lands at the same
-   physical position regardless of screen resolution.
-───────────────────────────────────────────────────────────────── */
 function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth }) {
     if (!layer.visible) return null
 
@@ -73,7 +31,6 @@ function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth }) {
     const canvasHeight = canvasWidth * (A4_HEIGHT_PX / A4_WIDTH_PX)
     const scale = A4_WIDTH_PX / canvasWidth
 
-    /* px → % of A4 container */
     const widthPct = (layer.width / canvasWidth) * 100
     const heightPct = (layer.height / canvasHeight) * 100
 
@@ -89,42 +46,20 @@ function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth }) {
 
     /* ── TEXT ── */
     if (layer.type === 'text') {
-        /*
-         * Content resolution priority:
-         *
-         * 1. layer.content  – explicit static override (future)
-         * 2. layer.dataKey  – explicit dynamic binding  e.g. dataKey="name"
-         *                     → reads contentMap[dataKey] set by /create form
-         * 3. DEFAULT_LABELS  – legacy: if label still matches placeholder
-         *                     → reads contentMap[layer.id]
-         * 4. layer.label    – static text the user typed in the editor
-         *
-         * Rule of thumb:
-         *   Set dataKey  = "name" / "event" / "date" / "serial" / "reason"
-         *   in PropertiesPanel to make a layer dynamic.
-         *   Leave dataKey empty to keep the label as-is (static).
-         */
         let displayText
 
         if (layer.content !== undefined && layer.content !== '') {
             displayText = layer.content
-
         } else if (layer.dataKey) {
-            // Explicit data binding → always dynamic
             displayText = contentMap[layer.dataKey] ?? layer.label
-
         } else if (
             layer.id in DEFAULT_LABELS &&
             layer.label === DEFAULT_LABELS[layer.id]
         ) {
-            // Legacy fallback: label still == default placeholder → dynamic
             displayText = contentMap[layer.id] ?? layer.label
-
         } else {
-            // Static: user typed custom text in the label field
             displayText = layer.label
         }
-
 
         return (
             <div style={wrapperStyle}>
@@ -198,12 +133,6 @@ function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth }) {
     return null
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   CertificatePreview  –  renders the A4 certificate (non-editor).
-
-   Uses position:absolute layers on a 297mm × 210mm container so
-   the output is IDENTICAL whether displayed, printed, or exported.
-───────────────────────────────────────────────────────────────── */
 function CertificatePreview({ template, layers, canvasWidth, data, settings, showQR, certRef }) {
     const {
         directorName = '',
@@ -216,7 +145,6 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
         stampOpacity = 0.85,
         stampRotation = -8,
         reasonText = '',
-        reasonPrefix = '',
     } = settings || {}
 
     const {
@@ -224,32 +152,50 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
         event = '',
         date = '',
         serial = '',
+        status = 'DRAFT',
+        assistantSnapshot = null,
+        managerSnapshot = null
     } = data || {}
 
-    // Full content map — dataKey values are keys in this object
+    // Use versioned snapshot values if they exist on the certificate (prevents retroactive modifications)
+    const activeVisaName = assistantSnapshot?.visaName || visaName || visaLabel;
+    const activeVisaLabel = assistantSnapshot?.visaLabel || visaLabel || 'مساعد المدير العام للتخطيط';
+    const activeVisaSignature = assistantSnapshot?.visaSignature || visaSignature;
+    
+    const activeDirectorName = managerSnapshot?.directorName || directorName;
+    const activeDirectorTitle = managerSnapshot?.directorTitle || 'المدير العام للمنصة';
+    const activeDirectorSignature = managerSnapshot?.directorSignature || directorSignature;
+    const activeStamp = managerSnapshot?.stamp || stamp;
+    const activeStampSize = managerSnapshot?.stampSize || stampSize;
+    const activeStampRotation = managerSnapshot?.stampRotation || stampRotation;
+
     const contentMap = {
         name: recipientName,
         event: event,
         date: date,
         serial: serial,
-        reason: reasonText || event,   // long reason/body text
-        reasonPrefix: reasonPrefix,
-        'director-name': directorName,
-        'visa-name': visaName || visaLabel,
+        reason: reasonText || event,
+        'director-name': activeDirectorName,
+        'visa-name': activeVisaName,
     }
 
     const imageMap = {
-        'director-sig': directorSignature,
-        'visa-sig': visaSignature,
-        stamp: stamp,
+        'director-sig': activeDirectorSignature,
+        'visa-sig': activeVisaSignature,
+        stamp: activeStamp,
     }
 
     const sorted = [...(layers || [])].sort((a, b) => a.zIndex - b.zIndex)
 
+    // Render conditions
+    const hasVisa = status === 'APPROVED_BY_ASSISTANT' || status === 'FINAL_APPROVED' || status === 'ARCHIVED';
+    const isFinalApproved = status === 'FINAL_APPROVED' || status === 'ARCHIVED';
+
     return (
         <div
             ref={certRef}
-            className="certificate-a4 certificate-wrapper"
+            className="certificate-a4 certificate-wrapper select-none"
+            id="certificate-print-wrapper"
             style={{
                 position: 'relative',
                 width: '297mm',
@@ -276,6 +222,30 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                 />
             )}
 
+            {/* Static Certificate Title (Always programmatically present at top center) */}
+            <div style={{
+                position: 'absolute',
+                top: '12%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                textAlign: 'center',
+                width: '60%',
+                pointerEvents: 'none',
+                zIndex: 10
+            }}>
+                <h1 style={{
+                    fontSize: '34px',
+                    fontWeight: 900,
+                    color: settings.primaryColor || '#0d1f3c',
+                    fontFamily: 'Cairo',
+                    letterSpacing: '1px',
+                    margin: 0,
+                    textShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}>
+                    شهادة شكر وتقدير
+                </h1>
+            </div>
+
             {/* Layers */}
             {sorted.map(layer => (
                 <LayerRenderer
@@ -288,51 +258,166 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                 />
             ))}
 
-            {/* Classic stamp (if no stamp layer) */}
-            {stamp && !sorted.some(l => l.id === 'stamp') && (
+            {/* Dynamic Assistant Visa Overlay (Bottom Left) */}
+            {hasVisa && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '12%',
+                    left: '8%',
+                    width: '240px',
+                    padding: '10px 14px',
+                    border: '1.5px dashed rgba(201, 162, 39, 0.4)',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+                    zIndex: 40,
+                    direction: 'rtl',
+                    textAlign: 'center'
+                }}>
+                    <span style={{
+                        fontSize: '9px',
+                        fontWeight: 900,
+                        color: '#c9a227',
+                        display: 'block',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        marginBottom: '4px'
+                    }}>
+                         تأشيرة مراجعة واعتماد
+                    </span>
+                    <span style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: '#0d1f3c',
+                        display: 'block'
+                    }}>
+                        {activeVisaLabel}
+                    </span>
+                    
+                    {/* Assistant digital signature */}
+                    <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
+                        {activeVisaSignature ? (
+                            <img src={activeVisaSignature} alt="توقيع المساعد" style={{ maxHeight: '100%', maxWidth: '80%', objectFit: 'contain' }} />
+                        ) : (
+                            <span style={{ fontFamily: 'Amiri', fontStyle: 'italic', fontSize: '13px', color: '#c9a227', fontWeight: 'bold' }}>{activeVisaName}</span>
+                        )}
+                    </div>
+
+                    <span style={{
+                        fontSize: '9px',
+                        color: '#7f8c8d',
+                        display: 'block',
+                        fontWeight: 700
+                    }}>
+                        بتاريخ: {assistantSnapshot?.approvedAt ? new Date(assistantSnapshot.approvedAt).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA')}
+                    </span>
+                </div>
+            )}
+
+            {/* Dynamic General Manager Approval Overlay (Bottom Right) */}
+            {isFinalApproved && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '12%',
+                    right: '8%',
+                    width: '240px',
+                    padding: '10px 14px',
+                    border: '2px solid #0d1f3c',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+                    zIndex: 40,
+                    direction: 'rtl',
+                    textAlign: 'center'
+                }}>
+                    <span style={{
+                        fontSize: '9px',
+                        fontWeight: 900,
+                        color: '#0d1f3c',
+                        display: 'block',
+                        letterSpacing: '0.5px',
+                        marginBottom: '4px'
+                    }}>
+                        👑 مصادقة واعتماد نهائي
+                    </span>
+                    <span style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: '#0d1f3c',
+                        display: 'block'
+                    }}>
+                        {activeDirectorTitle}
+                    </span>
+                    
+                    {/* GM Signature */}
+                    <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
+                        {activeDirectorSignature ? (
+                            <img src={activeDirectorSignature} alt="توقيع المدير" style={{ maxHeight: '100%', maxWidth: '80%', objectFit: 'contain' }} />
+                        ) : (
+                            <span style={{ fontFamily: 'Amiri', fontStyle: 'italic', fontSize: '14px', color: '#0d1f3c', fontWeight: 'bold' }}>{activeDirectorName}</span>
+                        )}
+                    </div>
+
+                    <span style={{
+                        fontSize: '10px',
+                        color: '#0d1f3c',
+                        display: 'block',
+                        fontWeight: 800
+                    }}>
+                        {activeDirectorName}
+                    </span>
+                </div>
+            )}
+
+            {/* Dynamic stamp (rendered absolutely under GM or center bottom) */}
+            {isFinalApproved && activeStamp && (
                 <img
-                    src={stamp}
-                    alt="ختم"
+                    src={activeStamp}
+                    alt="ختم المصادقة"
                     style={{
                         position: 'absolute',
-                        left: '50%', bottom: '12%',
-                        transform: `translateX(-50%) rotate(${stampRotation}deg)`,
-                        width: `${stampSize}px`,
+                        right: '18%',
+                        bottom: '9%',
+                        transform: `rotate(${activeStampRotation}deg)`,
+                        width: `${activeStampSize}px`,
                         opacity: stampOpacity,
                         objectFit: 'contain',
                         pointerEvents: 'none',
+                        zIndex: 45
                     }}
                 />
             )}
 
-            {/* Classic QR (if no qr layer) */}
-            {showQR && serial && !sorted.some(l => l.type === 'qr') && (
+            {/* Classic QR Code (Bottom Left-Center) */}
+            {showQR && serial && (
                 <div style={{
                     position: 'absolute',
-                    right: '6%', bottom: '8%',
+                    left: '50%',
+                    bottom: '8%',
+                    transform: 'translateX(-50%)',
                     pointerEvents: 'none',
+                    background: '#fff',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    zIndex: 35
                 }}>
-                    <QRCodeSVG value={`CERT:${serial}|${recipientName}`} size={64} />
+                    <QRCodeSVG value={`CERT:${serial}|${recipientName}|STATUS:${status}`} size={54} />
                 </div>
             )}
         </div>
     )
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   UnifiedCertificateEngine  –  the public API
-───────────────────────────────────────────────────────────────── */
 const UnifiedCertificateEngine = forwardRef(function UnifiedCertificateEngine({
-    /* shared */
     template = null,
     layers = [],
     canvasWidth = 800,
     data = {},
     settings = {},
-    mode = 'preview',  // 'editor' | 'preview' | 'print' | 'pdf'
+    mode = 'preview',
     showQR = true,
 
-    /* editor-mode props (passed through to EditorCanvas) */
     selectedId,
     onSelect,
     onMove,
@@ -343,7 +428,6 @@ const UnifiedCertificateEngine = forwardRef(function UnifiedCertificateEngine({
     showGuides = true,
 }, ref) {
 
-    /* ── EDITOR MODE: delegate entirely to EditorCanvas ── */
     if (mode === 'editor') {
         return (
             <EditorCanvas
@@ -361,7 +445,6 @@ const UnifiedCertificateEngine = forwardRef(function UnifiedCertificateEngine({
         )
     }
 
-    /* ── PREVIEW / PRINT / PDF MODES ── */
     return (
         <CertificatePreview
             certRef={ref}

@@ -1,14 +1,20 @@
 import React, { useRef, useState, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import CertificateTemplate from '../components/CertificateTemplate'
 import ExcelImporter from '../components/ExcelImporter'
 import TemplateSelector from '../components/TemplateSelector'
-import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useTemplates } from '../hooks/useTemplates'
 import { useLayers } from '../hooks/useLayers'
 import { useSerial } from '../hooks/useSerial'
-import { exportMergedPDF, exportSeparatePDFs } from '../utils/pdfExport'
+import { useAuth } from '../context/AuthContext'
+import { dbService, auditService, notificationService } from '../services/db'
+import { Save, Send, Sparkles, Database, FileText, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react'
+
+const BRANCH_TEMPLATE_NAME = 'شهادة شكر وتقدير الفرع'
 
 export default function BatchCreate() {
+    const { user, settings } = useAuth()
+    const navigate = useNavigate()
     const { templates, getTemplate, activeTemplateId } = useTemplates()
     const [selectedTemplateId, setSelectedTemplateId] = useState(activeTemplateId || (templates[0]?.id))
     
@@ -16,129 +22,178 @@ export default function BatchCreate() {
     const { layers, canvasWidth } = useLayers(selectedTemplateId || 'default')
     const activeTemplate = useMemo(() => getTemplate(selectedTemplateId), [selectedTemplateId, getTemplate])
 
-    const [settings] = useLocalStorage('certSettings', {})
-    const [registry, setRegistry] = useLocalStorage('certificateRegistry', [])
     const { getNextSerial, consumeMultiple } = useSerial()
 
     const [names, setNames] = useState([])
     const [commonData, setCommonData] = useState({
         event: '',
+        reasonText: '',
         date: new Date().toLocaleDateString('ar-SA', { dateStyle: 'long' }),
-        showQR: true
+        showQR: true,
+        directSubmit: false // True = directly PENDING_APPROVAL, False = DRAFT
     })
     const [serials, setSerials] = useState([])
-    const [step, setStep] = useState(1) // 1=Select Template, 2=Import, 3=Configure, 4=Preview+Export
-    const [exporting, setExporting] = useState(false)
-    const [progress, setProgress] = useState(0)
-    const [exportDone, setExportDone] = useState(false)
+    const [step, setStep] = useState(1) // 1=Select Template, 2=Import, 3=Configure, 4=Preview & Save
+    const [saving, setSaving] = useState(false)
+    const [saveProgress, setSaveProgress] = useState(0)
+    const [saveDone, setSaveDone] = useState(false)
+    const [createdIds, setCreatedIds] = useState([])
 
     const certRefs = useRef({})
 
     const handleImport = (importedNames) => {
         setNames(importedNames)
         setSerials([])
-        setExportDone(false)
+        setSaveDone(false)
     }
 
     const handleGenerateSerials = () => {
+        if (!commonData.event.trim()) return alert('الرجاء إدخال عنوان المناسبة')
+        if (!commonData.reasonText.trim()) return alert('الرجاء إدخال سبب التكريم')
+        
         const newSerials = consumeMultiple(names.length)
         setSerials(newSerials)
-        // Save to registry
-        const records = names.map((item, i) => ({
-            serial: newSerials[i],
-            name: item.name,
-            event: commonData.event,
-            date: commonData.date,
-            createdAt: new Date().toISOString()
-        }))
-        setRegistry(prev => [...prev, ...records])
         setStep(4)
     }
 
-    const handleExportMerged = async () => {
-        setExporting(true)
-        setProgress(0)
-        const elements = serials.map((s, i) => certRefs.current[`cert-${i}`])
+    const handleBulkSave = async () => {
+        if (names.length === 0 || serials.length === 0) return
+        
+        setSaving(true)
+        setSaveProgress(0)
+        
+        const targetStatus = commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT'
+        const ids = []
+        
         try {
-            await exportMergedPDF(
-                elements.filter(Boolean),
-                `شهادات-${commonData.event || 'دفعة'}.pdf`,
-                (done, total) => setProgress(Math.round((done / total) * 100))
+            for (let i = 0; i < names.length; i++) {
+                const nameItem = names[i]
+                const serial = serials[i]
+                
+                const payload = {
+                    recipientName: nameItem.name,
+                    event: commonData.event,
+                    reasonText: commonData.reasonText,
+                    date: commonData.date,
+                    serial: serial,
+                    showQR: commonData.showQR,
+                    status: targetStatus,
+                    templateId: selectedTemplateId,
+                    createdBy: user.id,
+                    creatorName: user.name,
+                    comments: targetStatus === 'PENDING_APPROVAL' ? 'تم الرفع للاعتماد دفعة واحدة عبر ملف Excel' : 'مسودة مستوردة دفعة واحدة',
+                    workflowHistory: [
+                        {
+                            stage: 'DRAFT',
+                            timestamp: new Date().toISOString(),
+                            user: user.name,
+                            comments: 'إنشاء عبر الدفعة المستوردة'
+                        }
+                    ]
+                }
+                
+                if (targetStatus === 'PENDING_APPROVAL') {
+                    payload.workflowHistory.push({
+                        stage: 'PENDING_APPROVAL',
+                        timestamp: new Date().toISOString(),
+                        user: user.name,
+                        comments: 'رفع للاعتماد مباشرة'
+                    })
+                }
+                
+                const newCert = await dbService.create(payload)
+                ids.push(newCert.id)
+                
+                // Update progress percentage
+                setSaveProgress(Math.round(((i + 1) / names.length) * 100))
+                
+                // Small artificial delay to show progress and ensure stability
+                await new Promise(r => setTimeout(r, 40))
+            }
+            
+            // Log security audit
+            await auditService.log(
+                'CREATE_CERTIFICATE',
+                user,
+                `إنشاء دفعة شهادات (${names.length} شهادة) بصفة ${targetStatus === 'PENDING_APPROVAL' ? 'معلق للاعتماد' : 'مسودات'} بنجاح`
             )
-            setExportDone(true)
+            
+            // Send single summary notification to Assistant if submitted directly
+            if (targetStatus === 'PENDING_APPROVAL') {
+                await notificationService.create({
+                    userId: 'usr-2', // Assistant Manager
+                    message: `دفعة شهادات جديدة (${names.length} شهادة) مرفوعة بانتظار المراجعة والاعتماد`,
+                    type: 'pending'
+                })
+            }
+            
+            setCreatedIds(ids)
+            setSaveDone(true)
+            
         } catch (e) {
-            alert('خطأ في التصدير: ' + e.message)
+            console.error(e)
+            alert('حدث خطأ أثناء حفظ شهادات الدفعة: ' + e.message)
+        } finally {
+            setSaving(false)
         }
-        setExporting(false)
-    }
-
-    const handleExportSeparate = async () => {
-        setExporting(true)
-        setProgress(0)
-        const items = serials.map((s, i) => ({
-            element: certRefs.current[`cert-${i}`],
-            name: names[i]?.name,
-            serial: s
-        }))
-        try {
-            await exportSeparatePDFs(
-                items.filter(it => it.element),
-                (done, total) => setProgress(Math.round((done / total) * 100))
-            )
-            setExportDone(true)
-        } catch (e) {
-            alert('خطأ في التصدير: ' + e.message)
-        }
-        setExporting(false)
-    }
-
-    const handlePrintAll = () => {
-        window.print()
     }
 
     return (
-        <div className="batch-create-page">
+        <div className="max-w-6xl mx-auto space-y-6">
+            
             {/* Step indicator */}
-            <div style={{ display: 'flex', gap: '0', marginBottom: '28px' }} className="no-print">
+            <div className="flex items-center gap-0 bg-white dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm no-print">
                 {[1, 2, 3, 4].map((s, i) => (
                     <React.Fragment key={s}>
-                        <div style={{
-                            flex: 1,
-                            padding: '12px 16px',
-                            background: step >= s ? 'var(--gold, #c9a227)' : 'var(--border, #eee)',
-                            color: step >= s ? 'white' : 'var(--text-muted, #777)',
-                            textAlign: 'center',
-                            fontSize: '0.85rem',
-                            fontWeight: 700,
-                            borderRadius: i === 0 ? '12px 0 0 12px' : i === 3 ? '0 12px 12px 0' : 0,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: step === s ? 'inset 0 -4px 0 rgba(0,0,0,0.1)' : 'none'
-                        }}>
-                            {['🎨 القالب', '📊 استيراد', '⚙️ الإعدادات', '👁️ معاينة'][i]}
+                        <div className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
+                            step === s 
+                                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10' 
+                                : step > s 
+                                    ? 'bg-emerald-500/10 text-emerald-500' 
+                                    : 'text-slate-400 dark:text-slate-600'
+                        }`}>
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                step === s 
+                                    ? 'bg-slate-950 text-amber-500' 
+                                    : step > s 
+                                        ? 'bg-emerald-500 text-white' 
+                                        : 'bg-slate-100 dark:bg-slate-900 text-slate-400'
+                            }`}>
+                                {s}
+                            </span>
+                            <span>{['اختيار القالب', 'استيراد الأسماء', 'صياغة البيانات', 'تأكيد وحفظ'][i]}</span>
                         </div>
-                        {i < 3 && <div style={{ width: '2px', background: 'var(--bg, #f4f4f4)' }} />}
+                        {i < 3 && <div className="h-px w-6 bg-slate-200 dark:bg-slate-800 mx-2" />}
                     </React.Fragment>
                 ))}
             </div>
 
             {/* Step 1: Template Selection */}
             {step === 1 && (
-                <div className="card fade-in">
-                    <div className="card-title">🎨 اختر قالب الشهادة</div>
-                    <div className="alert alert-info" style={{ marginBottom: '20px' }}>
-                        يرجى اختيار التصميم الذي سيتم استخدامه لجميع الشهادات في هذه الدفعة.
+                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                    <div>
+                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-amber-500" />
+                            اختر القالب الموحد للدفعة
+                        </h2>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                            سيتم تطبيق هذا القالب وتصميم الخلفية على جميع الأسماء المستوردة في هذه الدفعة.
+                        </p>
                     </div>
+
                     <TemplateSelector 
                         selectedId={selectedTemplateId} 
                         onSelect={setSelectedTemplateId} 
                     />
-                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+
+                    <div className="flex justify-end pt-2">
                         <button 
-                            className="btn btn-gold" 
+                            className="py-2.5 px-6 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/10 disabled:opacity-40" 
                             disabled={!selectedTemplateId}
                             onClick={() => setStep(2)}
                         >
-                            التالي: استيراد البيانات ←
+                            <span>الخطوة التالية: استيراد الأسماء</span>
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -146,18 +201,33 @@ export default function BatchCreate() {
 
             {/* Step 2: Import */}
             {step === 2 && (
-                <div className="card fade-in">
-                    <div className="card-title">📊 استيراد أسماء من Excel</div>
-                    <div className="alert alert-info" style={{ marginBottom: '16px' }}>
-                        💡 تأكد من أن ملف Excel يحتوي على عمود باسم <strong>"الاسم"</strong> أو <strong>"Name"</strong>. إذا لم يوجد، سيتم قراءة العمود الأول.
+                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                    <div>
+                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
+                            <Database className="w-5 h-5 text-amber-500" />
+                            استيراد قوائم الأسماء من ملف Excel
+                        </h2>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                            💡 يرجى التأكد من احتواء الملف على عمود معنون باسم <strong>"الاسم"</strong> أو <strong>"Name"</strong>.
+                        </p>
                     </div>
+
                     <ExcelImporter onImport={handleImport} />
+
                     {names.length > 0 && (
-                        <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
-                            <button className="btn btn-outline" onClick={() => setStep(1)}>← القوالب</button>
-                            <button className="btn btn-primary" style={{ flex: 1 }}
-                                onClick={() => setStep(3)}>
-                                التالي: ضبط البيانات ←
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                            <button 
+                                className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                onClick={() => setStep(1)}
+                            >
+                                ← القوالب
+                            </button>
+                            <button 
+                                className="py-2.5 px-6 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/10"
+                                onClick={() => setStep(3)}
+                            >
+                                <span>الخطوة التالية: ضبط البيانات المشتركة</span>
+                                <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
                     )}
@@ -166,105 +236,194 @@ export default function BatchCreate() {
 
             {/* Step 3: Configure */}
             {step === 3 && (
-                <div className="card fade-in">
-                    <div className="card-title">⚙️ بيانات مشتركة لجميع الشهادات</div>
-
-                    <div className="form-group">
-                        <label className="form-label">عنوان المناسبة *</label>
-                        <input type="text" className="form-control"
-                            placeholder="مثال: ورشة عمل التميز الإداري 2025"
-                            value={commonData.event}
-                            onChange={e => setCommonData(p => ({ ...p, event: e.target.value }))} />
+                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5 max-w-xl mx-auto">
+                    <div>
+                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-amber-500" />
+                            البيانات المشتركة للدفعة المستوردة
+                        </h2>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                            تُطبق هذه الصياغة والمناسبة المكتوبة على كافة الشهادات المستوردة.
+                        </p>
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label">التاريخ</label>
-                        <input type="text" className="form-control"
-                            value={commonData.date}
-                            onChange={e => setCommonData(p => ({ ...p, date: e.target.value }))} />
+                    <div className="space-y-4">
+                        <div className="form-group">
+                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">عنوان المناسبة / الحفل الإداري *</label>
+                            <input 
+                                type="text" 
+                                className="form-control"
+                                placeholder="مثال: حفل التميز السنوي الأول لعام 2026"
+                                value={commonData.event}
+                                onChange={e => setCommonData(p => ({ ...p, event: e.target.value }))} 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">سبب التكريم والتقدير المشترك *</label>
+                            <textarea 
+                                rows="3" 
+                                className="form-control resize-none"
+                                placeholder="نظير جهودكم وتفانيكم في تطوير الأنظمة الرقمية..."
+                                value={commonData.reasonText}
+                                onChange={e => setCommonData(p => ({ ...p, reasonText: e.target.value }))} 
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">تاريخ التكريم المكتوب</label>
+                            <input 
+                                type="text" 
+                                className="form-control"
+                                value={commonData.date}
+                                onChange={e => setCommonData(p => ({ ...p, date: e.target.value }))} 
+                            />
+                        </div>
+
+                        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/40 space-y-3">
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded text-amber-500 accent-amber-500"
+                                    checked={commonData.showQR}
+                                    onChange={e => setCommonData(p => ({ ...p, showQR: e.target.checked }))} 
+                                />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تضمين رمز QR للتحقق الرقمي للشهادة</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded text-amber-500 accent-amber-500"
+                                    checked={commonData.directSubmit}
+                                    onChange={e => setCommonData(p => ({ ...p, directSubmit: e.target.checked }))} 
+                                />
+                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">
+                                    🚀 رفع مباشرة للاعتماد (يتجاوز حالة المسودة ويذهب لدرج المراجع)
+                                </span>
+                            </label>
+                        </div>
+
+                        <div className="p-3 bg-amber-500/5 text-amber-500 border border-amber-500/10 rounded-xl text-[11px] font-bold">
+                            📊 سيتم إدراج <strong>{names.length}</strong> شهادة متتالية في قاعدة البيانات، تبدأ بالرقم التسلسلي: <strong>{getNextSerial()}</strong>
+                        </div>
                     </div>
 
-                    <div className="form-group">
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={commonData.showQR}
-                                onChange={e => setCommonData(p => ({ ...p, showQR: e.target.checked }))} />
-                            <span>إظهار QR Code للتحقق</span>
-                        </label>
-                    </div>
-
-                    <div className="alert alert-info">
-                        📊 سيتم إنشاء <strong>{names.length}</strong> شهادة مع أرقام تسلسلية متتابعة ابتداءً من&nbsp;
-                        <strong>{getNextSerial()}</strong>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="btn btn-outline" onClick={() => setStep(2)}>← رجوع</button>
-                        <button
-                            className="btn btn-gold"
-                            style={{ flex: 1 }}
-                            onClick={handleGenerateSerials}
-                            disabled={!commonData.event}
+                    <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                        <button 
+                            className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            onClick={() => setStep(2)}
                         >
-                            ✨ توليد الشهادات وتعيين الأرقام
+                            ← رجوع
+                        </button>
+                        <button
+                            className="flex-1 py-2.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 disabled:opacity-40"
+                            onClick={handleGenerateSerials}
+                            disabled={!commonData.event.trim() || !commonData.reasonText.trim()}
+                        >
+                            <span>تأكيد ومراجعة الدفعة المستخرجة</span>
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Step 4: Preview + Export */}
+            {/* Step 4: Preview & Confirm Save */}
             {step === 4 && (
-                <div className="fade-in">
-                    <div className="card" style={{ marginBottom: '20px' }}>
-                        <div className="card-title">🖨️ تصدير وطباعة الدفعة</div>
-
-                        {exporting && (
-                            <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                                    ⏳ جاري التصدير... {progress}%
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="progress-fill" style={{ width: `${progress}%` }} />
-                                </div>
-                            </div>
-                        )}
-
-                        {exportDone && (
-                            <div className="alert alert-success" style={{ marginBottom: '12px' }}>
-                                ✅ تم التصدير بنجاح! تم إنشاء <strong>{serials.length}</strong> شهادة.
-                            </div>
-                        )}
-
-                        <div className="grid-3" style={{ gap: '10px' }}>
-                            <button className="btn btn-gold" onClick={handleExportMerged} disabled={exporting}>
-                                📄 PDF مدمج
-                            </button>
-                            <button className="btn btn-primary" onClick={handleExportSeparate} disabled={exporting}>
-                                📂 PDF منفصل
-                            </button>
-                            <button className="btn btn-success no-print" onClick={handlePrintAll} disabled={exporting}>
-                                🖨️ طباعة الكل
-                            </button>
-                        </div>
-
-                        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <button className="btn btn-sm btn-outline no-print" onClick={() => setStep(3)}>← تعديل البيانات</button>
-                            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                                تم حفظ {serials.length} شهادة في السجل تلقائياً
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                        <div>
+                            <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
+                                <Database className="w-5 h-5 text-amber-500" />
+                                إدراج وحفظ شهادات الدفعة في النظام
+                            </h2>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                سيتم إدراج الشهادات داخل قاعدة بيانات النظام (IndexedDB/local) بصفة <strong>{commonData.directSubmit ? 'معلق للاعتماد' : 'مسودات'}</strong>.
                             </p>
                         </div>
+
+                        {saving && (
+                            <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl space-y-3.5 border border-slate-100 dark:border-slate-800/40">
+                                <div className="flex items-center justify-between text-xs font-bold">
+                                    <span className="text-slate-500">⏳ جاري إدراج الشهادات في قاعدة البيانات...</span>
+                                    <span className="text-amber-500">{saveProgress}%</span>
+                                </div>
+                                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                    <div className="bg-amber-500 h-full rounded-full transition-all duration-300" style={{ width: `${saveProgress}%` }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {saveDone && (
+                            <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-2xl space-y-3">
+                                <div className="flex items-center gap-2 font-black text-sm">
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    <span>تم إدراج الدفعة بالكامل في النظام بنجاح!</span>
+                                </div>
+                                <p className="text-xs leading-relaxed opacity-85">
+                                    تم إدراج عدد <strong>{names.length}</strong> شهادة شكر بنجاح برقم تسلسلي موحد يبدأ بـ <strong>{serials[0]}</strong> وينتهي بـ <strong>{serials[serials.length - 1]}</strong>.
+                                </p>
+                                <div className="flex gap-3 pt-2">
+                                    <button 
+                                        onClick={() => navigate('/registry')}
+                                        className="py-2 px-4 bg-emerald-500 text-white rounded-xl text-xs font-black hover:bg-emerald-600 transition-all cursor-pointer"
+                                    >
+                                        اذهب لسجل الشهادات
+                                    </button>
+                                    <button 
+                                        onClick={() => navigate('/dashboard')}
+                                        className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                    >
+                                        لوحة التحكم
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!saving && !saveDone && (
+                            <div className="flex gap-4 p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl items-center justify-between">
+                                <div className="flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+                                    <div className="space-y-1">
+                                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">مراجعة أرقام تسلسلية الدفعة والاعتمادات</h4>
+                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                                            العدد الإجمالي: {names.length} شهادات | الحالة: {commonData.directSubmit ? 'تقديم فوري للاعتماد' : 'حفظ كمسودة للتعديل اللاحق'}.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        className="py-2 px-4 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black cursor-pointer"
+                                        onClick={() => setStep(3)}
+                                    >
+                                        ← تعديل الصياغة
+                                    </button>
+                                    <button 
+                                        className="py-2 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 cursor-pointer"
+                                        onClick={handleBulkSave}
+                                    >
+                                        {commonData.directSubmit ? 'توليد وتقديم للاعتماد' : 'حفظ كمسودات في النظام'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Batch Preview */}
-                    <div className="card">
-                        <div className="card-title">👁️ معاينة الشهادات ({names.length})</div>
-                        <div className="batch-preview-grid">
+                    {/* Batch Preview Cards Grid */}
+                    <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                        <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">
+                            🔍 معاينة بطاقات الدفعة المستخرجة ({names.length})
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {names.map((item, i) => (
-                                <div key={i} className="preview-item">
-                                    <div className="preview-header">
-                                        {i + 1}. {item.name} | رقم: {serials[i]}
+                                <div key={i} className="border border-slate-100 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 shadow-sm">
+                                    <div className="bg-slate-200 dark:bg-slate-800 px-4 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                                        <span>بطاقة {i + 1} من {names.length}</span>
+                                        <span className="font-mono">{serials[i]}</span>
                                     </div>
-                                    <div className="preview-body">
-                                        <div className="preview-scale">
+                                    <div className="p-4 flex items-center justify-center bg-slate-100 dark:bg-slate-950 overflow-hidden relative" style={{ minHeight: '140px' }}>
+                                        <div style={{ transform: 'scale(0.18)', transformOrigin: 'center center', width: '297mm', height: '210mm', position: 'absolute' }}>
                                             <CertificateTemplate
                                                 ref={el => { certRefs.current[`cert-${i}`] = el }}
                                                 template={activeTemplate}
@@ -274,12 +433,16 @@ export default function BatchCreate() {
                                                     recipientName: item.name,
                                                     event: commonData.event,
                                                     date: commonData.date,
-                                                    serial: serials[i]
+                                                    serial: serials[i],
+                                                    status: commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT'
                                                 }}
                                                 settings={settings}
                                                 showQR={commonData.showQR}
                                             />
                                         </div>
+                                    </div>
+                                    <div className="p-3 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800/60 text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                                        👤 المستفيد: {item.name}
                                     </div>
                                 </div>
                             ))}
@@ -287,53 +450,6 @@ export default function BatchCreate() {
                     </div>
                 </div>
             )}
-
-            <style dangerouslySetInnerHTML={{ __html: `
-                .batch-create-page .fade-in { animation: fadeIn 0.5s ease-out; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                
-                .batch-preview-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-                    gap: 20px;
-                }
-                .preview-item {
-                    border: 1px solid var(--border, #eee);
-                    border-radius: 12px;
-                    overflow: hidden;
-                    background: white;
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-                }
-                .preview-header {
-                    background: var(--primary, #1a3a6b);
-                    color: white;
-                    padding: 8px 14px;
-                    font-size: 0.85rem;
-                    font-weight: 600;
-                }
-                .preview-body {
-                    background: #f0f0f0;
-                    padding: 10px;
-                    overflow: hidden;
-                    display: flex;
-                    justify-content: center;
-                    min-height: 180px;
-                    position: relative;
-                }
-                .preview-scale {
-                    transform: scale(0.28);
-                    transform-origin: top center;
-                    margin-bottom: -570px;
-                }
-                @media print {
-                    .no-print { display: none !important; }
-                    .batch-preview-grid { display: block; }
-                    .preview-item { border: none; box-shadow: none; break-after: page; }
-                    .preview-header { display: none; }
-                    .preview-body { background: white; padding: 0; overflow: visible; }
-                    .preview-scale { transform: none; margin-bottom: 0; }
-                }
-            `}} />
         </div>
     )
 }
