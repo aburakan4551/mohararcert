@@ -8,20 +8,21 @@
 import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../../config/certificatePreset';
 
 const MOCK_USERS = [
-    { id: 'usr-1', email: 'creator@platform.gov.sa', role: 'CREATOR', name: 'سليمان الحربي' },
-    { id: 'usr-2', email: 'assistant@platform.gov.sa', role: 'ASSISTANT_MANAGER', name: 'مساعد المدير العام للتخطيط' },
-    { id: 'usr-3', email: 'manager@platform.gov.sa', role: 'GENERAL_MANAGER', name: 'د. خالد السديري' },
-    { id: 'usr-4', email: 'admin@platform.gov.sa', role: 'SUPER_ADMIN', name: 'عبد العزيز الرويلي' }
+    { id: 'usr-1', email: 'creator@moh.gov.sa', role: 'CREATOR', name: 'سلمان الرويلي' },
+    { id: 'usr-2', email: 'assistant@moh.gov.sa', role: 'ASSISTANT_MANAGER', name: 'مساعد المدير العام للتخطيط' },
+    { id: 'usr-2b', email: 'aalanazi142@moh.gov.sa', role: 'ASSISTANT_MANAGER', name: 'مساعد المدير العام للتخطيط' },
+    { id: 'usr-3', email: 'manager@moh.gov.sa', role: 'GENERAL_MANAGER', name: 'مدير فرع وزارة الصحة بالحدود الشمالية' },
+    { id: 'usr-4', email: 'admin@moh.gov.sa', role: 'SUPER_ADMIN', name: 'يوسف العنزي' }
 ];
 
 const DEFAULT_SETTINGS = {
     ...CERTIFICATE_SCREENSHOT_PRESET_SETTINGS,
-    orgName: 'وزارة التخطيط والتطوير',
-    orgSubName: 'الإدارة العامة للتميز المؤسسي',
-    directorName: 'د. خالد السديري',
-    directorTitle: 'المدير العام للمنصة',
+    orgName: 'وزارة الصحة',
+    orgSubName: 'فرع الوزارة بالحدود الشمالية',
+    directorName: 'مدير فرع وزارة الصحة بالحدود الشمالية',
+    directorTitle: 'مدير فرع وزارة الصحة بالحدود الشمالية',
     visaLabel: 'مساعد المدير العام للتخطيط',
-    visaName: 'أ. أحمد الغامدي',
+    visaName: 'مساعد المدير العام للتخطيط',
     stampOpacity: 0.85,
     stampSize: 125,
     stampRotation: -8,
@@ -57,12 +58,12 @@ const SEED_CERTIFICATES = [
         serial: '202600001',
         status: 'DRAFT',
         createdBy: 'usr-1',
-        creatorName: 'سليمان الحربي',
+        creatorName: 'سلمان الرويلي',
         createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
         updatedAt: new Date(Date.now() - 48 * 3600000).toISOString(),
         comments: '',
         workflowHistory: [
-            { stage: 'DRAFT', timestamp: new Date(Date.now() - 48 * 3600000).toISOString(), user: 'سليمان الحربي' }
+            { stage: 'DRAFT', timestamp: new Date(Date.now() - 48 * 3600000).toISOString(), user: 'سلمان الرويلي' }
         ],
         showQR: true
     },
@@ -74,13 +75,13 @@ const SEED_CERTIFICATES = [
         serial: '202600002',
         status: 'PENDING_APPROVAL',
         createdBy: 'usr-1',
-        creatorName: 'سليمان الحربي',
+        creatorName: 'سلمان الرويلي',
         createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
         updatedAt: new Date(Date.now() - 24 * 3600000).toISOString(),
         comments: '',
         workflowHistory: [
-            { stage: 'DRAFT', timestamp: new Date(Date.now() - 36 * 3600000).toISOString(), user: 'سليمان الحربي' },
-            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 24 * 3600000).toISOString(), user: 'سليمان الحربي' }
+            { stage: 'DRAFT', timestamp: new Date(Date.now() - 36 * 3600000).toISOString(), user: 'سلمان الرويلي' },
+            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 24 * 3600000).toISOString(), user: 'سلمان الرويلي' }
         ],
         showQR: true
     },
@@ -92,13 +93,13 @@ const SEED_CERTIFICATES = [
         serial: '202600003',
         status: 'APPROVED_BY_ASSISTANT',
         createdBy: 'usr-1',
-        creatorName: 'سليمان الحربي',
+        creatorName: 'سلمان الرويلي',
         createdAt: new Date(Date.now() - 12 * 3600000).toISOString(),
         updatedAt: new Date(Date.now() - 10 * 3600000).toISOString(),
         comments: 'تم مراجعة الطلب والموافقة عليه والتأكد من مطابقة المعايير.',
         workflowHistory: [
-            { stage: 'DRAFT', timestamp: new Date(Date.now() - 20 * 3600000).toISOString(), user: 'سليمان الحربي' },
-            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 15 * 3600000).toISOString(), user: 'سليمان الحربي' },
+            { stage: 'DRAFT', timestamp: new Date(Date.now() - 20 * 3600000).toISOString(), user: 'سلمان الرويلي' },
+            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 15 * 3600000).toISOString(), user: 'سلمان الرويلي' },
             { stage: 'APPROVED_BY_ASSISTANT', timestamp: new Date(Date.now() - 10 * 3600000).toISOString(), user: 'مساعد المدير العام للتخطيط', comments: 'تم مراجعة الطلب والموافقة عليه والتأكد من مطابقة المعايير.' }
         ],
         showQR: true
@@ -130,8 +131,8 @@ class LocalDatabase {
                     {
                         id: 'log-1',
                         action: 'LOGIN',
-                        userEmail: 'admin@platform.gov.sa',
-                        userName: 'عبد العزيز الرويلي',
+                        userEmail: 'admin@moh.gov.sa',
+                        userName: 'يوسف العنزي',
                         userRole: 'SUPER_ADMIN',
                         timestamp: new Date(Date.now() - 49 * 3600000).toISOString(),
                         details: 'تسجيل دخول ناجح إلى النظام'

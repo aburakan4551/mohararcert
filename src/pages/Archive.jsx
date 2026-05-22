@@ -14,7 +14,7 @@ import { Archive, Search, FileText, Download, Printer, ShieldCheck, Eye, Sparkle
 import { useLayers } from '../hooks/useLayers';
 
 export default function ArchivePage() {
-    const { user } = useAuth();
+    const { user, settings } = useAuth();
     const navigate = useNavigate();
     const [certs, setCerts] = useState([]);
     const [templates, setTemplates] = useState([]);
@@ -239,7 +239,7 @@ export default function ArchivePage() {
                                 <div className="flex justify-between">
                                     <span>المصادق المعتمد:</span>
                                     <span className="text-amber-600 dark:text-amber-400 font-bold">
-                                        {activeCert.managerSnapshot?.directorName || 'د. خالد السديري'} (المدير العام)
+                                        {activeCert.managerSnapshot?.directorName || settings?.directorName || ''} (المدير العام)
                                     </span>
                                 </div>
                             </div>

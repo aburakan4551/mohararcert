@@ -43,10 +43,10 @@ export default function Sidebar({ isOpen, onClose, navItems = [], currentUser = 
                         <Icons.Award className="w-9 h-9 text-slate-950" />
                     </motion.div>
                     <h2 className="text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200">
-                        منصة محرّر الشهادات
+                        إدارة التميز المؤسسي
                     </h2>
                     <span className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest mt-1">
-                        Workflow Edition
+                        صحة الحدود الشمالية
                     </span>
                 </div>
 
@@ -100,7 +100,7 @@ export default function Sidebar({ isOpen, onClose, navItems = [], currentUser = 
                     </button>
                     
                     <div className="text-center text-[10px] text-slate-500 mt-3 font-semibold">
-                        الإصدار المؤسسي v2.0 | محرّر الشهادات
+                        إدارة التميز المؤسسي | صحة الحدود الشمالية
                     </div>
                 </div>
             </motion.aside>

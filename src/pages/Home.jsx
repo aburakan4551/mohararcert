@@ -28,11 +28,11 @@ export default function Home() {
             }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
                     <div style={{ fontSize: '0.9rem', opacity: 0.8, marginBottom: '6px' }}>{today}</div>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '8px' }}>
-                        🏛️ منصة شهادات الشكر والتقدير
+                    <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '8px' }}>
+                        🏛️ إدارة التميز المؤسسي بفرع وزارة الصحة بمنطقة الحدود الشمالية
                     </h2>
-                    <p style={{ opacity: 0.85, fontSize: '1rem', maxWidth: '500px', lineHeight: 1.6 }}>
-                        نظام متكامل لإصدار شهادات احترافية مع التوقيع والختم والرقم التسلسلي والتصدير بجودة عالية
+                    <p style={{ opacity: 0.85, fontSize: '0.95rem', maxWidth: '650px', lineHeight: 1.6 }}>
+                        البوابة الرسمية المعتمدة لإصدار، ومراجعة، واعتماد المعاملات والشهادات الحكومية الرسمية وفق أعلى معايير الجودة والحوكمة المؤسسية.
                     </p>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
                         <Link to="/create" className="btn btn-gold">

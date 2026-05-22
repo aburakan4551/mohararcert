@@ -297,7 +297,7 @@ export default function ApprovalDetails() {
                             </div>
                             <div className="py-2.5 flex justify-between gap-2">
                                 <span className="text-slate-400">منشئ الطلب:</span>
-                                <span className="font-bold text-slate-800 dark:text-slate-200">{cert.creatorName || 'سليمان الحربي'}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{cert.creatorName || ''}</span>
                             </div>
                         </div>
                     </div>

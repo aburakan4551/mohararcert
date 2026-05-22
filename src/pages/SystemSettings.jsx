@@ -192,7 +192,7 @@ export default function SystemSettings() {
                                     value={formData.directorName}
                                     onChange={e => handleFieldChange('directorName', e.target.value)}
                                     className="form-control"
-                                    placeholder="سعادة د. خالد السديري"
+                                    placeholder="سعادة مدير فرع الوزارة"
                                 />
                             </div>
 
@@ -242,7 +242,7 @@ export default function SystemSettings() {
                                     value={formData.visaName}
                                     onChange={e => handleFieldChange('visaName', e.target.value)}
                                     className="form-control"
-                                    placeholder="أ. أحمد الغامدي"
+                                    placeholder="اسم مساعد المدير العام"
                                 />
                             </div>
 
