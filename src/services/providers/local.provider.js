@@ -114,16 +114,68 @@ class LocalDatabase {
 
     initStorage() {
         try {
-            if (!localStorage.getItem(this.prefix + 'users')) {
+            // Smart Users Seeding Validation
+            const storedUsersStr = localStorage.getItem(this.prefix + 'users');
+            let shouldSeedUsers = true;
+            if (storedUsersStr) {
+                try {
+                    const storedUsers = JSON.parse(storedUsersStr);
+                    const storedEmails = storedUsers.map(u => u.email);
+                    const officialEmails = MOCK_USERS.map(u => u.email);
+                    const hasAllOfficial = officialEmails.every(email => storedEmails.includes(email));
+                    if (hasAllOfficial) {
+                        shouldSeedUsers = false;
+                    }
+                } catch (e) {
+                    console.warn('Malformed users in storage, triggering re-seed:', e);
+                }
+            }
+            if (shouldSeedUsers) {
+                console.log('Seeding fresh official MOH accounts into local storage...');
                 localStorage.setItem(this.prefix + 'users', JSON.stringify(MOCK_USERS));
             }
-            if (!localStorage.getItem(this.prefix + 'settings')) {
+
+            // Smart Settings Seeding Validation
+            const storedSettingsStr = localStorage.getItem(this.prefix + 'settings');
+            let shouldSeedSettings = true;
+            if (storedSettingsStr) {
+                try {
+                    const storedSettings = JSON.parse(storedSettingsStr);
+                    if (storedSettings.orgName && (storedSettings.orgName.includes('وزارة الصحة') || storedSettings.orgName.includes('التميز المؤسسي'))) {
+                        shouldSeedSettings = false;
+                    }
+                } catch (e) {
+                    console.warn('Malformed settings in storage, triggering re-seed:', e);
+                }
+            }
+            if (shouldSeedSettings) {
+                console.log('Seeding fresh official MOH settings into local storage...');
                 localStorage.setItem(this.prefix + 'settings', JSON.stringify(DEFAULT_SETTINGS));
             }
+
             if (!localStorage.getItem(this.prefix + 'templates')) {
                 localStorage.setItem(this.prefix + 'templates', JSON.stringify(SEED_TEMPLATES));
             }
-            if (!localStorage.getItem(this.prefix + 'certificates')) {
+
+            // Smart Certificates Seeding Validation
+            const storedCertsStr = localStorage.getItem(this.prefix + 'certificates');
+            let shouldSeedCerts = true;
+            if (storedCertsStr) {
+                try {
+                    const storedCerts = JSON.parse(storedCertsStr);
+                    const hasOldData = storedCerts.some(c => 
+                        c.creatorName === 'سليمان الحربي' || 
+                        (c.createdBy === 'usr-1' && c.creatorName !== 'سلمان الرويلي')
+                    );
+                    if (!hasOldData) {
+                        shouldSeedCerts = false;
+                    }
+                } catch (e) {
+                    console.warn('Malformed certificates in storage, triggering re-seed:', e);
+                }
+            }
+            if (shouldSeedCerts) {
+                console.log('Seeding fresh MOH certificates into local storage...');
                 localStorage.setItem(this.prefix + 'certificates', JSON.stringify(SEED_CERTIFICATES));
             }
             if (!localStorage.getItem(this.prefix + 'audit_logs')) {

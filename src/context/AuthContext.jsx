@@ -13,7 +13,8 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [settings, setSettings] = useState(null);
     const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [initializing, setInitializing] = useState(true);
 
     // Load active session and settings
     const loadSession = useCallback(async () => {
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
         } catch (e) {
             console.error('Failed to load session details: ', e);
         } finally {
-            setLoading(false);
+            setInitializing(false);
         }
     }, []);
 
@@ -143,7 +144,7 @@ export function AuthProvider({ children }) {
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {!initializing && children}
         </AuthContext.Provider>
     );
 }

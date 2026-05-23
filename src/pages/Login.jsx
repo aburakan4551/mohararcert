@@ -101,7 +101,8 @@ export default function Login() {
                                             setEmail(e.target.value);
                                             setError('');
                                         }}
-                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left"
+                                        disabled={submitting}
+                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                                         placeholder="user@moh.gov.sa"
                                         style={{ direction: 'ltr' }}
                                         required
@@ -123,7 +124,8 @@ export default function Login() {
                                             setPassword(e.target.value);
                                             setError('');
                                         }}
-                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left"
+                                        disabled={submitting}
+                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                                         placeholder="••••••••••••"
                                         style={{ direction: 'ltr' }}
                                         required
@@ -141,10 +143,65 @@ export default function Login() {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full py-3.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer text-center"
+                                className="w-full py-3.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {submitting ? '⏳ مصادقة...' : 'دخول للمنصة'}
                             </button>
+
+                            {/* Quick Test Credentials Buttons */}
+                            <div className="pt-4 border-t border-slate-800/60 mt-5">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2.5 text-center">بوابة المحاكاة وتعبئة بيانات الاختبار</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmail('creator@moh.gov.sa');
+                                            setPassword('Aa@0555386421');
+                                            setError('');
+                                        }}
+                                        disabled={submitting}
+                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        ✍️ منشئ المعاملات
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmail('assistant@moh.gov.sa');
+                                            setPassword('Aa@0555386421');
+                                            setError('');
+                                        }}
+                                        disabled={submitting}
+                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        🔏 المساعد للتخطيط
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmail('manager@moh.gov.sa');
+                                            setPassword('Aa@0555386421');
+                                            setError('');
+                                        }}
+                                        disabled={submitting}
+                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        👑 المدير العام
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmail('admin@moh.gov.sa');
+                                            setPassword('Aa@0555386421');
+                                            setError('');
+                                        }}
+                                        disabled={submitting}
+                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        🛡️ المشرف العام
+                                    </button>
+                                </div>
+                            </div>
                         </form>
                     </motion.div>
                 </div>
