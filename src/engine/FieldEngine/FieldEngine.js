@@ -7,6 +7,7 @@ export const SUPPORTED_FIELDS = [
     { id: 'recipient_name', label: 'اسم المستفيد', type: 'text', defaultFontSize: 42, defaultColor: '#000000', defaultFontFamily: 'Cairo', defaultWeight: 'bold', supportsPrefix: true },
     { id: 'certificate_title', label: 'عنوان الشهادة (شكر وتقدير)', type: 'text', defaultFontSize: 34, defaultColor: '#0d1f3c', defaultFontFamily: 'Cairo', defaultWeight: '900' },
     { id: 'reason', label: 'نص التكريم (Appreciation Text)', type: 'textarea', defaultFontSize: 24, defaultColor: '#333333', defaultFontFamily: 'Amiri', defaultWeight: 'normal' },
+    { id: 'wishes_text', label: 'النص الختامي (الدعاء)', type: 'textarea', defaultFontSize: 20, defaultColor: '#555555', defaultFontFamily: 'Amiri', defaultWeight: 'normal', defaultContent: 'سائلين الله له/ـها دوام التوفيق والنجاح' },
     { id: 'date', label: 'التاريخ المطبوع', type: 'text', defaultFontSize: 16, defaultColor: '#666666', defaultFontFamily: 'Cairo', defaultWeight: 'bold' },
     { id: 'serial_number', label: 'الرقم التسلسلي', type: 'text', defaultFontSize: 14, defaultColor: '#888888', defaultFontFamily: 'monospace', defaultWeight: 'normal' },
     { id: 'manager_name', label: 'اسم المدير المطبوع', type: 'text', defaultFontSize: 18, defaultColor: '#000000', defaultFontFamily: 'Cairo', defaultWeight: 'bold' },

@@ -154,7 +154,8 @@ export default function TemplateMapper() {
             lineHeight: 1.6,
             letterSpacing: 0,
             hidden: false,
-            locked: false
+            locked: false,
+            textContent: meta.defaultContent || ''
         };
         
         // Add to top of list (newest first)
@@ -385,7 +386,7 @@ export default function TemplateMapper() {
                                     }}
                                 >
                                     {meta?.type === 'text' || meta?.type === 'textarea' ? (
-                                        <span style={{ fontWeight: f.fontWeight || meta.defaultWeight || 'bold' }}>[{meta.label}]</span>
+                                        <span style={{ fontWeight: f.fontWeight || meta.defaultWeight || 'bold' }}>{f.textContent || `[${meta?.label}]`}</span>
                                     ) : (
                                         <div style={{ width: '100%', height: `${f.height}px`, background: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '12px' }}>
                                             {meta?.label}
@@ -429,7 +430,12 @@ export default function TemplateMapper() {
                                 {/* 🖋️ Typography Group */}
                                 {(getFieldMeta(selectedField.fieldId)?.type === 'text' || getFieldMeta(selectedField.fieldId)?.type === 'textarea') && (
                                     <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)', marginTop: '10px' }}>
-                                        <h4 style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '12px' }}>النصوص (Typography)</h4>
+                                        <h4 style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '12px' }}>النصوص والمحتوى (Typography)</h4>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
+                                            <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)' }}>المحتوى النصي (اختياري)
+                                                <textarea value={selectedField.textContent || ''} onChange={e => updateField(selectedId, { textContent: e.target.value })} placeholder={`القيمة الافتراضية للـ ${getFieldMeta(selectedField.fieldId)?.label}`} style={{ width: '100%', padding: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px', minHeight: '60px', resize: 'vertical' }} disabled={selectedField.locked} />
+                                            </label>
+                                        </div>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                             <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)' }}>حجم الخط (px)
                                                 <input type="number" value={selectedField.fontSize} onChange={e => updateField(selectedId, { fontSize: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />

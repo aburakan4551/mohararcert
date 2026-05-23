@@ -7,6 +7,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getFieldMeta } from '../FieldEngine/FieldEngine';
+import { useAuth } from '../../context/AuthContext';
 
 /* A4 Paper Ratio (Landscape) */
 const A4_ASPECT = 297 / 210;
@@ -14,6 +15,7 @@ const A4_ASPECT = 297 / 210;
 const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref) => {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
+    const { settings } = useAuth() || {}; // Use settings from auth context if available
     
     const height = width / A4_ASPECT;
 
@@ -71,7 +73,15 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
                 const meta = getFieldMeta(field.fieldId);
                 if (!meta) return null;
 
-                const value = dataContext?.[field.fieldId] || '';
+                // Dynamic Identity Resolution
+                let value = dataContext?.[field.fieldId];
+                
+                // Fallbacks to System Settings for official fields
+                if (field.fieldId === 'manager_name') value = value || settings?.directorName;
+                if (field.fieldId === 'assistant_name') value = value || settings?.visaName;
+                if (field.fieldId === 'manager_signature') value = value || settings?.directorSignature;
+                if (field.fieldId === 'assistant_signature') value = value || settings?.visaSignature;
+                if (field.fieldId === 'official_stamp') value = value || settings?.stamp;
 
                 // Since field.x and field.y are percentages
                 const baseStyle = {
@@ -100,7 +110,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
                             lineHeight: field.lineHeight || 1.6,
                             letterSpacing: letterSpacing
                         }}>
-                            {value || `[${meta.label}]`}
+                            {value || field.textContent || `[${meta.label}]`}
                         </div>
                     );
                 }
