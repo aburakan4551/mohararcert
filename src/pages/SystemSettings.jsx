@@ -10,7 +10,7 @@ import SignatureUploader from '../components/SignatureUploader';
 import StampManager from '../components/StampManager';
 import {
     Save, Building, User, Palette, Stamp,
-    CheckCircle, RefreshCw,
+    CheckCircle, RefreshCw, Type, Plus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
@@ -23,6 +23,7 @@ const TABS = [
     { id: 'identity',    label: 'هوية الجهة',          icon: Building },
     { id: 'signatories', label: 'المعتمدون والتواقيع', icon: User     },
     { id: 'stamp',       label: 'الختم الرسمي',        icon: Stamp    },
+    { id: 'prefixes',    label: 'الألقاب الرسمية',       icon: Type     },
     { id: 'colors',      label: 'الألوان',               icon: Palette  },
 ];
 
@@ -49,9 +50,21 @@ export default function SystemSettings() {
         stampSize:        settings?.stampSize        || 120,
         stampOpacity:     settings?.stampOpacity     || 0.85,
         stampRotation:    settings?.stampRotation    || -8,
+        prefixes:         settings?.prefixes         || ['الأستاذ', 'الأستاذة', 'الدكتور', 'الدكتورة', 'المهندس', 'الزميل'],
     });
 
     const set = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
+
+    const handlePrefixAdd = () => setFormData(p => ({ ...p, prefixes: [...p.prefixes, ''] }));
+    const handlePrefixChange = (idx, val) => {
+        const newPrefixes = [...formData.prefixes];
+        newPrefixes[idx] = val;
+        setFormData(p => ({ ...p, prefixes: newPrefixes }));
+    };
+    const handlePrefixRemove = (idx) => {
+        const newPrefixes = formData.prefixes.filter((_, i) => i !== idx);
+        setFormData(p => ({ ...p, prefixes: newPrefixes }));
+    };
 
     const handleSave = async (e) => {
         if (e) e.preventDefault();
@@ -288,6 +301,46 @@ export default function SystemSettings() {
                             </CardHeader>
                             <CardContent>
                                 <StampManager settings={formData} onSettingsChange={setFormData} />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* ─── Prefixes Tab ─── */}
+                    {activeTab === 'prefixes' && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Type size={15} style={{ color: 'var(--color-primary-600)' }} />
+                                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            إدارة الألقاب الرسمية (Prefixes)
+                                        </h3>
+                                    </div>
+                                    <Button type="button" variant="outline" size="sm" onClick={handlePrefixAdd} leftIcon={Plus}>
+                                        إضافة لقب جديد
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '400px' }}>
+                                    <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', marginBottom: '8px' }}>هذه الألقاب ستظهر في قائمة الاختيار عند إنشاء الشهادات، وتضاف قبل اسم المستفيد آلياً.</p>
+                                    {formData.prefixes.map((pref, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                                            <input 
+                                                type="text" 
+                                                value={pref} 
+                                                onChange={e => handlePrefixChange(idx, e.target.value)} 
+                                                placeholder="أدخل اللقب..." 
+                                                className="form-input" 
+                                                style={{ flex: 1 }} 
+                                            />
+                                            <Button type="button" variant="outline" onClick={() => handlePrefixRemove(idx)} style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '0 12px' }}>
+                                                <Trash2 size={16} />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {formData.prefixes.length === 0 && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>لا يوجد ألقاب مضافة.</p>}
+                                </div>
                             </CardContent>
                         </Card>
                     )}

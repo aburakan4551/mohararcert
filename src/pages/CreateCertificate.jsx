@@ -53,7 +53,7 @@ const SMART_PREFIXES = [
 ];
 
 export default function CreateCertificate() {
-    const { user } = useAuth();
+    const { user, settings } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('id');
@@ -315,7 +315,8 @@ export default function CreateCertificate() {
                                     <div style={{ width: '100px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700 }}>اللقب</label>
                                         <select value={formData.prefix} onChange={e => setFormData(p => ({ ...p, prefix: e.target.value }))} style={{ padding: '8px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                                            {SMART_PREFIXES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                                            <option value="">بدون</option>
+                                            {(settings?.prefixes || []).map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
