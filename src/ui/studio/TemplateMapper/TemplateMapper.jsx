@@ -1,34 +1,45 @@
 /**
- * 🗺️ TemplateMapper.jsx
- * Field Mapping Mode: SUPER_ADMIN interface to place Dynamic Fields over a template background.
+ * 🗺️ TemplateMapper.jsx — Advanced Visual Certificate Template Builder (SUPER_ADMIN)
+ * A Figma-like editor to map dynamic variables and add static shapes/images to an official template.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, Image as ImageIcon, Type, Plus } from 'lucide-react';
+import { 
+    Save, ArrowLeft, Image as ImageIcon, Type, Plus, Layers, 
+    MousePointer2, Move, ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Lock, Unlock, Trash2, Copy
+} from 'lucide-react';
 import { SUPPORTED_FIELDS, getFieldMeta } from '../../../engine/FieldEngine/FieldEngine';
 import { Card, CardHeader, CardContent } from '../../cards/Card';
 import { Button } from '../../components/Button';
-import PageHeader from '../../layouts/PageHeader';
+
+// A4 Ratio
+const A4_ASPECT = 297 / 210;
 
 export default function TemplateMapper() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const containerRef = useRef(null);
+    const workspaceRef = useRef(null);
+    const canvasRef = useRef(null);
 
     const [template, setTemplate] = useState(null);
     const [fields, setFields] = useState([]);
-    const [selectedFieldIdx, setSelectedFieldIdx] = useState(null);
+    const [selectedId, setSelectedId] = useState(null);
+    const [zoom, setZoom] = useState(1);
+    
+    // Drag State
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
-        // Load template
         const stored = localStorage.getItem('official_templates');
         if (stored) {
             const parsed = JSON.parse(stored);
             const found = parsed.find(t => t.id === id);
             if (found) {
                 setTemplate(found);
-                setFields(found.fields || []);
+                // Ensure all fields have a unique id for the builder
+                setFields((found.fields || []).map(f => ({ ...f, _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`, hidden: false, locked: false })));
             } else {
                 navigate('/studio');
             }
@@ -40,13 +51,11 @@ export default function TemplateMapper() {
         if (stored) {
             const parsed = JSON.parse(stored);
             const updated = parsed.map(t => {
-                if (t.id === id) {
-                    return { ...t, fields };
-                }
+                if (t.id === id) return { ...t, fields };
                 return t;
             });
             localStorage.setItem('official_templates', JSON.stringify(updated));
-            alert('تم حفظ إعدادات القالب بنجاح.');
+            alert('تم حفظ القالب بنجاح.');
             navigate('/studio');
         }
     };
@@ -64,178 +73,305 @@ export default function TemplateMapper() {
         const meta = getFieldMeta(fieldId);
         if (!meta) return;
 
-        // Check if already added
-        if (fields.some(f => f.fieldId === fieldId)) {
-            alert('هذا الحقل مضاف مسبقاً.');
-            return;
-        }
-
         const newField = {
+            _uid: `uid_${Math.random().toString(36).substr(2, 9)}`,
             fieldId,
-            x: 50, // Center X (percentage)
-            y: 50, // Center Y (percentage)
+            x: 50, y: 50,
             fontSize: meta.defaultFontSize || 24,
             color: meta.defaultColor || '#000000',
             fontFamily: meta.defaultFontFamily || 'Cairo',
             align: 'center',
-            width: meta.defaultWidth || null,
-            height: meta.defaultHeight || null
+            width: meta.defaultWidth || 20,
+            height: meta.defaultHeight || 10,
+            opacity: 1,
+            rotation: 0,
+            hidden: false,
+            locked: false
         };
         
         setFields(p => [...p, newField]);
-        setSelectedFieldIdx(fields.length);
+        setSelectedId(newField._uid);
     };
 
-    const removeField = (idx) => {
-        setFields(p => p.filter((_, i) => i !== idx));
-        setSelectedFieldIdx(null);
+    const updateField = (uid, changes) => {
+        setFields(p => p.map(f => f._uid === uid ? { ...f, ...changes } : f));
     };
 
-    const updateField = (idx, changes) => {
-        setFields(p => p.map((f, i) => i === idx ? { ...f, ...changes } : f));
+    const removeField = (uid) => {
+        setFields(p => p.filter(f => f._uid !== uid));
+        if (selectedId === uid) setSelectedId(null);
     };
 
-    const handleCanvasClick = (e) => {
-        // Simple positioning logic (click to place selected field)
-        if (selectedFieldIdx === null) return;
-        
-        const rect = containerRef.current.getBoundingClientRect();
+    const duplicateField = (uid) => {
+        const field = fields.find(f => f._uid === uid);
+        if (!field) return;
+        const newField = { ...field, _uid: `uid_${Math.random().toString(36).substr(2, 9)}`, x: field.x + 2, y: field.y + 2 };
+        setFields(p => [...p, newField]);
+        setSelectedId(newField._uid);
+    };
+
+    const moveLayer = (index, direction) => {
+        if (index + direction < 0 || index + direction >= fields.length) return;
+        const newFields = [...fields];
+        const temp = newFields[index];
+        newFields[index] = newFields[index + direction];
+        newFields[index + direction] = temp;
+        setFields(newFields);
+    };
+
+    // Mouse Dragging Logic
+    const handlePointerDown = (e, field) => {
+        if (field.locked) return;
+        e.stopPropagation();
+        setSelectedId(field._uid);
+        setIsDragging(true);
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        // Calculate offset from center of element
         const xPct = ((e.clientX - rect.left) / rect.width) * 100;
         const yPct = ((e.clientY - rect.top) / rect.height) * 100;
 
-        updateField(selectedFieldIdx, { x: xPct, y: yPct });
+        setDragOffset({
+            x: xPct - field.x,
+            y: yPct - field.y
+        });
     };
+
+    const handlePointerMove = (e) => {
+        if (!isDragging || !selectedId) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+        const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Snap to grid (e.g. 1%)
+        const snap = 0.5;
+        const rawX = xPct - dragOffset.x;
+        const rawY = yPct - dragOffset.y;
+
+        updateField(selectedId, {
+            x: Math.round(rawX / snap) * snap,
+            y: Math.round(rawY / snap) * snap
+        });
+    };
+
+    const handlePointerUp = () => {
+        setIsDragging(false);
+    };
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', handlePointerUp);
+        } else {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        }
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+    }, [isDragging, selectedId, dragOffset]);
+
 
     if (!template) return <div>جاري التحميل...</div>;
 
-    const A4_ASPECT = 297 / 210;
+    const selectedField = fields.find(f => f._uid === selectedId);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', padding: '16px 24px', borderBottom: '1px solid var(--border-default)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button onClick={() => navigate('/studio')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                        <ArrowLeft size={20} />
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-page)', overflow: 'hidden' }}>
+            {/* ─── TOP NAVBAR ─── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', padding: '12px 24px', borderBottom: '1px solid var(--border-default)', zIndex: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button onClick={() => navigate('/studio')} style={{ background: 'var(--bg-muted)', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: '8px', borderRadius: '8px' }}>
+                        <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 800, color: 'var(--text-primary)' }}>مصمم القوالب (Field Mapping Mode)</h2>
-                        <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)' }}>{template.name}</span>
+                        <h2 style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{template.name}</h2>
+                        <span style={{ fontSize: 'var(--text-micro)', color: 'var(--color-primary-600)', fontWeight: 700 }}>Advanced Visual Builder</span>
                     </div>
                 </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-muted)', padding: '4px', borderRadius: '8px' }}>
+                    <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><ZoomOut size={16} /></button>
+                    <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+                    <button onClick={() => setZoom(z => Math.min(3, z + 0.1))} style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><ZoomIn size={16} /></button>
+                    <button onClick={() => setZoom(1)} style={{ padding: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><Maximize size={16} /></button>
+                </div>
+
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <label style={{ cursor: 'pointer' }}>
-                        <input type="file" accept="image/png, image/jpeg, image/svg+xml" style={{ display: 'none' }} onChange={handleBackgroundUpload} />
+                        <input type="file" accept="image/png, image/jpeg, image/pdf" style={{ display: 'none' }} onChange={handleBackgroundUpload} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            <ImageIcon size={16} /> تغيير خلفية القالب
+                            <ImageIcon size={16} /> تغيير القالب الأساسي
                         </div>
                     </label>
-                    <Button variant="primary" onClick={handleSave} leftIcon={Save}>
-                        حفظ القالب الرسمي
-                    </Button>
+                    <Button variant="primary" onClick={handleSave} leftIcon={Save}>حفظ التغييرات</Button>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', flex: 1, padding: '0 24px 24px', overflow: 'hidden' }}>
-                {/* Tools Panel */}
-                <Card style={{ width: '300px', flexShrink: 0, overflowY: 'auto' }}>
-                    <CardHeader>
-                        <h3 style={{ fontSize: 'var(--text-label)', fontWeight: 800 }}>الحقول المتاحة (Variables)</h3>
-                    </CardHeader>
-                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px' }}>
-                        {SUPPORTED_FIELDS.map(f => {
-                            const isAdded = fields.some(field => field.fieldId === f.id);
-                            return (
-                                <button
-                                    key={f.id}
-                                    disabled={isAdded}
-                                    onClick={() => addField(f.id)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        padding: '10px 12px', background: isAdded ? 'var(--bg-muted)' : 'var(--bg-surface)',
-                                        border: `1px solid ${isAdded ? 'transparent' : 'var(--border-strong)'}`,
-                                        borderRadius: 'var(--radius-sm)', cursor: isAdded ? 'not-allowed' : 'pointer',
-                                        opacity: isAdded ? 0.5 : 1
-                                    }}
-                                >
-                                    <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700, color: 'var(--text-primary)' }}>{f.label}</span>
-                                    {!isAdded && <Plus size={14} style={{ color: 'var(--color-primary-600)' }} />}
+            {/* ─── MAIN WORKSPACE ─── */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                
+                {/* 👈 LEFT PANEL: LAYERS & TOOLS */}
+                <div style={{ width: '280px', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border-default)' }}>
+                        <h3 style={{ fontSize: 'var(--text-label)', fontWeight: 800, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Plus size={16} /> إضافة حقل جديد</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {SUPPORTED_FIELDS.map(f => (
+                                <button key={f.id} onClick={() => addField(f.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)', borderRadius: '6px', cursor: 'pointer', textAlign: 'right', fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-primary)', transition: 'all 0.1s' }}>
+                                    <Type size={14} style={{ color: 'var(--color-primary-600)' }} /> {f.label}
                                 </button>
-                            );
-                        })}
+                            ))}
+                        </div>
+                    </div>
 
-                        {selectedFieldIdx !== null && fields[selectedFieldIdx] && (
-                            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px dashed var(--border-strong)' }}>
-                                <h4 style={{ fontSize: 'var(--text-label)', fontWeight: 800, marginBottom: '12px' }}>خصائص الحقل المحدد</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        حجم الخط (px)
-                                        <input type="number" value={fields[selectedFieldIdx].fontSize || 24} onChange={e => updateField(selectedFieldIdx, { fontSize: Number(e.target.value) })} style={{ padding: '6px', border: '1px solid var(--border-default)', borderRadius: '4px', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
-                                    </label>
-                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        اللون
-                                        <input type="color" value={fields[selectedFieldIdx].color || '#000000'} onChange={e => updateField(selectedFieldIdx, { color: e.target.value })} style={{ width: '100%', height: '32px', border: '1px solid var(--border-default)', borderRadius: '4px', cursor: 'pointer' }} />
-                                    </label>
-                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        نوع الخط
-                                        <select value={fields[selectedFieldIdx].fontFamily || 'Cairo'} onChange={e => updateField(selectedFieldIdx, { fontFamily: e.target.value })} style={{ padding: '6px', border: '1px solid var(--border-default)', borderRadius: '4px', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
-                                            <option value="Cairo">Cairo</option>
-                                            <option value="Amiri">Amiri (رسمي)</option>
-                                            <option value="Tajawal">Tajawal</option>
-                                        </select>
-                                    </label>
-                                    <Button variant="outline" size="sm" onClick={() => removeField(selectedFieldIdx)} style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', marginTop: '8px' }}>حذف الحقل</Button>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                        <h3 style={{ fontSize: 'var(--text-label)', fontWeight: 800, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Layers size={16} /> الطبقات (Layers)</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: '4px' }}>
+                            {fields.map((f, idx) => {
+                                const meta = getFieldMeta(f.fieldId);
+                                const isSelected = selectedId === f._uid;
+                                return (
+                                    <div key={f._uid} onClick={() => setSelectedId(f._uid)} style={{ display: 'flex', alignItems: 'center', padding: '8px', background: isSelected ? 'var(--color-primary-600)' : 'var(--bg-muted)', color: isSelected ? '#fff' : 'var(--text-primary)', borderRadius: '6px', cursor: 'pointer', gap: '8px' }}>
+                                        <div style={{ flex: 1, fontSize: 'var(--text-micro)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta?.label || f.fieldId}</div>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            <button onClick={(e) => { e.stopPropagation(); updateField(f._uid, { hidden: !f.hidden }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.7 }}><Eye size={14} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); updateField(f._uid, { locked: !f.locked }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.7 }}>{f.locked ? <Lock size={14} /> : <Unlock size={14} />}</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {fields.length === 0 && <div style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>لا يوجد طبقات مضافة.</div>}
+                        </div>
+                    </div>
+                </div>
 
-                {/* Live Mapper Canvas */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-muted)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                {/* 🎛️ CENTER PANEL: CANVAS */}
+                <div ref={workspaceRef} style={{ flex: 1, background: '#1e1e1e', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }} onClick={() => setSelectedId(null)}>
                     <div 
-                        ref={containerRef}
-                        onClick={handleCanvasClick}
+                        ref={canvasRef}
                         style={{
-                            width: '100%', maxWidth: '800px',
-                            aspectRatio: `${A4_ASPECT}`,
+                            width: '1122.5px', // Base A4 width at 96dpi (Landscape)
+                            height: '793.7px',
                             background: template.backgroundUrl ? `url(${template.backgroundUrl}) center/contain no-repeat` : '#ffffff',
+                            backgroundColor: '#ffffff',
                             position: 'relative',
-                            boxShadow: 'var(--shadow-floating)',
-                            cursor: 'crosshair',
-                            border: '1px solid var(--border-default)'
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                            transform: `scale(${zoom})`,
+                            transformOrigin: 'center center',
+                            transition: isDragging ? 'none' : 'transform 0.1s ease',
+                            overflow: 'hidden'
                         }}
                     >
-                        {!template.backgroundUrl && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-disabled)', fontWeight: 800 }}>الرجاء رفع خلفية القالب (A4 Landscape)</div>}
+                        {!template.backgroundUrl && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-disabled)', fontWeight: 800, fontSize: '24px' }}>No Background Provided</div>}
 
                         {fields.map((f, idx) => {
+                            if (f.hidden) return null;
                             const meta = getFieldMeta(f.fieldId);
-                            const isSelected = idx === selectedFieldIdx;
+                            const isSelected = selectedId === f._uid;
+                            
                             return (
                                 <div
-                                    key={idx}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedFieldIdx(idx); }}
+                                    key={f._uid}
+                                    onPointerDown={(e) => handlePointerDown(e, f)}
                                     style={{
                                         position: 'absolute',
                                         left: `${f.x}%`,
                                         top: `${f.y}%`,
-                                        transform: 'translate(-50%, -50%)',
-                                        border: `2px ${isSelected ? 'solid' : 'dashed'} ${isSelected ? 'var(--color-primary-600)' : 'rgba(0,0,0,0.2)'}`,
-                                        padding: '4px 8px',
-                                        background: isSelected ? 'rgba(15,169,88,0.1)' : 'rgba(255,255,255,0.4)',
+                                        transform: `translate(-50%, -50%) rotate(${f.rotation || 0}deg)`,
+                                        zIndex: 10 + idx,
+                                        opacity: f.opacity || 1,
+                                        cursor: f.locked ? 'default' : (isDragging && isSelected ? 'grabbing' : 'grab'),
+                                        border: isSelected ? '2px solid #0EA5E9' : '1px dashed rgba(0,0,0,0.1)',
+                                        padding: meta?.type === 'text' ? '0' : '4px',
                                         color: f.color || '#000',
                                         fontFamily: f.fontFamily || 'Cairo',
-                                        fontSize: 'min(1.5vw, 24px)', // Responsive text for mapper
+                                        fontSize: `${f.fontSize}px`,
                                         textAlign: f.align || 'center',
-                                        cursor: 'pointer',
-                                        backdropFilter: 'blur(2px)'
+                                        whiteSpace: 'nowrap',
+                                        userSelect: 'none'
                                     }}
                                 >
-                                    {meta?.label || f.fieldId}
+                                    {meta?.type === 'text' ? (
+                                        <span style={{ fontWeight: 700 }}>[{meta.label}]</span>
+                                    ) : (
+                                        <div style={{ width: `${f.width}px`, height: `${f.height}px`, background: 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '12px' }}>
+                                            {meta?.label}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* 👉 RIGHT PANEL: PROPERTIES INSPECTOR */}
+                <div style={{ width: '320px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border-default)' }}>
+                        <h3 style={{ fontSize: 'var(--text-label)', fontWeight: 800 }}>خصائص العنصر (Properties)</h3>
+                    </div>
+                    
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                        {selectedField ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                {/* Position & Size */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>X (%)
+                                        <input type="number" step="0.5" value={selectedField.x} onChange={e => updateField(selectedId, { x: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />
+                                    </label>
+                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>Y (%)
+                                        <input type="number" step="0.5" value={selectedField.y} onChange={e => updateField(selectedId, { y: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />
+                                    </label>
+                                </div>
+
+                                {/* Typography */}
+                                {getFieldMeta(selectedField.fieldId)?.type === 'text' && (
+                                    <>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>حجم الخط (px)
+                                                <input type="number" value={selectedField.fontSize} onChange={e => updateField(selectedId, { fontSize: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />
+                                            </label>
+                                            <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>لون النص
+                                                <input type="color" value={selectedField.color} onChange={e => updateField(selectedId, { color: e.target.value })} style={{ width: '100%', height: '30px', border: 'none', marginTop: '4px', cursor: 'pointer' }} disabled={selectedField.locked} />
+                                            </label>
+                                        </div>
+                                        <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>نوع الخط
+                                            <select value={selectedField.fontFamily} onChange={e => updateField(selectedId, { fontFamily: e.target.value })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked}>
+                                                <option value="Cairo">Cairo (عصري)</option>
+                                                <option value="Amiri">Amiri (كلاسيكي رسمي)</option>
+                                                <option value="Tajawal">Tajawal</option>
+                                            </select>
+                                        </label>
+                                    </>
+                                )}
+
+                                {/* Opacity & Rotation */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>الشفافية (0-1)
+                                        <input type="number" step="0.1" min="0" max="1" value={selectedField.opacity} onChange={e => updateField(selectedId, { opacity: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />
+                                    </label>
+                                    <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-secondary)' }}>التدوير (درجة)
+                                        <input type="number" step="1" value={selectedField.rotation} onChange={e => updateField(selectedId, { rotation: Number(e.target.value) })} style={{ width: '100%', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={selectedField.locked} />
+                                    </label>
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border-default)', margin: '16px 0' }} />
+                                
+                                {/* Actions */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <Button variant="outline" size="sm" onClick={() => duplicateField(selectedId)} leftIcon={Copy}>تكرار العنصر</Button>
+                                    <Button variant="outline" size="sm" onClick={() => removeField(selectedId)} leftIcon={Trash2} style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)' }}>حذف العنصر</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--text-muted)', textAlign: 'center', gap: '8px' }}>
+                                <MousePointer2 size={32} style={{ opacity: 0.5 }} />
+                                <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700 }}>قم بتحديد أي عنصر من مساحة العمل لتعديل خصائصه</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </div>
         </div>
     );

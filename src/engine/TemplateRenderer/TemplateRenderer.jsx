@@ -59,7 +59,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
                         position: 'absolute',
                         top: 0, left: 0,
                         width: '100%', height: '100%',
-                        objectFit: 'fill',
+                        objectFit: 'contain',
                         zIndex: 0,
                         pointerEvents: 'none'
                     }}
@@ -73,15 +73,13 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
 
                 const value = dataContext?.[field.fieldId] || '';
 
-                // Calculate scaled positions
-                const top = field.y * scale;
-                const left = field.x * scale; // Assuming x,y are center points
-
+                // Since field.x and field.y are percentages
                 const baseStyle = {
                     position: 'absolute',
-                    top: `${top}px`,
-                    left: `${left}px`,
-                    transform: 'translate(-50%, -50%)',
+                    top: `${field.y}%`,
+                    left: `${field.x}%`,
+                    transform: `translate(-50%, -50%) rotate(${field.rotation || 0}deg)`,
+                    opacity: field.opacity || 1,
                     zIndex: 10 + idx,
                 };
 

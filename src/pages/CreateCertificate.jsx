@@ -20,7 +20,22 @@ function useScaleFactor(containerRef) {
         function measure() {
             const el = containerRef.current;
             if (!el) return;
-            setWidth(el.clientWidth - 32); // padding offset
+            const containerW = el.clientWidth - 48; // padding offset
+            const containerH = el.clientHeight - 80; // header and padding offset
+            
+            // A4 aspect ratio
+            const A4_ASPECT = 297 / 210;
+            
+            // Calculate width based on constraining to either width or height
+            let finalWidth = containerW;
+            let expectedHeight = containerW / A4_ASPECT;
+            
+            if (expectedHeight > containerH && containerH > 0) {
+                // Constrain by height
+                finalWidth = containerH * A4_ASPECT;
+            }
+            
+            setWidth(finalWidth);
         }
         const ro = new ResizeObserver(measure);
         if (containerRef.current) ro.observe(containerRef.current);
@@ -249,13 +264,13 @@ export default function CreateCertificate() {
                 </Card>
 
                 {/* LIVE PREVIEW PANEL */}
-                <div ref={previewContainerRef} style={{ background: 'var(--bg-muted)', borderRadius: 'var(--radius-xl)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid var(--border-default)', minHeight: '500px' }}>
+                <div ref={previewContainerRef} style={{ flex: 1, background: 'var(--bg-muted)', borderRadius: 'var(--radius-xl)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid var(--border-default)', minHeight: 'calc(100vh - 150px)', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h3 style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--text-muted)' }}>المعاينة الحية التلقائية</h3>
                         <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-primary-600)', background: 'var(--color-success-bg)', padding: '4px 8px', borderRadius: '4px' }}>Smart Preview Active</span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, overflow: 'hidden' }}>
                         <TemplateRenderer template={activeTemplate} dataContext={dataContext} width={renderWidth} />
                     </div>
                 </div>
