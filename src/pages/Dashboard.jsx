@@ -1,16 +1,16 @@
 /**
  * 📊 Dashboard.jsx
- * Executive Analytics & Action Center for mohararcert.
- * Integrates styled status metrics, animated stats cards, custom skeleton loaders,
- * a Vercel-style activity chart, responsive data tables, and debug API logs.
+ * Premium SaaS Executive Analytics Hub for mohararcert.
+ * Overhauls layout to strict CSS grids, leverages Design Tokens (premium-card, glass-card),
+ * introduces skeleton loaders, elegant vector trend charts, and responsive tabular frameworks.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { Link, useNavigate } from 'react-router-dom';
-import { Award, FileText, Hourglass, CheckCircle2, AlertTriangle, Search, Eye, Filter, Sparkles, Inbox, Archive } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Award, FileText, Hourglass, CheckCircle2, AlertTriangle, Search, Eye, Filter, Sparkles, Inbox, Archive, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
 
 export default function Dashboard() {
@@ -39,7 +39,7 @@ export default function Dashboard() {
         loadData();
     }, []);
 
-    // Filter certificates dynamically based on role, status, and search query
+    // Filter transactions dynamically
     const filteredCerts = useMemo(() => {
         return certs.filter(c => {
             const matchesSearch = 
@@ -49,7 +49,6 @@ export default function Dashboard() {
             
             const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
 
-            // Creator only sees their own transactions, unless they are admin/reviewer/assistant
             const isCreatorOnly = user.role === 'CREATOR';
             const matchesUser = !isCreatorOnly || c.createdBy === user.id;
 
@@ -57,7 +56,7 @@ export default function Dashboard() {
         });
     }, [certs, search, statusFilter, user]);
 
-    // Computed Performance Statistics
+    // Computed Stats
     const stats = useMemo(() => {
         const userCerts = user.role === 'CREATOR' ? certs.filter(c => c.createdBy === user.id) : certs;
         
@@ -70,95 +69,89 @@ export default function Dashboard() {
         };
     }, [certs, user]);
 
-    // Vercel-style Activity chart points
-    const chartPoints = "10,120 120,80 240,110 360,40 480,90 600,30 720,50";
-
     const getStatusBadge = (status) => {
         switch (status) {
             case 'DRAFT':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-slate-100 dark:bg-[#131f31] text-slate-600 dark:text-slate-400">مسودة</span>;
+                return <span className="badge-premium badge-premium-warning">مسودة</span>;
             case 'PENDING_APPROVAL':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.05)]">بانتظار تأشير المساعد</span>;
+                return <span className="badge-premium badge-premium-warning font-black">بانتظار تأشير المساعد</span>;
             case 'APPROVED_BY_ASSISTANT':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.05)]">معتمد من المساعد</span>;
+                return <span className="badge-premium badge-premium-success font-black">معتمد من المساعد</span>;
             case 'FINAL_APPROVED':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.05)]">معتمد نهائياً</span>;
+                return <span className="badge-premium badge-premium-success font-black">معتمد نهائياً</span>;
             case 'RETURNED_FOR_EDIT':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.05)]">مُعاد للتعديل</span>;
+                return <span className="badge-premium badge-premium-danger font-black">مُعاد للتعديل</span>;
             case 'REJECTED':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.05)]">مرفوض</span>;
+                return <span className="badge-premium badge-premium-danger font-black">مرفوض</span>;
             case 'ARCHIVED':
-                return <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20">مؤرشف</span>;
+                return <span className="badge-premium badge-premium-success">مؤرشف</span>;
             default:
                 return null;
         }
     };
 
-    // Premium Skeleton Loaders layout
+    // Premium Skeleton Loading States
     if (loading) {
         return (
-            <div className="space-y-6">
-                {/* Greeting Card Skeleton */}
-                <div className="h-36 rounded-3xl skeleton" />
-                
-                {/* Stats Grid Skeletons */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-8 py-2">
+                <div className="h-40 rounded-3xl skeleton" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="h-28 rounded-2xl skeleton" />
                     <div className="h-28 rounded-2xl skeleton" />
                     <div className="h-28 rounded-2xl skeleton" />
                     <div className="h-28 rounded-2xl skeleton" />
                 </div>
-
-                {/* Analytical Panels Skeletons */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <div className="lg:col-span-8 h-64 rounded-2xl skeleton" />
-                    <div className="lg:col-span-4 h-64 rounded-2xl skeleton" />
+                    <div className="lg:col-span-8 h-72 rounded-2xl skeleton" />
+                    <div className="lg:col-span-4 h-72 rounded-2xl skeleton" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 select-none">
+        <div className="space-y-8 py-2 text-right">
             
-            {/* Elegant Luxury MoH Welcome Card */}
-            <div className="bg-gradient-to-l from-[#0f213b] via-[#132a4a] to-[#071020] text-white p-7 rounded-3xl shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-5 border border-white/5 premium-card">
-                <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none" />
-                <div className="absolute bottom-[-30%] left-[-10%] w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+            {/* Elegant MoH Header Card Banner */}
+            <div className="bg-gradient-to-l from-[#0f213b] via-[#132a4a] to-[#071020] text-white p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 border border-white/5 shadow-2xl premium-card">
+                {/* Background Ambient Blobs */}
+                <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-teal-500/5 rounded-full blur-[80px] pointer-events-none animate-pulse" />
+                <div className="absolute bottom-[-30%] left-[-10%] w-64 h-64 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none animate-pulse" />
                 
-                <div className="space-y-2 z-10 text-right">
-                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
-                        <Sparkles className="w-4 h-4 animate-pulse" />
-                        <span>منصة الاعتمادات الرسمية الموثوقة</span>
+                <div className="space-y-3 z-10">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs tracking-wider uppercase">
+                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                        <span>منصة الاعتمادات والتميز المؤسسي الرسمية</span>
                     </div>
                     <h2 className="text-2xl font-black bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-transparent">
                         أهلاً بك، {user.name} 👋
                     </h2>
-                    <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                    <p className="text-xs text-slate-350 max-w-2xl leading-relaxed">
                         {user.role === 'CREATOR' 
                             ? 'يمكنك البدء بإنشاء شهادات ومعاملات رقمية جديدة، وتتبع مسار مراجعتها واعتمادها الإداري خطوة بخطوة.'
                             : 'لديك معاملات جديدة معلقة بانتظار استعراض وتوقيع تأشيرات المراجعة أو الاعتماد النهائي العام.'
                         }
                     </p>
                 </div>
+
                 {canPerform('CREATE_CERTIFICATE') && (
                     <Link 
                         to="/create" 
                         onClick={() => logger.nav('الانتقال الموجه إلى شاشة تحرير شهادة جديدة.')}
-                        className="px-6 py-3.5 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-xs transition-all duration-300 shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 text-center z-10 active:scale-[0.98]"
+                        className="btn-premium btn-premium-accent py-4 font-black flex-shrink-0 z-10 hover:scale-105 active:scale-95"
                     >
                         📝 إنشاء شهادة جديدة
                     </Link>
                 )}
             </div>
 
-            {/* Metrics Statistics Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Performance Statistics Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'إجمالي المعاملات', val: stats.total, icon: FileText, style: 'text-slate-500 bg-slate-100 dark:bg-slate-900/60 dark:text-slate-400' },
-                    { label: 'بانتظار الاعتماد', val: stats.pending, icon: Hourglass, style: 'text-amber-500 bg-amber-500/10 dark:bg-amber-500/5' },
-                    { label: 'معتمد نهائياً', val: stats.approved, icon: CheckCircle2, style: 'text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/5' },
-                    { label: 'مُرجَع / مرفوض', val: stats.returned, icon: AlertTriangle, style: 'text-rose-500 bg-rose-500/10 dark:bg-rose-500/5' }
+                    { label: 'إجمالي المعاملات', val: stats.total, icon: FileText, style: 'text-[#0d9488] bg-teal-500/10' },
+                    { label: 'بانتظار الاعتماد', val: stats.pending, icon: Hourglass, style: 'text-amber-500 bg-amber-500/10' },
+                    { label: 'معتمد نهائياً', val: stats.approved, icon: CheckCircle2, style: 'text-emerald-500 bg-emerald-500/10' },
+                    { label: 'مُرجَع / مرفوض', val: stats.returned, icon: AlertTriangle, style: 'text-rose-500 bg-rose-500/10' }
                 ].map((item, index) => {
                     const IconComp = item.icon;
                     return (
@@ -167,40 +160,46 @@ export default function Dashboard() {
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="bg-white dark:bg-[#070e1b]/80 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-850/60 shadow-sm flex items-center gap-4 hover:shadow-md transition-all duration-300 premium-card"
+                            className="premium-card p-6 flex items-center justify-between relative group cursor-pointer"
                         >
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.style}`}>
-                                <IconComp className="w-5.5 h-5.5" />
+                            <div className="flex flex-col gap-1.5 text-right">
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest">{item.label}</span>
+                                <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{item.val}</span>
                             </div>
-                            <div className="text-right">
-                                <span className="text-[10px] text-slate-400 dark:text-slate-550 font-black block tracking-wide">{item.label}</span>
-                                <span className="text-2xl font-black mt-1 inline-block">{item.val}</span>
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.style}`}>
+                                <IconComp className="w-5.5 h-5.5" />
                             </div>
                         </motion.div>
                     );
                 })}
             </div>
 
-            {/* Analytical Panels: Trend Chart & Shortcuts */}
+            {/* Analytical Panels: Line Chart & Quick Action Shortcuts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* SVG Activity Trend Chart */}
-                <div className="lg:col-span-8 bg-white dark:bg-[#070e1b]/80 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-850/60 shadow-sm flex flex-col gap-4 premium-card">
+                <div className="lg:col-span-8 premium-card p-6 flex flex-col gap-5">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                             <span className="w-1.5 h-3 bg-amber-500 rounded-full" />
                             مؤشر نشاط إصدار الشهادات الأسبوعي
                         </h3>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">آخر 7 أيام عمل</span>
+                        <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">آخر 7 أيام عمل</span>
                     </div>
                     
                     {/* Glowing Vector Chart container */}
-                    <div className="w-full h-44 bg-slate-50/50 dark:bg-slate-900/10 rounded-2xl relative overflow-hidden flex items-end border border-slate-100 dark:border-slate-800/30">
-                        <svg className="w-full h-full absolute inset-0 text-amber-500/[0.04] dark:text-amber-500/[0.02]" viewBox="0 0 740 160" preserveAspectRatio="none">
-                            <path d={`M10,160 L${chartPoints} L730,160 Z`} fill="currentColor" />
-                            <polyline fill="none" stroke="#ca9f22" strokeWidth="2.5" points={chartPoints} />
+                    <div className="w-full h-44 bg-slate-50/40 dark:bg-slate-900/10 rounded-2xl relative overflow-hidden flex items-end border border-slate-200/40 dark:border-slate-800/30">
+                        <svg className="w-full h-full absolute inset-0 text-amber-500/[0.03] dark:text-amber-500/[0.015]" viewBox="0 0 740 160" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="chart-glow" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#ca9f22" stopOpacity="0.25" />
+                                    <stop offset="100%" stopColor="#ca9f22" stopOpacity="0.0" />
+                                </linearGradient>
+                            </defs>
+                            <path d={`M10,160 L10,120 L120,80 L240,110 L360,40 L480,90 L600,30 L720,50 L720,160 Z`} fill="url(#chart-glow)" />
+                            <polyline fill="none" stroke="#ca9f22" strokeWidth="2.5" points="10,120 120,80 240,110 360,40 480,90 600,30 720,50" />
                         </svg>
-                        <div className="w-full flex justify-between px-6 text-[9px] font-black text-slate-400 py-3 relative z-10 border-t border-slate-100/60 dark:border-slate-800/40 bg-white/20 dark:bg-slate-950/20">
+                        <div className="w-full flex justify-between px-6 text-[9px] font-black text-slate-450 dark:text-slate-500 py-3 relative z-10 border-t border-slate-200/50 dark:border-slate-800/40 bg-white/20 dark:bg-slate-950/20">
                             <span>الأحد</span>
                             <span>الإثنين</span>
                             <span>الثلاثاء</span>
@@ -213,9 +212,9 @@ export default function Dashboard() {
                 </div>
 
                 {/* Quick Shortcuts Panel */}
-                <div className="lg:col-span-4 bg-white dark:bg-[#070e1b]/80 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-850/60 shadow-sm flex flex-col gap-4 justify-between premium-card">
-                    <div>
-                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 mb-2">الوصول الإجرائي السريع</h3>
+                <div className="lg:col-span-4 premium-card p-6 flex flex-col gap-6 justify-between">
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">الوصول الإجرائي السريع</h3>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">تابع سجل التوثيق الإداري المباشر، تحقق من طلبات الاعتماد القائمة، أو انتقل للأرشيف المصادق والمحمي.</p>
                     </div>
 
@@ -224,49 +223,49 @@ export default function Dashboard() {
                             <Link 
                                 to="/pending" 
                                 onClick={() => logger.nav('الانتقال الموجه إلى المعاملات المعلقة بانتظار الاعتماد.')}
-                                className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-800/40"
+                                className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-850"
                             >
-                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
                                     <Inbox className="w-4 h-4 text-amber-500" />
                                     المعاملات المعلقة الموكلة لي
                                 </span>
-                                <span className="px-2 py-0.5 text-[9px] font-black bg-amber-500 text-slate-950 rounded-full shadow-sm">{stats.pending}</span>
+                                <span className="px-2.5 py-0.5 text-[9px] font-black bg-amber-500 text-slate-950 rounded-full shadow-sm">{stats.pending}</span>
                             </Link>
                         )}
                         <Link 
                             to="/archive" 
                             onClick={() => logger.nav('الانتقال الموجه إلى شاشة الأرشيف العام.')}
-                            className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-800/40"
+                            className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-850"
                         >
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                <Archive className="w-4 h-4 text-emerald-500" />
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
+                                <Archive className="w-4 h-4 text-teal-500" />
                                 استعراض السجل المعتمد
                             </span>
-                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">📂 {stats.approved}</span>
+                            <span className="text-[10px] font-black text-slate-450 dark:text-slate-500">📂 {stats.approved}</span>
                         </Link>
                     </div>
                 </div>
             </div>
 
             {/* Core Workflow Transactions Data Table */}
-            <div className="bg-white dark:bg-[#070e1b]/80 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-850/60 shadow-sm space-y-5 premium-card">
+            <div className="premium-card p-6 space-y-6">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="text-right">
+                    <div className="space-y-1">
                         <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">سجل المعاملات والاعتمادات القائمة</h3>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">جدول تفاعلي متطور لمراقبة حالات تدقيق وتوقيع المعاملات.</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">جدول تفاعلي متطور لمراقبة حالات تدقيق وتوقيع المعاملات.</p>
                     </div>
 
                     {/* Filter and Search Bar Controls */}
                     <div className="flex flex-wrap items-center gap-3">
                         {/* Search input with interactive icon focus */}
                         <div className="relative group">
-                            <Search className="absolute right-3.5 top-2.5 w-4 h-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                            <Search className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
                             <input
                                 type="text"
                                 placeholder="ابحث باسم المستفيد، السيريال..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-[#0f1d35] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none text-slate-700 dark:text-slate-200 w-64 focus:border-amber-500 transition-colors"
+                                className="pl-4 pr-10 py-2.5 input-premium w-64 focus:border-teal-500"
                             />
                         </div>
 
@@ -279,7 +278,7 @@ export default function Dashboard() {
                                     setStatusFilter(e.target.value);
                                     logger.api(`تصفية المعاملات بحسب الحالة: ${e.target.value}`);
                                 }}
-                                className="pl-6 pr-9 py-2.5 bg-slate-50 dark:bg-[#0f1d35] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none text-slate-700 dark:text-slate-200 cursor-pointer appearance-none focus:border-amber-500 transition-colors"
+                                className="pl-8 pr-10 py-2.5 input-premium w-64 cursor-pointer appearance-none focus:border-teal-500"
                             >
                                 <option value="ALL">جميع الحالات الإجرائية</option>
                                 <option value="DRAFT">مسودة تحرير</option>
@@ -294,42 +293,46 @@ export default function Dashboard() {
                 </div>
 
                 {/* Fully Responsive Scrollable Table Wrapper */}
-                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800/40 rounded-2xl custom-scrollbar">
+                <div className="overflow-x-auto border border-slate-200/50 dark:border-slate-800/40 rounded-2xl custom-scrollbar bg-white dark:bg-[#070e1b]/40">
                     <table className="w-full text-right text-xs">
                         <thead>
-                            <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-900/20 text-slate-450 dark:text-slate-400 font-black">
-                                <th className="p-4 text-center w-24">الرقم التسلسلي</th>
-                                <th className="p-4">اسم صاحب المعاملة</th>
-                                <th className="p-4">العنوان والمناسبة</th>
-                                <th className="p-4 w-32">تاريخ التقديم</th>
-                                <th className="p-4 text-center w-40">حالة التوقيع</th>
-                                <th className="p-4 text-center w-28">العمليات</th>
+                            <tr className="border-b border-slate-200/50 dark:border-slate-800/60 bg-slate-50/60 dark:bg-slate-900/20 text-slate-450 dark:text-slate-400 font-black">
+                                <th className="p-4.5 text-center w-24">الرقم التسلسلي</th>
+                                <th className="p-4.5">اسم صاحب المعاملة</th>
+                                <th className="p-4.5">العنوان والمناسبة</th>
+                                <th className="p-4.5 w-32">تاريخ التقديم</th>
+                                <th className="p-4.5 text-center w-40">حالة التوقيع</th>
+                                <th className="p-4.5 text-center w-28">العمليات</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
                             {filteredCerts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-slate-400 dark:text-slate-500 font-bold">
-                                        لا توجد معاملات متوافقة مع محددات البحث الحالية.
+                                    <td colSpan="6" className="p-8">
+                                        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 dark:text-slate-550">
+                                            <Inbox className="w-12 h-12 mb-3 text-amber-500/60 stroke-[1.5] animate-bounce" />
+                                            <h4 className="text-sm font-black text-slate-800 dark:text-slate-250">لا توجد معاملات متوافقة</h4>
+                                            <p className="text-[10px] mt-1 text-slate-500">جرب فرز المعاملات باستخدام شروط أخرى أو ابحث بقيم مختلفة.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredCerts.map((c) => (
                                     <tr key={c.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-all">
-                                        <td className="p-4 text-center font-mono font-bold text-slate-500 dark:text-slate-450">{c.serial}</td>
-                                        <td className="p-4 font-black text-slate-800 dark:text-slate-200">{c.recipientName}</td>
-                                        <td className="p-4 font-bold text-slate-500 dark:text-slate-450">{c.event}</td>
-                                        <td className="p-4 font-bold text-slate-450 dark:text-slate-550">
+                                        <td className="p-4.5 text-center font-mono font-bold text-slate-500 dark:text-slate-450">{c.serial}</td>
+                                        <td className="p-4.5 font-black text-slate-800 dark:text-slate-200">{c.recipientName}</td>
+                                        <td className="p-4.5 font-bold text-slate-500 dark:text-slate-450">{c.event}</td>
+                                        <td className="p-4.5 font-bold text-slate-450 dark:text-slate-550">
                                             {c.createdAt ? new Date(c.createdAt).toLocaleDateString('ar-SA') : '—'}
                                         </td>
-                                        <td className="p-4 text-center">{getStatusBadge(c.status)}</td>
-                                        <td className="p-4 text-center">
+                                        <td className="p-4.5 text-center">{getStatusBadge(c.status)}</td>
+                                        <td className="p-4.5 text-center">
                                             <button
                                                 onClick={() => {
                                                     logger.nav(`توجيه المعاينة للمعاملة ذات الرقم: ${c.serial}`);
                                                     navigate(`/approvals/${c.id}`);
                                                 }}
-                                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-250 dark:bg-[#0f1d35] dark:hover:bg-[#152a4e] text-slate-700 dark:text-slate-350 font-black transition-all inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+                                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0f1d35] dark:hover:bg-[#152a4e] text-slate-700 dark:text-slate-350 font-black transition-all inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
                                                 title="معاينة المعاملة والمستندات الحيوية"
                                             >
                                                 <Eye className="w-3.5 h-3.5" />

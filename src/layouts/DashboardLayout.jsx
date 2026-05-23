@@ -1,8 +1,8 @@
 /**
  * 🏛️ DashboardLayout.jsx
- * Unified Executive Layout Coordinator for mohararcert.
- * Implements a glassmorphic top bar, dark/light theme triggers, responsive sidebar integration,
- * and high-contrast typography scales for standard Arabic.
+ * Enterprise SaaS Responsive Layout Manager.
+ * Orchestrates collapsible desktop margins, mobile drawers, breadcrumbs,
+ * unified dark mode classes, and isolated Z-index overlay layers.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -15,6 +15,12 @@ import { logger } from '../utils/debug';
 export default function DashboardLayout({ children, currentUser, onLogout, navItems = [], notifications = [], onClearNotifications }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    
+    // Manage sidebar collapsible state dynamically
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        return localStorage.getItem('mohararcert_sidebar_collapsed') === 'true';
+    });
+
     const [isDarkMode, setIsDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || 
                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -36,6 +42,13 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
         }
     }, [isDarkMode]);
 
+    const toggleCollapse = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        localStorage.setItem('mohararcert_sidebar_collapsed', String(next));
+        logger.system(next ? 'طي القائمة الجانبية للمستندات.' : 'توسيع القائمة الجانبية للمستندات.');
+    };
+
     const getPageTitle = () => {
         const path = location.pathname;
         const match = navItems.find(item => item.to === path);
@@ -49,7 +62,7 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
     const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
-        <div className={`min-h-screen bg-slate-50 dark:bg-[#09111e] text-slate-800 dark:text-slate-100 flex transition-colors duration-300 font-sans`} style={{ direction: 'rtl' }}>
+        <div className={`min-h-screen bg-slate-50 dark:bg-[#050a14] text-slate-800 dark:text-slate-100 flex transition-colors duration-300 font-sans`} style={{ direction: 'rtl' }}>
             {/* Sidebar Navigation component */}
             <Sidebar
                 isOpen={isSidebarOpen}
@@ -57,17 +70,19 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
                     logger.nav('تم إغلاق الدرج الجانبي.');
                     setIsSidebarOpen(false);
                 }}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={toggleCollapse}
                 navItems={navItems}
                 currentUser={currentUser}
                 onLogout={onLogout}
             />
 
-            {/* Main Content Area */}
-            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isEditor ? '' : 'md:mr-72'}`}>
+            {/* Main Content Area - shifts dynamically depending on isCollapsed */}
+            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isEditor ? '' : (isCollapsed ? 'md:mr-20' : 'md:mr-72')}`}>
                 
                 {/* Header / Top Bar (Glassmorphic) */}
                 {!isEditor && (
-                    <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-white/70 dark:bg-[#070e1b]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm transition-all duration-300">
+                    <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-white/70 dark:bg-[#050a14]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/40 shadow-sm transition-all duration-300">
                         {/* Right: Drawer Hamburger + Breadcrumb */}
                         <div className="flex items-center gap-4">
                             <button
@@ -81,11 +96,11 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
                             </button>
                             
                             <div className="flex flex-col">
-                                <h1 className="text-md font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
-                                    <span className="w-1.5 h-3 bg-amber-500 rounded-full inline-block" />
+                                <h1 className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
+                                    <span className="w-1.5 h-3 bg-amber-500 rounded-full inline-block animate-pulse" />
                                     {getPageTitle()}
                                 </h1>
-                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1">
+                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1">
                                     {new Date().toLocaleDateString('ar-SA', { dateStyle: 'full' })}
                                 </span>
                             </div>
@@ -127,7 +142,7 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: 15 }}
                                                 className="absolute left-0 mt-3.5 w-80 z-50 bg-white dark:bg-[#0b1626] border border-slate-200/60 dark:border-slate-850 rounded-2xl shadow-xl overflow-hidden"
-                                                style={{ boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.1)' }}
+                                                style={{ boxShadow: 'var(--shadow-premium)' }}
                                             >
                                                 <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800/80">
                                                     <span className="font-black text-xs text-slate-900 dark:text-slate-100">الإشعارات والتنبيهات</span>
@@ -154,7 +169,7 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
                                                         notifications.map((notif) => (
                                                             <div key={notif.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-900/35 transition-colors cursor-pointer ${notif.read ? 'opacity-60' : 'bg-amber-500/5 dark:bg-amber-500/10'}`}>
                                                                 <div className="flex gap-3">
-                                                                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.type === 'approve' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : notif.type === 'reject' ? 'bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
+                                                                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.type === 'approve' ? 'bg-teal-500 shadow-[0_0_10px_rgba(13,148,136,0.5)]' : notif.type === 'reject' ? 'bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
                                                                     <div className="flex-1">
                                                                         <p className="text-xs font-bold leading-normal text-slate-800 dark:text-slate-200">{notif.message}</p>
                                                                         <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block mt-1.5">{notif.time}</span>
@@ -173,8 +188,8 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
                     </header>
                 )}
 
-                {/* Main Content Area */}
-                <main className={`flex-1 ${isEditor ? '' : 'p-6 md:p-8'}`}>
+                {/* Main Content Area - Enforces Container layouts */}
+                <main className={`flex-1 ${isEditor ? '' : 'p-6 md:p-8 w-full container-max'}`}>
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}

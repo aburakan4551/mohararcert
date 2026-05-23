@@ -1,8 +1,8 @@
 /**
  * 🔐 Login.jsx
- * Premium Luxury Government Authenticator Interface for mohararcert.
- * Solves the non-responsive redirect, features glassmorphic dark-mode aesthetics,
- * Saudi Ministry of Health luxury branding, custom transitions, and diagnostic logs.
+ * Highly Refined Government Enterprise Luxury Authenticator.
+ * Standardizes design tokens (glass-card, input-premium, btn-premium),
+ * resolves login redirects, implements secure double-submit preventions, and detailed logging.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -66,7 +66,7 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-[#070e1b] text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none" style={{ direction: 'rtl' }}>
+        <div className="min-h-screen bg-[#050a14] text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none" style={{ direction: 'rtl' }}>
             {/* Dynamic Background Animated Ambient Blobs */}
             <div className="absolute top-[-30%] right-[-20%] w-[80%] h-[80%] bg-gradient-to-br from-[#0c2f1f]/20 via-[#0d2a4a]/20 to-transparent rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
             <div className="absolute bottom-[-30%] left-[-20%] w-[80%] h-[80%] bg-gradient-to-tr from-[#9b7b1a]/5 via-[#0c251d]/15 to-transparent rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }} />
@@ -80,7 +80,7 @@ export default function Login() {
                 <div className="lg:col-span-6 flex flex-col justify-center gap-8 text-right p-2 md:p-6">
                     <div className="space-y-4">
                         {/* MoH Gold Badge */}
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#9b7b1a]/15 border border-[#9b7b1a]/30 text-amber-300 text-xs font-bold w-fit">
+                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#9b7b1a]/15 border border-[#9b7b1a]/30 text-amber-300 text-xs font-black w-fit">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             <span>بوابة المعاملات الرقمية الرسمية والاعتمادات</span>
                         </div>
@@ -105,12 +105,12 @@ export default function Login() {
                     </p>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 hover:border-slate-800/80 transition-all duration-300">
-                            <h4 className="text-amber-400 font-bold text-xs mb-1">المصداقية الرقمية</h4>
+                        <div className="p-4 rounded-2xl bg-slate-900/30 border border-slate-800/40 hover:border-slate-850 transition-all duration-300">
+                            <h4 className="text-amber-450 font-black text-xs mb-1">المصداقية الرقمية</h4>
                             <p className="text-[11px] text-slate-500 leading-relaxed">شهادات مشفرة بالكامل تحتوي على معرفات أمنية فريدة غير قابلة للتلاعب.</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 hover:border-slate-800/80 transition-all duration-300">
-                            <h4 className="text-emerald-400 font-bold text-xs mb-1">حوكمة متكاملة</h4>
+                        <div className="p-4 rounded-2xl bg-slate-900/30 border border-slate-800/40 hover:border-slate-850 transition-all duration-300">
+                            <h4 className="text-emerald-450 font-black text-xs mb-1">حوكمة متكاملة</h4>
                             <p className="text-[11px] text-slate-500 leading-relaxed">تكامل المسار الإداري من المنشئ إلى مراجع الاعتماد والمدير العام بالتوقيع الحيوي.</p>
                         </div>
                     </div>
@@ -122,9 +122,9 @@ export default function Login() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: 'easeOut' }}
-                        className="w-full max-w-md bg-slate-950/60 backdrop-blur-2xl border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden group"
+                        className="w-full max-w-md glass-card p-8 shadow-2xl relative overflow-hidden group"
                         style={{
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)'
+                            boxShadow: 'var(--shadow-premium)'
                         }}
                     >
                         {/* Upper Elegant Accent Border Glow */}
@@ -141,7 +141,7 @@ export default function Login() {
                             <div className="space-y-2">
                                 <label className="text-xs font-black text-slate-400 block tracking-wide">البريد الإلكتروني المهني</label>
                                 <div className="relative group">
-                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 group-focus-within:text-amber-500 transition-colors">
+                                    <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 group-focus-within:text-teal-500 transition-colors">
                                         <User className="w-4 h-4" />
                                     </span>
                                     <input
@@ -152,7 +152,7 @@ export default function Login() {
                                             setError('');
                                         }}
                                         disabled={submitting}
-                                        className="w-full pl-4 pr-11 py-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed group-hover:border-slate-700"
+                                        className="w-full pl-4 pr-12 py-3.5 input-premium"
                                         placeholder="username@moh.gov.sa"
                                         style={{ direction: 'ltr' }}
                                         required
@@ -167,7 +167,7 @@ export default function Login() {
                                     <span className="text-[10px] text-amber-500/60 font-bold hover:text-amber-400 cursor-pointer transition-colors">نسيت كلمة المرور؟</span>
                                 </div>
                                 <div className="relative group">
-                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 group-focus-within:text-amber-500 transition-colors">
+                                    <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 group-focus-within:text-teal-500 transition-colors">
                                         <Key className="w-4 h-4" />
                                     </span>
                                     <input
@@ -178,7 +178,7 @@ export default function Login() {
                                             setError('');
                                         }}
                                         disabled={submitting}
-                                        className="w-full pl-12 pr-11 py-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed group-hover:border-slate-700"
+                                        className="w-full pl-12 pr-12 py-3.5 input-premium"
                                         placeholder="••••••••••••"
                                         style={{ direction: 'ltr' }}
                                         required
@@ -186,7 +186,7 @@ export default function Login() {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                                        className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 hover:text-slate-350 transition-colors cursor-pointer"
                                         title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -202,7 +202,7 @@ export default function Login() {
                                         animate={{ opacity: 1, y: 0, x: shake ? [0, -10, 10, -10, 10, 0] : 0 }}
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: shake ? 0.4 : 0.2 }}
-                                        className="flex items-start gap-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold"
+                                        className="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold"
                                     >
                                         <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                         <span>{error}</span>
@@ -214,7 +214,7 @@ export default function Login() {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full py-4 px-4 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-sm shadow-xl shadow-amber-500/10 hover:shadow-amber-500/25 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                className="w-full btn-premium btn-premium-accent py-4 font-black active:scale-[0.98]"
                             >
                                 {submitting ? (
                                     <>
@@ -227,8 +227,8 @@ export default function Login() {
                             </button>
 
                             {/* Quick Test Credentials Grid */}
-                            <div className="pt-5 border-t border-slate-800/60 mt-6">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3 text-center">بوابة محاكاة الحسابات الرسمية للاختبار</span>
+                            <div className="pt-5 border-t border-slate-800/40 mt-6">
+                                <span className="text-[10px] font-black text-slate-550 dark:text-slate-500 uppercase tracking-widest block mb-3 text-center">بوابة محاكاة الحسابات الرسمية للاختبار</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     {[
                                         { role: 'منشئ المعاملات', email: 'creator@moh.gov.sa', emoji: '✍️' },
@@ -246,7 +246,7 @@ export default function Login() {
                                                 logger.auth(`Pre-seeded account credentials selected: ${acc.email}`);
                                             }}
                                             disabled={submitting}
-                                            className="py-2.5 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-slate-700/80 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="py-2.5 px-3 rounded-xl bg-slate-900/30 hover:bg-slate-900/60 border border-slate-800/40 hover:border-slate-800 text-[11px] font-black text-amber-500 hover:text-amber-400 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {acc.emoji} {acc.role}
                                         </button>
