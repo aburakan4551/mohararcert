@@ -1,14 +1,23 @@
 /**
- * 📝 MyCertificates.jsx
+ * 📝 MyCertificates.jsx — Enterprise MoH Healthcare Dashboard
  * Creator's certification records and workflow status tracker.
- * Displays personal logs, feedback warnings, and easy redirection to edit returned certificates.
  */
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
-import { useNavigate, Link } from 'react-router-dom';
-import { FileText, ArrowLeft, Hourglass, CheckCircle, HelpCircle, FileEdit, Trash2, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+    FileText, ArrowLeft, Hourglass, CheckCircle,
+    FileEdit, Trash2, MessageCircle, Eye, ShieldCheck,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import { Badge } from '../ui/feedback/Badge';
+import PageHeader from '../ui/layouts/PageHeader';
 
 export default function MyCertificates() {
     const { user } = useAuth();
@@ -20,24 +29,23 @@ export default function MyCertificates() {
         setLoading(true);
         try {
             const all = await dbService.getAll();
-            // Filter by current creator id
             setMyCerts(all.filter(c => c.createdBy === user.id));
+            logger.api(`تحميل شهاداتي: ${all.filter(c => c.createdBy === user.id).length}`);
         } catch (e) {
-            console.error('Failed to load certificates queue: ', e);
+            logger.error('فشل تحميل شهاداتي', e);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        loadMyCerts();
-    }, []);
+    useEffect(() => { loadMyCerts(); }, []);
 
     const handleDelete = async (id) => {
-        if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا الطلب نهائياً؟')) return;
+        if (!window.confirm('هل أنت متأكد من رغبتك في حذف مسودة الشهادة نهائياً؟')) return;
         try {
             await dbService.delete(id);
             setMyCerts(p => p.filter(c => c.id !== id));
+            logger.api(`حذف مسودة شهادة ${id}`);
         } catch (e) {
             alert('فشل الحذف: ' + e.message);
         }
@@ -45,129 +53,161 @@ export default function MyCertificates() {
 
     const getStatusTheme = (status) => {
         switch (status) {
-            case 'DRAFT':
-                return { bg: 'bg-slate-100 dark:bg-slate-800 text-slate-600', label: 'مسودة لم ترسل' };
-            case 'PENDING_APPROVAL':
-                return { bg: 'bg-blue-500/10 text-blue-500 border border-blue-500/10', label: 'بانتظار مراجعة المساعد' };
-            case 'APPROVED_BY_ASSISTANT':
-                return { bg: 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/10', label: 'معتمد من المساعد وبانتظار المدير العام' };
-            case 'FINAL_APPROVED':
-                return { bg: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10', label: 'معتمد وموثق نهائياً' };
-            case 'RETURNED_FOR_EDIT':
-                return { bg: 'bg-amber-500/10 text-amber-500 border border-amber-500/12', label: 'مُعاد للتعديل (ملاحظات معلقة)' };
-            case 'REJECTED':
-                return { bg: 'bg-rose-500/10 text-rose-500 border border-rose-500/10', label: 'مرفوض إدارياً' };
-            case 'ARCHIVED':
-                return { bg: 'bg-slate-500/10 text-slate-400 border border-slate-500/10', label: 'مؤرشف ومقفل' };
-            default:
-                return { bg: 'bg-slate-100 text-slate-500', label: 'غير معروف' };
+            case 'DRAFT':                 return { variant: 'neutral', label: 'مسودة محلية' };
+            case 'PENDING_APPROVAL':      return { variant: 'info',    label: 'مراجعة المساعد' };
+            case 'APPROVED_BY_ASSISTANT': return { variant: 'warning', label: 'اعتماد المدير' };
+            case 'FINAL_APPROVED':        return { variant: 'success', label: 'معتمد نهائياً' };
+            case 'RETURNED_FOR_EDIT':     return { variant: 'danger',  label: 'مُعاد للتعديل' };
+            case 'REJECTED':              return { variant: 'danger',  label: 'مرفوض' };
+            case 'ARCHIVED':              return { variant: 'neutral', label: 'مؤرشف' };
+            default:                      return { variant: 'neutral', label: 'غير معروف' };
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-amber-500"></div>
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-6">
-            
-            {/* Header section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-slate-50">سجل شهاداتي الخاصة</h2>
-                    <p className="text-xs text-slate-400">تتبع الحالات، واقرأ الملاحظات الإدارية، وعدّل الطلبات المسترجعة.</p>
-                </div>
-                <Link 
-                    to="/create" 
-                    className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs transition-all duration-300 shadow-md text-center inline-flex items-center gap-2 cursor-pointer"
-                >
-                    <span>➕ إنشاء معاملة جديدة</span>
-                </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            <PageHeader
+                title="سجل معاملاتي"
+                subtitle="تتبع حالات الشهادات التي قمت بإنشائها أو رفعها، مع إمكانية تعديل المعاملات المسترجعة."
+                actions={
+                    <Button variant="primary" size="md" onClick={() => navigate('/create')} leftIcon={FileText}>
+                        إنشاء معاملة جديدة
+                    </Button>
+                }
+            />
+
+            {/* Stats Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {[
+                    { label: 'إجمالي المعاملات', value: myCerts.length, color: 'var(--text-primary)' },
+                    { label: 'مسودات محلية', value: myCerts.filter(c => c.status === 'DRAFT').length, color: 'var(--text-secondary)' },
+                    { label: 'بانتظار الاعتماد', value: myCerts.filter(c => c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED_BY_ASSISTANT').length, color: 'var(--color-warning)' },
+                    { label: 'معتمد نهائياً', value: myCerts.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED').length, color: 'var(--color-success)' },
+                ].map(stat => (
+                    <div key={stat.label} style={{
+                        background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+                        borderRadius: 'var(--radius-lg)', padding: '16px',
+                        display: 'flex', flexDirection: 'column', gap: '4px',
+                        boxShadow: 'var(--shadow-surface)',
+                    }}>
+                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)' }}>{stat.label}</span>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: stat.color }}>{stat.value}</span>
+                    </div>
+                ))}
             </div>
 
-            {/* Queue List Grid */}
-            <div className="grid grid-cols-1 gap-4">
-                {myCerts.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-950 p-12 text-center border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl mx-auto space-y-4">
-                        <FileText className="w-12 h-12 text-slate-300 mx-auto opacity-60" />
-                        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">لا توجد معاملات منشأة حالياً</h3>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                            لم تقم بإنشاء أو رفع أي شهادات حتى الآن. يمكنك النقر على الزر أعلاه للبدء في صياغة أول طلب اعتماد رسمي.
-                        </p>
+            <Card>
+                <CardHeader>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={15} style={{ color: 'var(--color-primary-600)' }} />
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            قائمة المعاملات المرفوعة
+                        </h3>
+                    </div>
+                </CardHeader>
+                
+                {loading ? (
+                    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: '72px', borderRadius: '12px' }} />)}
+                    </div>
+                ) : myCerts.length === 0 ? (
+                    <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-xl)', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                            <FileText size={24} style={{ color: 'var(--text-muted)' }} strokeWidth={1.5} />
+                        </div>
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>لا توجد معاملات بعد</h3>
+                        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', maxWidth: '300px', margin: '0 auto' }}>لم تقم بإنشاء أي شهادات. ابدأ الآن بإنشاء أول معاملة لك.</p>
                     </div>
                 ) : (
-                    myCerts.map((c) => {
-                        const style = getStatusTheme(c.status);
-                        const isEditable = c.status === 'DRAFT' || c.status === 'RETURNED_FOR_EDIT';
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <AnimatePresence>
+                            {myCerts.map((c, idx) => {
+                                const theme = getStatusTheme(c.status);
+                                const isEditable = c.status === 'DRAFT' || c.status === 'RETURNED_FOR_EDIT';
 
-                        return (
-                            <div key={c.id} className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                
-                                {/* Info Area */}
-                                <div className="space-y-2 flex-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className="font-mono font-bold text-slate-400 text-xs">#{c.serial}</span>
-                                        <span className={`px-2.5 py-0.5 text-[9px] font-black rounded-full ${style.bg}`}>{style.label}</span>
-                                    </div>
-                                    
-                                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate">{c.recipientName}</h3>
-                                    <p className="text-xs text-slate-400 truncate">{c.event}</p>
-                                    
-                                    {/* Date */}
-                                    <span className="text-[10px] text-slate-400 block font-semibold">تاريخ الإنشاء: {new Date(c.createdAt).toLocaleDateString('ar-SA')}</span>
-
-                                    {/* Decision notes overlay warning */}
-                                    {c.comments && (c.status === 'RETURNED_FOR_EDIT' || c.status === 'REJECTED') && (
-                                        <div className="mt-2 flex items-start gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
-                                            <MessageCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                                <span className="font-bold text-[10px] block mb-0.5">ملاحظات اللجنة الإدارية:</span>
-                                                <p className="text-xs leading-relaxed">{c.comments}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Actions Area */}
-                                <div className="flex items-center gap-2.5 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0">
-                                    <button
-                                        onClick={() => navigate(`/approvals/${c.id}`)}
-                                        className="px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex items-center gap-1.5 cursor-pointer"
+                                return (
+                                    <motion.div
+                                        key={c.id}
+                                        initial={{ opacity: 0, y: 5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                                        transition={{ delay: idx * 0.05 }}
+                                        style={{
+                                            padding: '16px 20px',
+                                            borderBottom: '1px solid var(--border-subtle)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            gap: '16px',
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                     >
-                                        <span>👀 تفاصيل</span>
-                                    </button>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <code style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', background: 'var(--bg-muted)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                    #{c.serial}
+                                                </code>
+                                                <Badge variant={theme.variant} dot>{theme.label}</Badge>
+                                            </div>
+                                            
+                                            <h4 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {c.recipientName}
+                                            </h4>
+                                            
+                                            <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {c.event}
+                                            </p>
 
-                                    {isEditable && (
-                                        <button
-                                            onClick={() => navigate(`/create?id=${c.id}`)}
-                                            className="px-4 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-black hover:bg-amber-400 transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/10"
-                                        >
-                                            <FileEdit className="w-3.5 h-3.5" />
-                                            <span>تعديل</span>
-                                        </button>
-                                    )}
+                                            {c.comments && (c.status === 'RETURNED_FOR_EDIT' || c.status === 'REJECTED') && (
+                                                <div style={{
+                                                    marginTop: '6px', padding: '8px 12px',
+                                                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)',
+                                                    borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'flex-start', gap: '8px',
+                                                }}>
+                                                    <MessageCircle size={13} style={{ color: 'var(--color-danger)', marginTop: '2px', flexShrink: 0 }} />
+                                                    <div>
+                                                        <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--color-danger)', textTransform: 'uppercase' }}>ملاحظات اللجنة:</span>
+                                                        <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '2px' }}>{c.comments}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                    {c.status === 'DRAFT' && (
-                                        <button
-                                            onClick={() => handleDelete(c.id)}
-                                            className="p-2 bg-rose-500/10 text-rose-500 border border-rose-500/10 hover:bg-rose-500/20 hover:border-rose-500/20 rounded-xl transition-all cursor-pointer"
-                                            title="حذف المسودة"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Button variant="outline" size="sm" onClick={() => navigate(`/approvals/${c.id}`)} leftIcon={Eye}>
+                                                التفاصيل
+                                            </Button>
 
-                            </div>
-                        );
-                    })
+                                            {isEditable && (
+                                                <Button variant="primary" size="sm" onClick={() => navigate(`/create?id=${c.id}`)} leftIcon={FileEdit}>
+                                                    تعديل
+                                                </Button>
+                                            )}
+
+                                            {c.status === 'DRAFT' && (
+                                                <button
+                                                    onClick={() => handleDelete(c.id)}
+                                                    style={{
+                                                        width: 32, height: 32, borderRadius: '8px', border: 'none',
+                                                        background: 'rgba(239,68,68,0.08)', color: 'var(--color-danger)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.15)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+                                                    title="حذف المسودة"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+                    </div>
                 )}
-            </div>
-
+            </Card>
         </div>
     );
 }

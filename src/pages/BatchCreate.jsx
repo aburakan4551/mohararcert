@@ -1,74 +1,83 @@
-import React, { useRef, useState, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import CertificateTemplate from '../components/CertificateTemplate'
-import ExcelImporter from '../components/ExcelImporter'
-import TemplateSelector from '../components/TemplateSelector'
-import { useTemplates } from '../hooks/useTemplates'
-import { useLayers } from '../hooks/useLayers'
-import { useSerial } from '../hooks/useSerial'
-import { useAuth } from '../context/AuthContext'
-import { dbService, auditService, notificationService } from '../services/db'
-import { Save, Send, Sparkles, Database, FileText, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react'
+/**
+ * 🗃️ BatchCreate.jsx — Enterprise MoH Healthcare Dashboard
+ * Import Excel records and batch-generate certificates.
+ */
 
-const BRANCH_TEMPLATE_NAME = 'شهادة شكر وتقدير الفرع'
+import React, { useRef, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
+import ExcelImporter from '../components/ExcelImporter';
+import { useTemplates } from '../hooks/useTemplates';
+import { useLayers } from '../hooks/useLayers';
+import { useSerial } from '../hooks/useSerial';
+import { useAuth } from '../context/AuthContext';
+import { dbService, auditService, notificationService } from '../services/db';
+import {
+    Save, Database, FileText, CheckCircle2, ChevronRight,
+    AlertCircle, Sparkles, LayoutTemplate, Send
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import PageHeader from '../ui/layouts/PageHeader';
+
+const BRANCH_TEMPLATE_NAME = 'شهادة شكر وتقدير الفرع';
 
 export default function BatchCreate() {
-    const { user, settings } = useAuth()
-    const navigate = useNavigate()
-    const { templates, getTemplate, activeTemplateId } = useTemplates()
-    const [selectedTemplateId, setSelectedTemplateId] = useState(activeTemplateId || (templates[0]?.id))
+    const { user, settings } = useAuth();
+    const navigate = useNavigate();
+    const { templates, getTemplate, activeTemplateId } = useTemplates();
+    const [selectedTemplateId, setSelectedTemplateId] = useState(activeTemplateId || (templates[0]?.id));
     
-    // Retrieve layers for the selected template
-    const { layers, canvasWidth } = useLayers(selectedTemplateId || 'default')
-    const activeTemplate = useMemo(() => getTemplate(selectedTemplateId), [selectedTemplateId, getTemplate])
+    const { layers, canvasWidth } = useLayers(selectedTemplateId || 'default');
+    const activeTemplate = useMemo(() => getTemplate(selectedTemplateId), [selectedTemplateId, getTemplate]);
 
-    const { getNextSerial, consumeMultiple } = useSerial()
+    const { getNextSerial, consumeMultiple } = useSerial();
 
-    const [names, setNames] = useState([])
+    const [names, setNames] = useState([]);
     const [commonData, setCommonData] = useState({
         event: '',
         reasonText: '',
         date: new Date().toLocaleDateString('ar-SA', { dateStyle: 'long' }),
         showQR: true,
-        directSubmit: false // True = directly PENDING_APPROVAL, False = DRAFT
-    })
-    const [serials, setSerials] = useState([])
-    const [step, setStep] = useState(1) // 1=Select Template, 2=Import, 3=Configure, 4=Preview & Save
-    const [saving, setSaving] = useState(false)
-    const [saveProgress, setSaveProgress] = useState(0)
-    const [saveDone, setSaveDone] = useState(false)
-    const [createdIds, setCreatedIds] = useState([])
+        directSubmit: false
+    });
+    const [serials, setSerials] = useState([]);
+    const [step, setStep] = useState(1);
+    const [saving, setSaving] = useState(false);
+    const [saveProgress, setSaveProgress] = useState(0);
+    const [saveDone, setSaveDone] = useState(false);
 
-    const certRefs = useRef({})
+    const certRefs = useRef({});
 
     const handleImport = (importedNames) => {
-        setNames(importedNames)
-        setSerials([])
-        setSaveDone(false)
-    }
+        setNames(importedNames);
+        setSerials([]);
+        setSaveDone(false);
+    };
 
     const handleGenerateSerials = () => {
-        if (!commonData.event.trim()) return alert('الرجاء إدخال عنوان المناسبة')
-        if (!commonData.reasonText.trim()) return alert('الرجاء إدخال سبب التكريم')
+        if (!commonData.event.trim()) return alert('الرجاء إدخال عنوان المناسبة');
+        if (!commonData.reasonText.trim()) return alert('الرجاء إدخال سبب التكريم');
         
-        const newSerials = consumeMultiple(names.length)
-        setSerials(newSerials)
-        setStep(4)
-    }
+        const newSerials = consumeMultiple(names.length);
+        setSerials(newSerials);
+        setStep(4);
+    };
 
     const handleBulkSave = async () => {
-        if (names.length === 0 || serials.length === 0) return
+        if (names.length === 0 || serials.length === 0) return;
+        setSaving(true);
+        setSaveProgress(0);
         
-        setSaving(true)
-        setSaveProgress(0)
-        
-        const targetStatus = commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT'
-        const ids = []
+        const targetStatus = commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT';
         
         try {
             for (let i = 0; i < names.length; i++) {
-                const nameItem = names[i]
-                const serial = serials[i]
+                const nameItem = names[i];
+                const serial = serials[i];
                 
                 const payload = {
                     recipientName: nameItem.name,
@@ -81,376 +90,272 @@ export default function BatchCreate() {
                     templateId: selectedTemplateId,
                     createdBy: user.id,
                     creatorName: user.name,
-                    comments: targetStatus === 'PENDING_APPROVAL' ? 'تم الرفع للاعتماد دفعة واحدة عبر ملف Excel' : 'مسودة مستوردة دفعة واحدة',
-                    workflowHistory: [
-                        {
-                            stage: 'DRAFT',
-                            timestamp: new Date().toISOString(),
-                            user: user.name,
-                            comments: 'إنشاء عبر الدفعة المستوردة'
-                        }
-                    ]
-                }
+                    comments: targetStatus === 'PENDING_APPROVAL' ? 'مستورد — مرفوع فوري' : 'مستورد — مسودة',
+                };
                 
+                const newCert = await dbService.create(payload);
                 if (targetStatus === 'PENDING_APPROVAL') {
-                    payload.workflowHistory.push({
-                        stage: 'PENDING_APPROVAL',
-                        timestamp: new Date().toISOString(),
-                        user: user.name,
-                        comments: 'رفع للاعتماد مباشرة'
-                    })
+                    await dbService.submitForApproval(newCert.id, user);
                 }
                 
-                const newCert = await dbService.create(payload)
-                ids.push(newCert.id)
-                
-                // Update progress percentage
-                setSaveProgress(Math.round(((i + 1) / names.length) * 100))
-                
-                // Small artificial delay to show progress and ensure stability
-                await new Promise(r => setTimeout(r, 40))
+                setSaveProgress(Math.round(((i + 1) / names.length) * 100));
+                await new Promise(r => setTimeout(r, 40));
             }
             
-            // Log security audit
-            await auditService.log(
-                'CREATE_CERTIFICATE',
-                user,
-                `إنشاء دفعة شهادات (${names.length} شهادة) بصفة ${targetStatus === 'PENDING_APPROVAL' ? 'معلق للاعتماد' : 'مسودات'} بنجاح`
-            )
+            await auditService.log('CREATE_CERTIFICATE', user, `استيراد دفعة: ${names.length} شهادة (${targetStatus})`);
             
-            // Send single summary notification to Assistant if submitted directly
             if (targetStatus === 'PENDING_APPROVAL') {
                 await notificationService.create({
-                    userId: 'usr-2', // Assistant Manager
-                    message: `دفعة شهادات جديدة (${names.length} شهادة) مرفوعة بانتظار المراجعة والاعتماد`,
+                    userId: 'usr-2',
+                    message: `دفعة شهادات جديدة (${names.length}) بانتظار المراجعة`,
                     type: 'pending'
-                })
+                });
             }
             
-            setCreatedIds(ids)
-            setSaveDone(true)
-            
+            setSaveDone(true);
+            logger.api('اكتمل حفظ الدفعة');
         } catch (e) {
-            console.error(e)
-            alert('حدث خطأ أثناء حفظ شهادات الدفعة: ' + e.message)
+            logger.error('خطأ الدفعة', e);
+            alert('حدث خطأ أثناء الحفظ: ' + e.message);
         } finally {
-            setSaving(false)
+            setSaving(false);
         }
-    }
+    };
+
+    const StepIndicator = () => (
+        <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+            {[
+                { s: 1, label: 'القالب' },
+                { s: 2, label: 'استيراد الأسماء' },
+                { s: 3, label: 'البيانات' },
+                { s: 4, label: 'مراجعة واعتماد' }
+            ].map(({ s, label }, i) => (
+                <div key={s} style={{
+                    flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    background: step === s ? 'var(--color-primary-600)' : step > s ? 'var(--bg-subtle)' : 'transparent',
+                    color: step === s ? 'white' : step > s ? 'var(--color-success)' : 'var(--text-tertiary)',
+                    borderRight: i < 3 ? '1px solid var(--border-default)' : 'none',
+                    transition: 'all 0.2s',
+                    fontWeight: 800, fontSize: 'var(--text-micro)'
+                }}>
+                    <span style={{
+                        width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: step === s ? 'rgba(255,255,255,0.2)' : step > s ? 'var(--color-success-bg)' : 'var(--bg-muted)',
+                        color: step === s ? 'white' : step > s ? 'var(--color-success)' : 'var(--text-muted)'
+                    }}>{s}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
-            
-            {/* Step indicator */}
-            <div className="flex items-center gap-0 bg-white dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm no-print">
-                {[1, 2, 3, 4].map((s, i) => (
-                    <React.Fragment key={s}>
-                        <div className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black transition-all ${
-                            step === s 
-                                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10' 
-                                : step > s 
-                                    ? 'bg-emerald-500/10 text-emerald-500' 
-                                    : 'text-slate-400 dark:text-slate-600'
-                        }`}>
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                step === s 
-                                    ? 'bg-slate-950 text-amber-500' 
-                                    : step > s 
-                                        ? 'bg-emerald-500 text-white' 
-                                        : 'bg-slate-100 dark:bg-slate-900 text-slate-400'
-                            }`}>
-                                {s}
-                            </span>
-                            <span>{['اختيار القالب', 'استيراد الأسماء', 'صياغة البيانات', 'تأكيد وحفظ'][i]}</span>
-                        </div>
-                        {i < 3 && <div className="h-px w-6 bg-slate-200 dark:bg-slate-800 mx-2" />}
-                    </React.Fragment>
-                ))}
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-            {/* Step 1: Template Selection */}
-            {step === 1 && (
-                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-                    <div>
-                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-amber-500" />
-                            اختر القالب الموحد للدفعة
-                        </h2>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                            سيتم تطبيق هذا القالب وتصميم الخلفية على جميع الأسماء المستوردة في هذه الدفعة.
-                        </p>
-                    </div>
+            <PageHeader
+                title="إنشاء دفعة شهادات (Excel)"
+                subtitle="استيراد قوائم المستفيدين وإصدار الشهادات دفعة واحدة بضغطة زر"
+            />
 
-                    <TemplateSelector 
-                        selectedId={selectedTemplateId} 
-                        onSelect={setSelectedTemplateId} 
-                    />
+            <StepIndicator />
 
-                    <div className="flex justify-end pt-2">
-                        <button 
-                            className="py-2.5 px-6 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/10 disabled:opacity-40" 
-                            disabled={!selectedTemplateId}
-                            onClick={() => setStep(2)}
-                        >
-                            <span>الخطوة التالية: استيراد الأسماء</span>
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={step}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    {/* ── Step 1 ── */}
+                    {step === 1 && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <LayoutTemplate size={16} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>اختر قالب الشهادة للدفعة</h3>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                                    <select
+                                        value={selectedTemplateId || ''}
+                                        onChange={e => setSelectedTemplateId(e.target.value || null)}
+                                        style={{
+                                            padding: '12px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--text-label)', fontWeight: 600, background: 'var(--bg-surface)', fontFamily: 'var(--font-sans)', outline: 'none'
+                                        }}
+                                    >
+                                        <option value="">التصميم الكلاسيكي</option>
+                                        {templates.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name === 'قالب شهادة' ? BRANCH_TEMPLATE_NAME : t.name}</option>
+                                        ))}
+                                    </select>
+                                    <Button variant="primary" onClick={() => setStep(2)} rightIcon={ChevronRight} disabled={!selectedTemplateId}>
+                                        التالي: استيراد الأسماء
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-            {/* Step 2: Import */}
-            {step === 2 && (
-                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-                    <div>
-                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                            <Database className="w-5 h-5 text-amber-500" />
-                            استيراد قوائم الأسماء من ملف Excel
-                        </h2>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                            💡 يرجى التأكد من احتواء الملف على عمود معنون باسم <strong>"الاسم"</strong> أو <strong>"Name"</strong>.
-                        </p>
-                    </div>
+                    {/* ── Step 2 ── */}
+                    {step === 2 && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Database size={16} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>استيراد الأسماء من Excel</h3>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <ExcelImporter onImport={handleImport} />
+                                {names.length > 0 && (
+                                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                                        <Button variant="outline" onClick={() => setStep(1)}>السابق</Button>
+                                        <Button variant="primary" onClick={() => setStep(3)} rightIcon={ChevronRight}>
+                                            التالي: صياغة البيانات
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <ExcelImporter onImport={handleImport} />
+                    {/* ── Step 3 ── */}
+                    {step === 3 && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FileText size={16} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>البيانات المشتركة للدفعة ({names.length} مستفيد)</h3>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label style={{ fontSize: 'var(--text-label)', fontWeight: 700 }}>عنوان المناسبة</label>
+                                        <input type="text" value={commonData.event} onChange={e => setCommonData(p => ({ ...p, event: e.target.value }))} style={{ padding: '10px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', outline: 'none' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label style={{ fontSize: 'var(--text-label)', fontWeight: 700 }}>سبب التكريم</label>
+                                        <textarea rows="3" value={commonData.reasonText} onChange={e => setCommonData(p => ({ ...p, reasonText: e.target.value }))} style={{ padding: '10px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', outline: 'none', resize: 'vertical' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label style={{ fontSize: 'var(--text-label)', fontWeight: 700 }}>التاريخ المطبوع</label>
+                                        <input type="text" value={commonData.date} onChange={e => setCommonData(p => ({ ...p, date: e.target.value }))} style={{ padding: '10px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', outline: 'none' }} />
+                                    </div>
 
-                    {names.length > 0 && (
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                            <button 
-                                className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                                onClick={() => setStep(1)}
-                            >
-                                ← القوالب
-                            </button>
-                            <button 
-                                className="py-2.5 px-6 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/10"
-                                onClick={() => setStep(3)}
-                            >
-                                <span>الخطوة التالية: ضبط البيانات المشتركة</span>
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                            <input type="checkbox" checked={commonData.showQR} onChange={e => setCommonData(p => ({ ...p, showQR: e.target.checked }))} style={{ accentColor: 'var(--color-primary-600)' }} />
+                                            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700 }}>تضمين رمز QR</span>
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                            <input type="checkbox" checked={commonData.directSubmit} onChange={e => setCommonData(p => ({ ...p, directSubmit: e.target.checked }))} style={{ accentColor: 'var(--color-warning)' }} />
+                                            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--color-warning)' }}>الرفع فوراً للاعتماد (تخطي المسودة)</span>
+                                        </label>
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                                        <Button variant="outline" onClick={() => setStep(2)}>السابق</Button>
+                                        <Button variant="primary" onClick={handleGenerateSerials} rightIcon={ChevronRight} disabled={!commonData.event || !commonData.reasonText}>
+                                            توليد الأرقام التسلسلية والمراجعة
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* ── Step 4 ── */}
+                    {step === 4 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <Card>
+                                <CardHeader>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Sparkles size={16} style={{ color: 'var(--color-warning)' }} />
+                                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            مراجعة واعتماد الدفعة
+                                        </h3>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    {saving && (
+                                        <div style={{ padding: '20px', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: 'var(--text-micro)', fontWeight: 800 }}>
+                                                <span>جاري الاعتماد والإدراج...</span>
+                                                <span style={{ color: 'var(--color-primary-600)' }}>{saveProgress}%</span>
+                                            </div>
+                                            <div style={{ height: 6, background: 'var(--bg-muted)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', background: 'var(--color-primary-600)', width: `${saveProgress}%`, transition: 'width 0.2s' }} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {saveDone && (
+                                        <div style={{ padding: '20px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-success)', fontWeight: 800, fontSize: 'var(--text-body-sm)' }}>
+                                                <CheckCircle2 size={18} /> تم إدراج وإصدار الدفعة بنجاح!
+                                            </div>
+                                            <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                تم إنشاء {names.length} شهادة (من #{serials[0]} إلى #{serials[serials.length - 1]}).
+                                            </p>
+                                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                                <Button variant="primary" onClick={() => navigate('/registry')} size="sm">الذهاب للسجل</Button>
+                                                <Button variant="outline" onClick={() => navigate('/dashboard')} size="sm">الرئيسية</Button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!saving && !saveDone && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            <div style={{ padding: '16px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 'var(--radius-md)' }}>
+                                                <p style={{ fontSize: 'var(--text-caption)', fontWeight: 700, color: 'var(--color-warning)' }}>
+                                                    أنت على وشك إصدار {names.length} شهادة دفعة واحدة وحالتها ستكون: {commonData.directSubmit ? 'مرفوعة للاعتماد مباشرة' : 'مسودة محلية'}.
+                                                </p>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <Button variant="outline" onClick={() => setStep(3)}>السابق للبيانات</Button>
+                                                <Button variant="primary" onClick={handleBulkSave} leftIcon={commonData.directSubmit ? Send : Save}>
+                                                    {commonData.directSubmit ? 'توليد وتقديم الدفعة' : 'حفظ كمسودات'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Batch Preview Grid */}
+                            {!saving && !saveDone && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                                    {names.map((item, i) => (
+                                        <div key={i} style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'var(--bg-surface)' }}>
+                                            <div style={{ padding: '8px 12px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>شهادة {i + 1}</span>
+                                                <code style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)' }}>#{serials[i]}</code>
+                                            </div>
+                                            <div style={{ height: '140px', background: '#1a1f2e', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <div style={{ transform: 'scale(0.18)', transformOrigin: 'center center', width: '297mm', height: '210mm', position: 'absolute' }}>
+                                                    <UnifiedCertificateEngine
+                                                        ref={el => { certRefs.current[`cert-${i}`] = el; }}
+                                                        mode="preview" template={activeTemplate} layers={layers} canvasWidth={canvasWidth} settings={settings} showQR={commonData.showQR}
+                                                        data={{ recipientName: item.name, event: commonData.event, date: commonData.date, serial: serials[i], status: commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)', fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {item.name}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
-                </div>
-            )}
+                </motion.div>
+            </AnimatePresence>
 
-            {/* Step 3: Configure */}
-            {step === 3 && (
-                <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5 max-w-xl mx-auto">
-                    <div>
-                        <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-amber-500" />
-                            البيانات المشتركة للدفعة المستوردة
-                        </h2>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                            تُطبق هذه الصياغة والمناسبة المكتوبة على كافة الشهادات المستوردة.
-                        </p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="form-group">
-                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">عنوان المناسبة / الحفل الإداري *</label>
-                            <input 
-                                type="text" 
-                                className="form-control"
-                                placeholder="مثال: حفل التميز السنوي الأول لعام 2026"
-                                value={commonData.event}
-                                onChange={e => setCommonData(p => ({ ...p, event: e.target.value }))} 
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">سبب التكريم والتقدير المشترك *</label>
-                            <textarea 
-                                rows="3" 
-                                className="form-control resize-none"
-                                placeholder="نظير جهودكم وتفانيكم في تطوير الأنظمة الرقمية..."
-                                value={commonData.reasonText}
-                                onChange={e => setCommonData(p => ({ ...p, reasonText: e.target.value }))} 
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label font-bold text-slate-700 dark:text-slate-300">تاريخ التكريم المكتوب</label>
-                            <input 
-                                type="text" 
-                                className="form-control"
-                                value={commonData.date}
-                                onChange={e => setCommonData(p => ({ ...p, date: e.target.value }))} 
-                            />
-                        </div>
-
-                        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/40 space-y-3">
-                            <label className="flex items-center gap-3 cursor-pointer select-none">
-                                <input 
-                                    type="checkbox" 
-                                    className="w-4 h-4 rounded text-amber-500 accent-amber-500"
-                                    checked={commonData.showQR}
-                                    onChange={e => setCommonData(p => ({ ...p, showQR: e.target.checked }))} 
-                                />
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تضمين رمز QR للتحقق الرقمي للشهادة</span>
-                            </label>
-
-                            <label className="flex items-center gap-3 cursor-pointer select-none">
-                                <input 
-                                    type="checkbox" 
-                                    className="w-4 h-4 rounded text-amber-500 accent-amber-500"
-                                    checked={commonData.directSubmit}
-                                    onChange={e => setCommonData(p => ({ ...p, directSubmit: e.target.checked }))} 
-                                />
-                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">
-                                    🚀 رفع مباشرة للاعتماد (يتجاوز حالة المسودة ويذهب لدرج المراجع)
-                                </span>
-                            </label>
-                        </div>
-
-                        <div className="p-3 bg-amber-500/5 text-amber-500 border border-amber-500/10 rounded-xl text-[11px] font-bold">
-                            📊 سيتم إدراج <strong>{names.length}</strong> شهادة متتالية في قاعدة البيانات، تبدأ بالرقم التسلسلي: <strong>{getNextSerial()}</strong>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/60">
-                        <button 
-                            className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                            onClick={() => setStep(2)}
-                        >
-                            ← رجوع
-                        </button>
-                        <button
-                            className="flex-1 py-2.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 disabled:opacity-40"
-                            onClick={handleGenerateSerials}
-                            disabled={!commonData.event.trim() || !commonData.reasonText.trim()}
-                        >
-                            <span>تأكيد ومراجعة الدفعة المستخرجة</span>
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Step 4: Preview & Confirm Save */}
-            {step === 4 && (
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-                        <div>
-                            <h2 className="text-base font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                                <Database className="w-5 h-5 text-amber-500" />
-                                إدراج وحفظ شهادات الدفعة في النظام
-                            </h2>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                                سيتم إدراج الشهادات داخل قاعدة بيانات النظام (IndexedDB/local) بصفة <strong>{commonData.directSubmit ? 'معلق للاعتماد' : 'مسودات'}</strong>.
-                            </p>
-                        </div>
-
-                        {saving && (
-                            <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl space-y-3.5 border border-slate-100 dark:border-slate-800/40">
-                                <div className="flex items-center justify-between text-xs font-bold">
-                                    <span className="text-slate-500">⏳ جاري إدراج الشهادات في قاعدة البيانات...</span>
-                                    <span className="text-amber-500">{saveProgress}%</span>
-                                </div>
-                                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                                    <div className="bg-amber-500 h-full rounded-full transition-all duration-300" style={{ width: `${saveProgress}%` }} />
-                                </div>
-                            </div>
-                        )}
-
-                        {saveDone && (
-                            <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-2xl space-y-3">
-                                <div className="flex items-center gap-2 font-black text-sm">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    <span>تم إدراج الدفعة بالكامل في النظام بنجاح!</span>
-                                </div>
-                                <p className="text-xs leading-relaxed opacity-85">
-                                    تم إدراج عدد <strong>{names.length}</strong> شهادة شكر بنجاح برقم تسلسلي موحد يبدأ بـ <strong>{serials[0]}</strong> وينتهي بـ <strong>{serials[serials.length - 1]}</strong>.
-                                </p>
-                                <div className="flex gap-3 pt-2">
-                                    <button 
-                                        onClick={() => navigate('/registry')}
-                                        className="py-2 px-4 bg-emerald-500 text-white rounded-xl text-xs font-black hover:bg-emerald-600 transition-all cursor-pointer"
-                                    >
-                                        اذهب لسجل الشهادات
-                                    </button>
-                                    <button 
-                                        onClick={() => navigate('/dashboard')}
-                                        className="py-2 px-4 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                                    >
-                                        لوحة التحكم
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {!saving && !saveDone && (
-                            <div className="flex gap-4 p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl items-center justify-between">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
-                                    <div className="space-y-1">
-                                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">مراجعة أرقام تسلسلية الدفعة والاعتمادات</h4>
-                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                            العدد الإجمالي: {names.length} شهادات | الحالة: {commonData.directSubmit ? 'تقديم فوري للاعتماد' : 'حفظ كمسودة للتعديل اللاحق'}.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button 
-                                        className="py-2 px-4 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black cursor-pointer"
-                                        onClick={() => setStep(3)}
-                                    >
-                                        ← تعديل الصياغة
-                                    </button>
-                                    <button 
-                                        className="py-2 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black shadow-md shadow-amber-500/10 cursor-pointer"
-                                        onClick={handleBulkSave}
-                                    >
-                                        {commonData.directSubmit ? 'توليد وتقديم للاعتماد' : 'حفظ كمسودات في النظام'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Batch Preview Cards Grid */}
-                    <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-                        <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">
-                            🔍 معاينة بطاقات الدفعة المستخرجة ({names.length})
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {names.map((item, i) => (
-                                <div key={i} className="border border-slate-100 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 shadow-sm">
-                                    <div className="bg-slate-200 dark:bg-slate-800 px-4 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-between">
-                                        <span>بطاقة {i + 1} من {names.length}</span>
-                                        <span className="font-mono">{serials[i]}</span>
-                                    </div>
-                                    <div className="p-4 flex items-center justify-center bg-slate-100 dark:bg-slate-950 overflow-hidden relative" style={{ minHeight: '140px' }}>
-                                        <div style={{ transform: 'scale(0.18)', transformOrigin: 'center center', width: '297mm', height: '210mm', position: 'absolute' }}>
-                                            <CertificateTemplate
-                                                ref={el => { certRefs.current[`cert-${i}`] = el }}
-                                                template={activeTemplate}
-                                                layers={layers}
-                                                canvasWidth={canvasWidth}
-                                                data={{
-                                                    recipientName: item.name,
-                                                    event: commonData.event,
-                                                    date: commonData.date,
-                                                    serial: serials[i],
-                                                    status: commonData.directSubmit ? 'PENDING_APPROVAL' : 'DRAFT'
-                                                }}
-                                                settings={settings}
-                                                showQR={commonData.showQR}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="p-3 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800/60 text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                                        👤 المستفيد: {item.name}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
-    )
+    );
 }
-

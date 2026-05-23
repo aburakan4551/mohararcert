@@ -1,11 +1,9 @@
 /**
- * 📝 CreateCertificate.jsx
- * Enterprise-grade Certificate Creation Workspace for mohararcert.
- * Integrates directly with the Repository workflow service.
- * Supports: draft caching, returned modifications, field-locking, and automated reviewer notifications.
+ * 📝 CreateCertificate.jsx — Enterprise MoH Healthcare Dashboard
+ * Certificate Creation Workspace with Split View: Form vs Preview
  */
 
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
 import { useAuth } from '../context/AuthContext';
 import { useSerial } from '../hooks/useSerial';
@@ -13,50 +11,69 @@ import { useTemplates } from '../hooks/useTemplates';
 import { useLayers } from '../hooks/useLayers';
 import { dbService, auditService, notificationService } from '../services/db';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Save, Send, ShieldAlert, Sparkles, HelpCircle, FileText, ArrowLeft } from 'lucide-react';
+import {
+    Save, Send, ShieldAlert, FileText, QrCode,
+    Calendar, Type, LayoutTemplate, X, CheckCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import PageHeader from '../ui/layouts/PageHeader';
+import { Badge } from '../ui/feedback/Badge';
 
 const BRANCH_TEMPLATE_NAME = 'شهادة شكر وتقدير الفرع';
 
 function useScaleFactor(containerRef) {
     const [scale, setScale] = useState(0.45);
-
     useEffect(() => {
         function measure() {
             const el = containerRef.current;
             if (!el) return;
-            const A4_W_PX = 297 * (96 / 25.4); // ≈ 1122.5
-            const A4_H_PX = 210 * (96 / 25.4); // ≈ 793.7
-            const scaleW = el.clientWidth / A4_W_PX;
-            const scaleH = el.clientHeight / A4_H_PX;
-            setScale(Math.min(scaleW, scaleH));
+            const A4W = 297 * (96 / 25.4);
+            const A4H = 210 * (96 / 25.4);
+            setScale(Math.min(el.clientWidth / A4W, el.clientHeight / A4H) * 0.94);
         }
-
         const ro = new ResizeObserver(measure);
         if (containerRef.current) ro.observe(containerRef.current);
         measure();
         return () => ro.disconnect();
     }, [containerRef]);
-
     return scale;
 }
 
-const DataTab = memo(function DataTab({ 
-    formData, setFormData, serialInput, setSerialInput, autoSerial, 
-    templates, selectedTemplateId, setSelectedTemplateId, locked, settings 
+const DataForm = memo(function DataForm({
+    formData, setFormData, serialInput, setSerialInput, autoSerial,
+    templates, selectedTemplateId, setSelectedTemplateId, locked
 }) {
     return (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Template selector */}
             {templates.length > 0 && (
-                <div className="form-group">
-                    <label className="form-label">📄 نموذج وتصميم الشهادة</label>
-                    <select 
-                        className="form-control"
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <LayoutTemplate size={14} />
+                        نموذج وتصميم الشهادة
+                    </label>
+                    <select
                         disabled={locked}
                         value={selectedTemplateId || ''}
                         onChange={e => setSelectedTemplateId(e.target.value || null)}
+                        style={{
+                            padding: '10px 14px',
+                            border: '1.5px solid var(--border-strong)',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: 'var(--text-label)',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            background: 'var(--bg-surface)',
+                            outline: 'none',
+                            fontFamily: 'var(--font-sans)',
+                            opacity: locked ? 0.6 : 1,
+                        }}
                     >
-                        <option value="">🎨 التصميم الكلاسيكي (بدون قالب)</option>
+                        <option value="">التصميم الكلاسيكي (بدون قالب)</option>
                         {templates.map(t => (
                             <option key={t.id} value={t.id}>
                                 {t.isDefault ? '⭐ ' : ''}{t.name === 'قالب شهادة' ? BRANCH_TEMPLATE_NAME : t.name}
@@ -66,87 +83,120 @@ const DataTab = memo(function DataTab({
                 </div>
             )}
 
-            {/* Recipient name */}
-            <div className="form-group">
-                <label className="form-label">اسم المستفيد الكامل *</label>
+            {/* Recipient */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    اسم المستفيد الكامل <span style={{ color: 'var(--color-danger)' }}>*</span>
+                </label>
                 <input
                     type="text"
                     disabled={locked}
-                    className="form-control"
-                    placeholder="اسم الموظف أو المستلم"
                     value={formData.recipientName}
                     onChange={e => setFormData(p => ({ ...p, recipientName: e.target.value }))}
+                    placeholder="الاسم الثلاثي أو الرباعي"
+                    style={{
+                        padding: '10px 14px',
+                        border: '1.5px solid var(--border-strong)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-label)',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        background: 'var(--bg-surface)',
+                        outline: 'none',
+                        fontFamily: 'var(--font-sans)',
+                        opacity: locked ? 0.6 : 1,
+                    }}
                 />
             </div>
 
-            {/* Reason text */}
-            <div className="form-group">
-                <label className="form-label">سبب التكريم والتقدير *</label>
+            {/* Event & Date row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        عنوان المناسبة <span style={{ color: 'var(--color-danger)' }}>*</span>
+                    </label>
+                    <input
+                        type="text"
+                        disabled={locked}
+                        value={formData.event}
+                        onChange={e => setFormData(p => ({ ...p, event: e.target.value }))}
+                        placeholder="حفل التميز، دورة تدريبية..."
+                        style={{ padding: '10px 14px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-label)', fontWeight: 600, background: 'var(--bg-surface)', fontFamily: 'var(--font-sans)', opacity: locked ? 0.6 : 1 }}
+                    />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        التاريخ المطبوع <span style={{ color: 'var(--color-danger)' }}>*</span>
+                    </label>
+                    <input
+                        type="text"
+                        disabled={locked}
+                        value={formData.date}
+                        onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
+                        style={{ padding: '10px 14px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-label)', fontWeight: 600, background: 'var(--bg-surface)', fontFamily: 'var(--font-sans)', opacity: locked ? 0.6 : 1 }}
+                    />
+                </div>
+            </div>
+
+            {/* Reason */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    سبب التكريم والتقدير <span style={{ color: 'var(--color-danger)' }}>*</span>
+                </label>
                 <textarea
                     rows="3"
                     disabled={locked}
-                    className="form-control resize-none"
-                    placeholder="نظير جهودكم المتميزة في إنجاح أعمال مبادرة التحول الرقمي وحوكمة البيانات..."
                     value={formData.reasonText}
                     onChange={e => setFormData(p => ({ ...p, reasonText: e.target.value }))}
+                    placeholder="نظير جهودكم المتميزة في إنجاح..."
+                    style={{
+                        padding: '10px 14px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-label)', fontWeight: 600, background: 'var(--bg-surface)',
+                        fontFamily: 'var(--font-sans)', opacity: locked ? 0.6 : 1, resize: 'vertical'
+                    }}
                 />
             </div>
 
-            {/* Event */}
-            <div className="form-group">
-                <label className="form-label">عنوان المناسبة / الحفل *</label>
-                <input
-                    type="text"
-                    disabled={locked}
-                    className="form-control"
-                    placeholder="مثال: حفل التميز السنوي الأول لعام 2026"
-                    value={formData.event}
-                    onChange={e => setFormData(p => ({ ...p, event: e.target.value }))}
-                />
-            </div>
+            {/* Serial code & QR Toggle row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'end' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        الرقم التسلسلي
+                    </label>
+                    <input
+                        type="text"
+                        disabled={locked}
+                        placeholder={`تلقائي: ${autoSerial}`}
+                        value={serialInput}
+                        onChange={e => setSerialInput(e.target.value)}
+                        style={{
+                            padding: '10px 14px', border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)',
+                            fontSize: 'var(--text-label)', fontWeight: 700, background: 'var(--bg-muted)',
+                            fontFamily: 'monospace', opacity: locked ? 0.6 : 1, direction: 'ltr', textAlign: 'right'
+                        }}
+                    />
+                </div>
 
-            {/* Date */}
-            <div className="form-group">
-                <label className="form-label">تاريخ التكريم المكتوب *</label>
-                <input
-                    type="text"
-                    disabled={locked}
-                    className="form-control"
-                    value={formData.date}
-                    onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-                />
+                <label style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 14px',
+                    background: 'var(--bg-subtle)', border: '1.5px solid var(--border-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.6 : 1,
+                }}>
+                    <input
+                        type="checkbox"
+                        disabled={locked}
+                        checked={formData.showQR}
+                        onChange={e => setFormData(p => ({ ...p, showQR: e.target.checked }))}
+                        style={{ width: 16, height: 16, accentColor: 'var(--color-primary-600)' }}
+                    />
+                    <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <QrCode size={14} /> تضمين رمز التحقق QR
+                    </span>
+                </label>
             </div>
-
-            {/* Serial code */}
-            <div className="form-group">
-                <label className="form-label">الرقم التسلسلي</label>
-                <input
-                    type="text"
-                    disabled={locked}
-                    className="form-control text-left font-mono font-bold"
-                    placeholder={`تلقائي: ${autoSerial}`}
-                    value={serialInput}
-                    onChange={e => setSerialInput(e.target.value)}
-                    style={{ direction: 'ltr' }}
-                />
-                {!locked && (
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        اتركه فارغاً ليقوم النظام بتعيين رقم تسلسلي تلقائي ({autoSerial})
-                    </p>
-                )}
-            </div>
-
-            {/* QR Checkbox toggle */}
-            <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl cursor-pointer border border-slate-100 dark:border-slate-800/40 select-none">
-                <input
-                    type="checkbox"
-                    disabled={locked}
-                    checked={formData.showQR}
-                    onChange={e => setFormData(p => ({ ...p, showQR: e.target.checked }))}
-                    className="w-4 h-4 rounded text-amber-500 accent-amber-500"
-                />
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تضمين رمز QR للتحقق الرقمي</span>
-            </label>
         </div>
     );
 });
@@ -180,13 +230,10 @@ export default function CreateCertificate() {
     const certRef = useRef();
     const previewContainerRef = useRef();
 
-    // Check if form fields should be locked
     const isLocked = formData.status !== 'DRAFT' && formData.status !== 'RETURNED_FOR_EDIT';
 
-    // Load existing certificate if in edit/revision mode
     useEffect(() => {
         if (!editId) return;
-        
         const loadExistingCert = async () => {
             setLoading(true);
             try {
@@ -201,17 +248,14 @@ export default function CreateCertificate() {
                         status: existing.status
                     });
                     setSerialInput(existing.serial);
-                    if (existing.templateId) {
-                        setActiveTemplateId(existing.templateId);
-                    }
+                    if (existing.templateId) setActiveTemplateId(existing.templateId);
                 }
             } catch (e) {
-                console.error(e);
+                logger.error('فشل تحميل الشهادة', e);
             } finally {
                 setLoading(false);
             }
         };
-
         loadExistingCert();
     }, [editId, setActiveTemplateId]);
 
@@ -229,13 +273,12 @@ export default function CreateCertificate() {
 
     const certData = {
         recipientName: formData.recipientName || 'اسم المستفيد الكامل',
-        event: formData.event || 'عنوان المناسبة أو المحفل التكريمي',
+        event: formData.event || 'عنوان المناسبة أو الموضوع',
         date: formData.date,
         serial: previewSerial,
         status: formData.status
     };
 
-    // Save as local draft
     const handleSaveDraft = async () => {
         setSaving(true);
         try {
@@ -254,14 +297,13 @@ export default function CreateCertificate() {
 
             if (editId) {
                 await dbService.update(editId, payload);
-                await auditService.log('UPDATE_CERTIFICATE', user, `تحديث مسودة الشهادة رقم: ${previewSerial}`, editId);
+                await auditService.log('UPDATE_CERTIFICATE', user, `تحديث المسودة: ${previewSerial}`, editId);
             } else {
                 const newCert = await dbService.create(payload);
-                await auditService.log('CREATE_CERTIFICATE', user, `حفظ مسودة شهادة جديدة برقم: ${previewSerial}`, newCert.id);
-                navigate(`/create?id=${newCert.id}`);
+                await auditService.log('CREATE_CERTIFICATE', user, `مسودة جديدة: ${previewSerial}`, newCert.id);
+                navigate(`/create?id=${newCert.id}`, { replace: true });
             }
-
-            alert('تم حفظ المسودة بنجاح في سجلاتك المحلية!');
+            logger.api('تم حفظ المسودة');
         } catch (e) {
             alert('خطأ أثناء حفظ المسودة: ' + e.message);
         } finally {
@@ -269,11 +311,10 @@ export default function CreateCertificate() {
         }
     };
 
-    // Submit for official approval queue
     const handleSubmitApproval = async () => {
-        if (!formData.recipientName.trim()) return alert('الرجاء كتابة اسم المستفيد أولاً');
-        if (!formData.event.trim()) return alert('الرجاء كتابة عنوان المناسبة أو الحفل');
-        if (!formData.reasonText.trim()) return alert('الرجاء كتابة سبب التكريم');
+        if (!formData.recipientName.trim()) return alert('الرجاء كتابة اسم المستفيد');
+        if (!formData.event.trim())         return alert('الرجاء كتابة المناسبة');
+        if (!formData.reasonText.trim())    return alert('الرجاء كتابة سبب التكريم');
 
         setSaving(true);
         try {
@@ -301,20 +342,17 @@ export default function CreateCertificate() {
                 certId = newCert.id;
             }
 
-            // Log secure event
-            await auditService.log('CREATE_CERTIFICATE', user, `رفع وتقديم شهادة لاعتماد المراجع برقم: ${serial}`, certId);
-            
-            // Notify Assistant Manager
+            await auditService.log('CREATE_CERTIFICATE', user, `رفع للاعتماد: ${serial}`, certId);
             await notificationService.create({
-                userId: 'usr-2', // Assistant Manager
-                message: `شهادة جديدة بانتظار المراجعة والاعتماد: ${formData.recipientName}`,
+                userId: 'usr-2',
+                message: `شهادة جديدة بانتظار المراجعة: ${formData.recipientName}`,
                 type: 'pending'
             });
 
-            alert('تم تقديم طلب الاعتماد بنجاح وتمريره إلى درج المراجع الإداري!');
+            logger.api('تم الرفع للاعتماد');
             navigate('/dashboard');
         } catch (e) {
-            alert('خطأ أثناء رفع طلب الاعتماد: ' + e.message);
+            alert('خطأ أثناء تقديم الطلب: ' + e.message);
         } finally {
             setSaving(false);
         }
@@ -322,99 +360,108 @@ export default function CreateCertificate() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
+                <span className="spinner spinner-lg" />
             </div>
         );
     }
 
     return (
-        <div className="editor-layout">
-            
-            {/* ══════════ FORM PANEL ══════════ */}
-            <div className="editor-form-panel">
-                <div className="editor-form-header flex items-center justify-between">
-                    <span>📜 صياغة شهادة تقدير</span>
-                    {formData.status && formData.status !== 'DRAFT' && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase">
-                            {formData.status}
-                        </span>
-                    )}
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                <div className="editor-section overflow-y-auto custom-scrollbar flex-1 p-5">
-                    
-                    {/* Lock state advisory */}
-                    {isLocked && (
-                        <div className="p-3 mb-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs font-semibold flex items-start gap-2">
-                            <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                            <span>المعاملة في حالة مراجعة إدارية نشطة ومغلقة ضد أي تعديل.</span>
+            <PageHeader
+                title={editId ? 'تعديل المعاملة' : 'إنشاء شهادة جديدة'}
+                subtitle="صياغة البيانات واعتماد النموذج قبل الرفع للتدقيق الإداري"
+                actions={
+                    !isLocked && (
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={saving} leftIcon={Save}>
+                                مسودة
+                            </Button>
+                            <Button variant="primary" size="sm" onClick={handleSubmitApproval} isLoading={saving} leftIcon={Send}>
+                                تقديم للاعتماد
+                            </Button>
                         </div>
-                    )}
+                    )
+                }
+            />
 
-                    <DataTab
-                        formData={formData}
-                        setFormData={setFormData}
-                        serialInput={serialInput}
-                        setSerialInput={setSerialInput}
-                        autoSerial={autoSerial}
-                        templates={templates}
-                        selectedTemplateId={selectedTemplateId}
-                        setSelectedTemplateId={setSelectedTemplateId}
-                        locked={isLocked}
-                        settings={settings}
-                    />
-                </div>
-
-                {/* Footer Action buttons */}
-                {!isLocked && (
-                    <div className="editor-action-bar grid grid-cols-2 gap-3.5 border-t border-slate-200 dark:border-slate-800/80 p-4">
-                        <button
-                            type="button"
-                            disabled={saving}
-                            onClick={handleSaveDraft}
-                            className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                            <Save className="w-4 h-4" />
-                            <span>حفظ كمسودة</span>
-                        </button>
-                        <button
-                            type="button"
-                            disabled={saving || !formData.recipientName}
-                            onClick={handleSubmitApproval}
-                            className="py-2.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10"
-                        >
-                            <Send className="w-4 h-4" />
-                            <span>تقديم للاعتماد</span>
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* ══════════ PREVIEW PANEL ══════════ */}
-            <div className="editor-preview-panel bg-[#141517]">
+            <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: '20px', alignItems: 'start' }}>
                 
-                {/* Toolbar */}
-                <div className="editor-preview-toolbar flex items-center justify-between">
-                    <div className="editor-preview-toolbar-title flex items-center gap-1.5">
-                        <span>👁️</span>
-                        <span>معاينة حية للمستند الرسمي</span>
-                    </div>
+                {/* ── Left: Form Panel ── */}
+                <Card>
+                    <CardHeader>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Type size={15} style={{ color: 'var(--color-primary-600)' }} />
+                                <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                    بيانات التكريم
+                                </h3>
+                            </div>
+                            {formData.status && formData.status !== 'DRAFT' && (
+                                <Badge variant="warning" dot>{formData.status}</Badge>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {isLocked && (
+                            <div style={{
+                                padding: '12px 16px', marginBottom: '20px',
+                                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)',
+                                borderRadius: 'var(--radius-md)',
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                            }}>
+                                <ShieldAlert size={16} style={{ color: 'var(--color-danger)', flexShrink: 0 }} />
+                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                    هذه المعاملة في مسار المراجعة ولا يمكن تعديلها حالياً.
+                                </span>
+                            </div>
+                        )}
 
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                        <span className="bg-[#1e2023] px-2 py-0.5 rounded text-[10px]">A4 landscape</span>
-                        <span>تكبير: {Math.round(scale * 100)}%</span>
-                    </div>
-                </div>
+                        <DataForm
+                            formData={formData} setFormData={setFormData}
+                            serialInput={serialInput} setSerialInput={setSerialInput}
+                            autoSerial={autoSerial} templates={templates}
+                            selectedTemplateId={selectedTemplateId} setSelectedTemplateId={setSelectedTemplateId}
+                            locked={isLocked} settings={settings}
+                        />
+                    </CardContent>
+                </Card>
 
-                {/* Canvas preview scale host */}
-                <div className="editor-preview-canvas" ref={previewContainerRef}>
-                    <div className="cert-scale-wrapper">
-                        <div className="cert-scale-inner">
-                            <div
-                                className="cert-transform-host"
-                                style={{ '--cert-scale': scale }}
-                            >
+                {/* ── Right: Preview Panel ── */}
+                <div style={{ position: 'sticky', top: '80px' }}>
+                    <Card>
+                        <div style={{
+                            padding: '12px 16px',
+                            background: '#0D1117',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            borderTopLeftRadius: 'var(--radius-xl)', borderTopRightRadius: 'var(--radius-xl)',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 6px rgba(16,185,129,0.6)', animation: 'pulse 2s infinite' }} />
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
+                                    المعاينة المباشرة (Live)
+                                </span>
+                            </div>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em' }}>
+                                {(scale * 100).toFixed(0)}% ZOOM
+                            </span>
+                        </div>
+
+                        <div
+                            ref={previewContainerRef}
+                            style={{
+                                background: '#1a1f2e',
+                                minHeight: '480px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                overflow: 'hidden', position: 'relative',
+                                padding: '20px',
+                                borderBottomLeftRadius: 'var(--radius-xl)', borderBottomRightRadius: 'var(--radius-xl)',
+                            }}
+                        >
+                            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                            <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center', width: '297mm', height: '210mm', flexShrink: 0, position: 'relative', zIndex: 2 }}>
                                 <UnifiedCertificateEngine
                                     ref={certRef}
                                     mode="preview"
@@ -427,11 +474,10 @@ export default function CreateCertificate() {
                                 />
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
             </div>
-
         </div>
     );
 }

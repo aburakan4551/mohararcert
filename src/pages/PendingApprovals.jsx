@@ -1,254 +1,366 @@
 /**
- * 📥 PendingApprovals.jsx
- * Workflow queues for higher management authorities (Assistant & General Manager).
- * Supports search, batch actions, individual inspection, and GM Bulk Approval.
+ * 📥 PendingApprovals.jsx — Enterprise MoH Healthcare Dashboard
+ * Balanced Enterprise UI: Information-dense, professional, clean.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService, auditService, notificationService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
-import { Hourglass, Eye, CheckSquare, Square, ThumbsUp, AlertCircle, Sparkles, MessageCircle } from 'lucide-react';
+import {
+    Hourglass, Eye, CheckSquare, Square, CheckCircle,
+    MessageSquare, ThumbsUp, AlertCircle, Filter,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import { Badge } from '../ui/feedback/Badge';
+import { DataTable } from '../ui/tables/DataTable';
+import PageHeader from '../ui/layouts/PageHeader';
+
+const QUEUE_STATUS = {
+    ASSISTANT_MANAGER: ['PENDING_APPROVAL'],
+    GENERAL_MANAGER:   ['APPROVED_BY_ASSISTANT'],
+    SUPER_ADMIN:       ['PENDING_APPROVAL', 'APPROVED_BY_ASSISTANT'],
+};
+
+const STAGE_BADGE = {
+    PENDING_APPROVAL:     <Badge variant="warning" dot>بانتظار تأشير المساعد</Badge>,
+    APPROVED_BY_ASSISTANT:<Badge variant="info"    dot>بانتظار اعتماد المدير</Badge>,
+};
 
 export default function PendingApprovals() {
     const { user } = useAuth();
-    const navigate = useNavigate();
-    const [certs, setCerts] = useState([]);
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const navigate  = useNavigate();
+
+    const [certs,         setCerts]         = useState([]);
+    const [selectedIds,   setSelectedIds]   = useState([]);
+    const [loading,       setLoading]       = useState(true);
     const [decisionNotes, setDecisionNotes] = useState('');
-    const [processing, setProcessing] = useState(false);
+    const [processing,    setProcessing]    = useState(false);
 
     const loadQueue = async () => {
         setLoading(true);
         try {
             const all = await dbService.getAll();
             setCerts(all);
+            logger.api(`تحميل طابور المعلقة: ${all.length} معاملة`);
         } catch (e) {
-            console.error('Failed to load pending queue: ', e);
+            logger.error('فشل تحميل الطابور', e);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        loadQueue();
-    }, []);
+    useEffect(() => { loadQueue(); }, []);
 
-    // Filter certificates that require action by the current role
     const pendingCerts = useMemo(() => {
-        return certs.filter(c => {
-            if (user.role === 'ASSISTANT_MANAGER') {
-                return c.status === 'PENDING_APPROVAL';
-            }
-            if (user.role === 'GENERAL_MANAGER') {
-                return c.status === 'APPROVED_BY_ASSISTANT';
-            }
-            if (user.role === 'SUPER_ADMIN') {
-                return c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED_BY_ASSISTANT';
-            }
-            return false;
-        });
+        const allowed = QUEUE_STATUS[user.role] || [];
+        return certs.filter(c => allowed.includes(c.status));
     }, [certs, user]);
 
-    // Handle Selection toggles
-    const handleSelectToggle = (id) => {
-        setSelectedIds(prev => 
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
-    };
+    const handleSelectToggle = (id) =>
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-    const handleSelectAll = () => {
-        if (selectedIds.length === pendingCerts.length) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(pendingCerts.map(c => c.id));
-        }
-    };
+    const handleSelectAll = () =>
+        setSelectedIds(selectedIds.length === pendingCerts.length ? [] : pendingCerts.map(c => c.id));
 
-    // Bulk Approval Handler
     const handleBulkApprove = async () => {
-        if (selectedIds.length === 0) return alert('الرجاء تحديد معاملة واحدة على الأقل');
-        if (!window.confirm(`هل أنت متأكد من رغبتك في اعتماد عدد (${selectedIds.length}) معاملة دفعة واحدة؟`)) return;
-
+        if (!selectedIds.length) return;
+        if (!window.confirm(`هل تؤكد اعتماد (${selectedIds.length}) معاملة دفعة واحدة؟`)) return;
         setProcessing(true);
         try {
             for (const id of selectedIds) {
                 const cert = certs.find(x => x.id === id);
-                if (user.role === 'ASSISTANT_MANAGER' || user.role === 'SUPER_ADMIN') {
-                    // If assistant, approve with visa
-                    await dbService.approveByAssistant(id, user, decisionNotes || 'تم الاعتماد الجماعي والتأشير بالقبول');
-                    await auditService.log('APPROVE_CERTIFICATE', user, `تأشيرة ومراجعة جماعية للشهادة رقم: ${cert.serial}`, id);
-                    
-                    // Notify General Manager
-                    await notificationService.create({
-                        userId: 'usr-3', // General Manager
-                        message: `تأشيرة جديدة مكتملة بانتظار اعتمادك النهائي: ${cert.recipientName}`,
-                        type: 'approve'
-                    });
-                } 
-                
-                if (user.role === 'GENERAL_MANAGER' || user.role === 'SUPER_ADMIN') {
-                    // If general manager, finalize and lock
-                    await dbService.approveFinal(id, user, decisionNotes || 'تم الاعتماد النهائي والمصادقة الجماعية');
-                    await auditService.log('APPROVE_CERTIFICATE', user, `مصادقة واعتماد نهائي جماعي للشهادة رقم: ${cert.serial}`, id);
-                    
-                    // Notify Creator
-                    await notificationService.create({
-                        userId: cert.createdBy,
-                        message: `🎉 تهانينا! تمت المصادقة والاعتماد النهائي لشهادتك: ${cert.recipientName}`,
-                        type: 'approve'
-                    });
+                if (user.role === 'ASSISTANT_MANAGER' || (user.role === 'SUPER_ADMIN' && cert.status === 'PENDING_APPROVAL')) {
+                    await dbService.approveByAssistant(id, user, decisionNotes || 'اعتماد جماعي — تأشيرة المساعد');
+                    await auditService.log('APPROVE_CERTIFICATE', user, `تأشيرة جماعية: ${cert.serial}`, id);
+                    await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${cert.recipientName}`, type: 'approve' });
+                } else {
+                    await dbService.approveFinal(id, user, decisionNotes || 'اعتماد نهائي جماعي — المدير العام');
+                    await auditService.log('APPROVE_CERTIFICATE', user, `اعتماد نهائي جماعي: ${cert.serial}`, id);
+                    await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${cert.recipientName}`, type: 'approve' });
                 }
             }
-
-            alert('تم إنهاء الاعتماد الجماعي لجميع المعاملات المحددة بنجاح!');
             setSelectedIds([]);
             setDecisionNotes('');
             await loadQueue();
         } catch (e) {
-            alert('فشلت العملية الجماعية: ' + e.message);
+            alert('فشل الاعتماد الجماعي: ' + e.message);
         } finally {
             setProcessing(false);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500"></div>
+    /* ── Table Columns ── */
+    const allSelected   = selectedIds.length === pendingCerts.length && pendingCerts.length > 0;
+    const someSelected  = selectedIds.length > 0;
+
+    const columns = [
+        {
+            key: '_select',
+            label: (
+                <button
+                    onClick={handleSelectAll}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--text-muted)' }}
+                >
+                    {allSelected
+                        ? <CheckSquare size={16} style={{ color: 'var(--color-primary-600)' }} />
+                        : <Square size={16} />
+                    }
+                </button>
+            ),
+            sortable: false,
+            render: (_, row) => (
+                <button
+                    onClick={e => { e.stopPropagation(); handleSelectToggle(row.id); }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--text-muted)' }}
+                >
+                    {selectedIds.includes(row.id)
+                        ? <CheckSquare size={16} style={{ color: 'var(--color-primary-600)' }} />
+                        : <Square size={16} />
+                    }
+                </button>
+            ),
+        },
+        {
+            key: 'serial',
+            label: 'التسلسل',
+            render: v => (
+                <code style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-muted)', padding: '2px 7px', borderRadius: '5px' }}>
+                    {v}
+                </code>
+            ),
+        },
+        {
+            key: 'recipientName',
+            label: 'صاحب المعاملة',
+            render: v => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{v}</strong>,
+        },
+        {
+            key: 'event',
+            label: 'المناسبة',
+            render: v => <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-tertiary)' }}>{v}</span>,
+        },
+        {
+            key: 'creatorName',
+            label: 'المنشئ',
+            render: v => <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)' }}>{v || 'النظام'}</span>,
+        },
+        {
+            key: 'status',
+            label: 'المرحلة',
+            sortable: false,
+            render: v => STAGE_BADGE[v] || <Badge variant="neutral">{v}</Badge>,
+        },
+        {
+            key: 'actions',
+            label: '',
+            sortable: false,
+            render: (_, row) => (
+                <Button size="xs" variant="outline" onClick={() => navigate(`/approvals/${row.id}`)} leftIcon={Eye}>
+                    مراجعة
+                </Button>
+            ),
+        },
+    ];
+
+    /* ── Empty Queue ── */
+    const EmptyQueue = () => (
+        <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <div style={{
+                width: 56, height: 56,
+                borderRadius: 'var(--radius-xl)',
+                background: 'rgba(15,169,88,0.08)',
+                border: '1.5px solid rgba(15,169,88,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+            }}>
+                <ThumbsUp size={24} style={{ color: 'var(--color-primary-600)' }} strokeWidth={1.5} />
             </div>
-        );
-    }
+            <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                الطابور خالٍ تماماً
+            </h3>
+            <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 500, maxWidth: '360px', margin: '0 auto', lineHeight: 1.6 }}>
+                تم إنهاء جميع المعاملات المرفوعة إليك. لا توجد طلبات بانتظار قرارك الإداري حالياً.
+            </p>
+        </div>
+    );
 
     return (
-        <div className="space-y-6">
-            
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                        <Hourglass className="w-5 h-5 text-amber-500 animate-spin" />
-                        المعاملات المعلقة بانتظار القرار الإداري
-                    </h2>
-                    <p className="text-xs text-slate-400">
-                        {user.role === 'ASSISTANT_MANAGER' && 'قم بمراجعة المعاملات المرفوعة وتأشيرها لنقلها للمدير العام.'}
-                        {user.role === 'GENERAL_MANAGER' && 'قم بالمصادقة النهائية والاعتماد الرقمي للشهادات لإقفالها وترحيلها للأرشيف.'}
-                        {user.role === 'SUPER_ADMIN' && 'إدارة الحالات وتوجيه مسار المعاملات المتوقفة في النظام.'}
-                    </p>
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ── Page Header ── */}
+            <PageHeader
+                title="المعاملات المعلقة"
+                subtitle={
+                    user.role === 'ASSISTANT_MANAGER' ? 'مراجعة المعاملات المرفوعة وتأشيرها للمدير العام' :
+                    user.role === 'GENERAL_MANAGER'   ? 'المصادقة النهائية والاعتماد الرقمي للشهادات' :
+                    'إدارة جميع المعاملات المعلقة في النظام'
+                }
+            />
+
+            {/* ── Stats Bar ── */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px',
+            }}>
+                {[
+                    {
+                        label: 'إجمالي المعلقة',
+                        value: pendingCerts.length,
+                        color: 'var(--color-warning)',
+                        bg: 'rgba(245,158,11,0.08)',
+                        border: 'rgba(245,158,11,0.15)',
+                    },
+                    {
+                        label: 'المحددة للاعتماد',
+                        value: selectedIds.length,
+                        color: 'var(--color-primary-600)',
+                        bg: 'rgba(15,169,88,0.08)',
+                        border: 'rgba(15,169,88,0.15)',
+                    },
+                    {
+                        label: 'مستوى الأولوية',
+                        value: pendingCerts.length > 5 ? 'عالية' : pendingCerts.length > 0 ? 'متوسطة' : 'لا يوجد',
+                        color: pendingCerts.length > 5 ? 'var(--color-danger)' : pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--color-success)',
+                        bg: 'var(--bg-subtle)',
+                        border: 'var(--border-default)',
+                        isText: true,
+                    },
+                ].map(stat => (
+                    <div key={stat.label} style={{
+                        padding: '14px 16px',
+                        background: stat.bg,
+                        border: `1px solid ${stat.border}`,
+                        borderRadius: 'var(--radius-lg)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            {stat.label}
+                        </span>
+                        <span style={{ fontSize: stat.isText ? 'var(--text-label)' : '1.35rem', fontWeight: 900, color: stat.color }}>
+                            {stat.value}
+                        </span>
+                    </div>
+                ))}
             </div>
 
-            {pendingCerts.length === 0 ? (
-                <div className="bg-white dark:bg-slate-950 p-12 text-center border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl mx-auto space-y-4">
-                    <ThumbsUp className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
-                    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">الدرج خالٍ تماماً!</h3>
-                    <p className="text-xs text-slate-400">
-                        عمل رائع، تم الانتهاء من حوكمة ومراجعة كافة الطلبات الموجهة إلى منصتك حالياً. لا توجد أي شهادات معلقة بانتظار قرارك.
-                    </p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    
-                    {/* Bulk Decision Controls */}
-                    <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={handleSelectAll}
-                                className="p-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
-                            >
-                                {selectedIds.length === pendingCerts.length ? <CheckSquare className="w-4 h-4 text-amber-500" /> : <Square className="w-4 h-4" />}
-                                <span>{selectedIds.length === pendingCerts.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}</span>
-                            </button>
-                            <span className="text-xs text-slate-500 font-bold">المعاملات المحددة: {selectedIds.length} من أصل {pendingCerts.length}</span>
+            {/* ── Bulk Action Toolbar ── */}
+            <AnimatePresence>
+                {someSelected && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 16px',
+                            background: 'rgba(15,169,88,0.06)',
+                            border: '1.5px solid rgba(15,169,88,0.18)',
+                            borderRadius: 'var(--radius-lg)',
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                            <CheckCircle size={15} style={{ color: 'var(--color-primary-600)', flexShrink: 0 }} />
+                            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--color-primary-700)' }}>
+                                تم تحديد {selectedIds.length} معاملة
+                            </span>
                         </div>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <MessageSquare size={14} style={{
+                                position: 'absolute', right: '10px', top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--text-muted)', pointerEvents: 'none',
+                            }} />
+                            <input
+                                type="text"
+                                placeholder="ملاحظة موحدة (اختياري)..."
+                                value={decisionNotes}
+                                onChange={e => setDecisionNotes(e.target.value)}
+                                style={{
+                                    padding: '8px 32px 8px 12px',
+                                    border: '1.5px solid var(--border-strong)',
+                                    borderRadius: 'var(--radius-md)',
+                                    fontSize: 'var(--text-label)',
+                                    fontWeight: 500,
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-surface)',
+                                    outline: 'none',
+                                    width: '240px',
+                                    fontFamily: 'var(--font-sans)',
+                                }}
+                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
+                            />
+                        </div>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleBulkApprove}
+                            isLoading={processing}
+                            leftIcon={CheckCircle}
+                        >
+                            اعتماد جماعي ({selectedIds.length})
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedIds([])}
+                        >
+                            إلغاء التحديد
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        {selectedIds.length > 0 && (
-                            <div className="flex flex-col sm:flex-row items-center gap-3 flex-1 lg:max-w-2xl justify-end">
-                                <div className="relative w-full sm:max-w-xs">
-                                    <MessageCircle className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5" />
-                                    <input
-                                        type="text"
-                                        placeholder="توجيه أو ملاحظة جماعية (اختياري)..."
-                                        value={decisionNotes}
-                                        onChange={e => setDecisionNotes(e.target.value)}
-                                        className="pl-4 pr-9 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none text-slate-700 dark:text-slate-200 w-full"
-                                    />
-                                </div>
-
-                                <button
-                                    onClick={handleBulkApprove}
-                                    disabled={processing}
-                                    className="px-5 py-2 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer w-full sm:w-auto justify-center"
-                                >
-                                    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                                    <span>اعتماد جماعي ({selectedIds.length})</span>
-                                </button>
-                            </div>
-                        )}
+            {/* ── DataTable ── */}
+            <Card>
+                <CardHeader>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--color-success)',
+                            boxShadow: pendingCerts.length > 0 ? '0 0 0 3px rgba(245,158,11,0.2)' : 'none',
+                        }} />
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            طابور الاعتماد
+                        </h3>
+                        <span style={{
+                            fontSize: 'var(--text-micro)', fontWeight: 700,
+                            background: pendingCerts.length > 0 ? 'rgba(245,158,11,0.10)' : 'var(--bg-muted)',
+                            color: pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--text-muted)',
+                            border: `1px solid ${pendingCerts.length > 0 ? 'rgba(245,158,11,0.20)' : 'var(--border-default)'}`,
+                            padding: '2px 8px', borderRadius: '999px',
+                        }}>
+                            {pendingCerts.length} معاملة
+                        </span>
                     </div>
+                </CardHeader>
 
-                    {/* Table of Pending Certs */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
-                        <table className="w-full text-right text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-800/80 text-slate-400 font-bold">
-                                    <th className="pb-3 text-center w-12">اختر</th>
-                                    <th className="pb-3 text-center w-16">الرقم</th>
-                                    <th className="pb-3">اسم المستفيد</th>
-                                    <th className="pb-3">المناسبة والموضوع</th>
-                                    <th className="pb-3">منشئ الطلب</th>
-                                    <th className="pb-3 text-center w-24">الحالة</th>
-                                    <th className="pb-3 text-center w-20">الإجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                                {pendingCerts.map((c) => {
-                                    const isSelected = selectedIds.includes(c.id);
-                                    return (
-                                        <tr key={c.id} className={`hover:bg-slate-50/40 dark:hover:bg-slate-900/20 transition-all ${isSelected ? 'bg-amber-500/5 dark:bg-amber-500/5' : ''}`}>
-                                            <td className="py-3.5 text-center">
-                                                <button
-                                                    onClick={() => handleSelectToggle(c.id)}
-                                                    className="text-slate-400 hover:text-amber-500 transition-all cursor-pointer inline-block"
-                                                >
-                                                    {isSelected ? <CheckSquare className="w-4 h-4 text-amber-500" /> : <Square className="w-4 h-4" />}
-                                                </button>
-                                            </td>
-                                            <td className="py-3.5 text-center font-mono font-bold text-slate-500">{c.serial}</td>
-                                            <td className="py-3.5 font-bold text-slate-800 dark:text-slate-200">{c.recipientName}</td>
-                                            <td className="py-3.5 text-slate-500 dark:text-slate-400">
-                                                <span>{c.event}</span>
-                                            </td>
-                                            <td className="py-3.5 text-slate-400 dark:text-slate-500 font-medium">
-                                                {c.creatorName || 'منشئ النظام'}
-                                            </td>
-                                            <td className="py-3.5 text-center">
-                                                {c.status === 'PENDING_APPROVAL' ? (
-                                                    <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/10">مراجعة المساعد</span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/10">اعتماد المدير</span>
-                                                )}
-                                            </td>
-                                            <td className="py-3.5 text-center">
-                                                <button
-                                                    onClick={() => navigate(`/approvals/${c.id}`)}
-                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer"
-                                                >
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                    <span>مراجعة</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                {loading ? (
+                    <div style={{ padding: '32px' }}>
+                        {[1,2,3,4].map(i => (
+                            <div key={i} className="skeleton" style={{ height: '44px', borderRadius: '8px', marginBottom: '8px' }} />
+                        ))}
                     </div>
-
-                </div>
-            )}
-
+                ) : pendingCerts.length === 0 ? (
+                    <EmptyQueue />
+                ) : (
+                    <DataTable
+                        columns={columns}
+                        data={pendingCerts}
+                        rowKey="id"
+                        onRowClick={row => navigate(`/approvals/${row.id}`)}
+                    />
+                )}
+            </Card>
         </div>
     );
 }

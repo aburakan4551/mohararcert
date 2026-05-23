@@ -2,147 +2,153 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { Link, useNavigate } from 'react-router-dom';
-import { Award, FileText, Hourglass, CheckCircle2, AlertTriangle, Search, Eye, Filter, Sparkles, Inbox, Archive } from 'lucide-react';
+import {
+    Award, FileText, Hourglass, CheckCircle2, AlertTriangle,
+    Search, Eye, Filter, FilePlus, Inbox, Archive,
+    TrendingUp, ArrowUpRight, Clock,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { logger } from '../utils/debug';
 
 // Presentation imports
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/cards/Card';
+import { Card, CardHeader, CardContent, KpiCard } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
 import { Badge } from '../ui/feedback/Badge';
 import { DataTable } from '../ui/tables/DataTable';
+import PageHeader from '../ui/layouts/PageHeader';
 
-// Import Recharts components
+// Charts
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const STATUS_MAP = {
+    DRAFT:               { label: 'مسودة',                 variant: 'neutral'  },
+    PENDING_APPROVAL:    { label: 'انتظار تأشير المساعد',  variant: 'warning'  },
+    APPROVED_BY_ASSISTANT:{ label: 'معتمد من المساعد',     variant: 'info'     },
+    FINAL_APPROVED:      { label: 'معتمد نهائياً',          variant: 'success'  },
+    RETURNED_FOR_EDIT:   { label: 'مُعاد للتعديل',          variant: 'danger'   },
+    REJECTED:            { label: 'مرفوض',                  variant: 'danger'   },
+    ARCHIVED:            { label: 'مؤرشف',                  variant: 'neutral'  },
+};
+
+const getStatusBadge = (status) => {
+    const s = STATUS_MAP[status] || { label: '—', variant: 'neutral' };
+    return <Badge variant={s.variant} dot>{s.label}</Badge>;
+};
 
 export default function Dashboard() {
     const { user, canPerform } = useAuth();
     const navigate = useNavigate();
-    const [certs, setCerts] = useState([]);
-    const [search, setSearch] = useState('');
+    const [certs,        setCerts]        = useState([]);
+    const [search,       setSearch]       = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
-    const [loading, setLoading] = useState(true);
+    const [loading,      setLoading]      = useState(true);
 
     const loadData = async () => {
         setLoading(true);
-        logger.api('بدء استدعاء البيانات من المستودع لتغذية مؤشرات الأداء...');
         try {
             const list = await dbService.getAll();
             setCerts(list);
-            logger.api(`تم استرجاع سجلات المعاملات بنجاح. إجمالي السجلات: ${list.length}`);
+            logger.api(`تحميل ${list.length} معاملة`);
         } catch (e) {
-            logger.error('فشل استرداد بيانات لوحة التحكم من مستودع البيانات المحلي', e);
+            logger.error('فشل تحميل البيانات', e);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
-    // Filter transactions
-    const filteredCerts = useMemo(() => {
-        return certs.filter(c => {
-            const matchesSearch = 
-                (c.recipientName || '').toLowerCase().includes(search.toLowerCase()) ||
-                (c.event || '').toLowerCase().includes(search.toLowerCase()) ||
-                (c.serial || '').includes(search);
-            
-            const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+    /* ── Computed ── */
+    const filteredCerts = useMemo(() => certs.filter(c => {
+        const matchSearch = (c.recipientName || '').toLowerCase().includes(search.toLowerCase()) ||
+                            (c.event || '').toLowerCase().includes(search.toLowerCase()) ||
+                            (c.serial || '').includes(search);
+        const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
+        const matchUser   = user.role !== 'CREATOR' || c.createdBy === user.id;
+        return matchSearch && matchStatus && matchUser;
+    }), [certs, search, statusFilter, user]);
 
-            const isCreatorOnly = user.role === 'CREATOR';
-            const matchesUser = !isCreatorOnly || c.createdBy === user.id;
-
-            return matchesSearch && matchesStatus && matchesUser;
-        });
-    }, [certs, search, statusFilter, user]);
-
-    // Computed Stats
     const stats = useMemo(() => {
-        const userCerts = user.role === 'CREATOR' ? certs.filter(c => c.createdBy === user.id) : certs;
-        
+        const base = user.role === 'CREATOR' ? certs.filter(c => c.createdBy === user.id) : certs;
         return {
-            total: userCerts.length,
-            pending: userCerts.filter(c => c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED_BY_ASSISTANT').length,
-            approved: userCerts.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED').length,
-            returned: userCerts.filter(c => c.status === 'RETURNED_FOR_EDIT' || c.status === 'REJECTED').length,
-            drafts: userCerts.filter(c => c.status === 'DRAFT').length
+            total:    base.length,
+            pending:  base.filter(c => ['PENDING_APPROVAL','APPROVED_BY_ASSISTANT'].includes(c.status)).length,
+            approved: base.filter(c => ['FINAL_APPROVED','ARCHIVED'].includes(c.status)).length,
+            returned: base.filter(c => ['RETURNED_FOR_EDIT','REJECTED'].includes(c.status)).length,
         };
     }, [certs, user]);
 
-    // Chart Dataset
-    const chartData = useMemo(() => {
-        return [
-            { name: 'الأحد', 'الطلبات الصادرة': 4, 'الاعتمادات النهائية': 2 },
-            { name: 'الإثنين', 'الطلبات الصادرة': 7, 'الاعتمادات النهائية': 5 },
-            { name: 'الثلاثاء', 'الطلبات الصادرة': 5, 'الاعتمادات النهائية': 3 },
-            { name: 'الأربعاء', 'الطلبات الصادرة': 9, 'الاعتمادات النهائية': 8 },
-            { name: 'الخميس', 'الطلبات الصادرة': 6, 'الاعتمادات النهائية': 4 },
-            { name: 'الجمعة', 'الطلبات الصادرة': 1, 'الاعتمادات النهائية': 1 },
-            { name: 'السبت', 'الطلبات الصادرة': 2, 'الاعتمادات النهائية': 2 }
-        ];
-    }, []);
+    const chartData = useMemo(() => [
+        { name: 'الأحد',     issued: 4,  approved: 2  },
+        { name: 'الإثنين',   issued: 7,  approved: 5  },
+        { name: 'الثلاثاء',  issued: 5,  approved: 3  },
+        { name: 'الأربعاء',  issued: 9,  approved: 8  },
+        { name: 'الخميس',    issued: 6,  approved: 4  },
+        { name: 'الجمعة',    issued: 1,  approved: 1  },
+        { name: 'السبت',     issued: 2,  approved: 2  },
+    ], []);
 
-    const getStatusBadge = (status) => {
-        switch (status) {
-            case 'DRAFT':
-                return <Badge variant="warning">مسودة</Badge>;
-            case 'PENDING_APPROVAL':
-                return <Badge variant="warning">بانتظار تأشير المساعد</Badge>;
-            case 'APPROVED_BY_ASSISTANT':
-                return <Badge variant="success">معتمد من المساعد</Badge>;
-            case 'FINAL_APPROVED':
-                return <Badge variant="success">معتمد نهائياً</Badge>;
-            case 'RETURNED_FOR_EDIT':
-                return <Badge variant="danger">مُعاد للتعديل</Badge>;
-            case 'REJECTED':
-                return <Badge variant="danger">مرفوض</Badge>;
-            case 'ARCHIVED':
-                return <Badge variant="primary">مؤرشف</Badge>;
-            default:
-                return <Badge variant="secondary">—</Badge>;
-        }
-    };
-
-    // Columns config for premium DataTable component
+    /* ── Table Columns ── */
     const columns = [
         {
             key: 'serial',
             label: 'الرقم التسلسلي',
-            render: (val) => <span className="font-mono font-bold text-slate-500 dark:text-slate-400">{val}</span>,
+            render: v => (
+                <span style={{
+                    fontFamily: 'monospace',
+                    fontSize: 'var(--text-label)',
+                    fontWeight: 700,
+                    color: 'var(--text-muted)',
+                    background: 'var(--bg-muted)',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                }}>
+                    {v}
+                </span>
+            ),
         },
         {
             key: 'recipientName',
             label: 'اسم صاحب المعاملة',
-            render: (val) => <span className="font-bold text-slate-900 dark:text-slate-100">{val}</span>,
+            render: v => (
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 'var(--text-body-sm)' }}>
+                    {v}
+                </span>
+            ),
         },
         {
             key: 'event',
-            label: 'العنوان والمناسبة',
-            render: (val) => <span className="text-slate-500 dark:text-slate-400">{val}</span>,
+            label: 'المناسبة',
+            render: v => (
+                <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-caption)' }}>
+                    {v}
+                </span>
+            ),
         },
         {
             key: 'createdAt',
             label: 'تاريخ التقديم',
-            render: (val) => <span>{val ? new Date(val).toLocaleDateString('ar-SA') : '—'}</span>,
+            render: v => (
+                <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {v ? new Date(v).toLocaleDateString('ar-SA') : '—'}
+                </span>
+            ),
         },
         {
             key: 'status',
-            label: 'حالة التوقيع',
-            render: (val) => getStatusBadge(val),
+            label: 'الحالة',
+            render: v => getStatusBadge(v),
+            sortable: false,
         },
         {
             key: 'actions',
-            label: 'العمليات',
+            label: '',
+            sortable: false,
             render: (_, row) => (
                 <Button
-                    size="sm"
+                    size="xs"
                     variant="outline"
-                    onClick={() => {
-                        logger.nav(`توجيه المعاينة للمعاملة ذات الرقم: ${row.serial}`);
-                        navigate(`/approvals/${row.id}`);
-                    }}
+                    onClick={() => navigate(`/approvals/${row.id}`)}
                     leftIcon={Eye}
                 >
                     معاينة
@@ -151,234 +157,450 @@ export default function Dashboard() {
         },
     ];
 
+    /* ── Loading Skeleton ── */
     if (loading) {
         return (
-            <div className="space-y-8 py-2">
-                <div className="h-44 rounded-3xl animate-pulse bg-slate-200 dark:bg-slate-900/60" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                        <div key={idx} className="h-28 rounded-2xl animate-pulse bg-slate-200 dark:bg-slate-900/60" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="skeleton" style={{ height: '120px', borderRadius: '20px' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    {[1,2,3,4].map(i => (
+                        <div key={i} className="skeleton" style={{ height: '90px', borderRadius: '20px' }} />
                     ))}
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <div className="lg:col-span-8 h-72 rounded-2xl animate-pulse bg-slate-200 dark:bg-slate-900/60" />
-                    <div className="lg:col-span-4 h-72 rounded-2xl animate-pulse bg-slate-200 dark:bg-slate-900/60" />
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                    <div className="skeleton" style={{ height: '240px', borderRadius: '20px' }} />
+                    <div className="skeleton" style={{ height: '240px', borderRadius: '20px' }} />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 py-2 text-right">
-            {/* Elegant MoH Header Card Banner */}
-            <Card className="bg-gradient-to-l from-[#0f213b] via-[#132a4a] to-[#071020] text-white border border-white/5 shadow-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between p-8 gap-6">
-                <div className="absolute top-[-30%] right-[-10%] w-64 h-64 bg-teal-500/5 rounded-full blur-[80px] pointer-events-none animate-pulse" />
-                <div className="absolute bottom-[-30%] left-[-10%] w-64 h-64 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none animate-pulse" />
-                
-                <div className="space-y-3 z-10">
-                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs tracking-wider uppercase">
-                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse animate-duration-1000" />
-                        <span>منصة الاعتمادات والتميز المؤسسي الرسمية</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* ── Hero Welcome Banner ── */}
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                    background: 'linear-gradient(135deg, #0d7a3e 0%, #0FA958 50%, #1E88E5 100%)',
+                    borderRadius: '20px',
+                    padding: '28px 32px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '20px',
+                }}
+            >
+                {/* Decoration blobs */}
+                <div style={{
+                    position: 'absolute', top: '-30%', right: '-5%',
+                    width: '40%', height: '150%',
+                    background: 'rgba(255,255,255,0.05)', borderRadius: '50%',
+                    pointerEvents: 'none',
+                }} />
+                <div style={{
+                    position: 'absolute', bottom: '-40%', left: '20%',
+                    width: '30%', height: '130%',
+                    background: 'rgba(255,255,255,0.04)', borderRadius: '50%',
+                    pointerEvents: 'none',
+                }} />
+
+                <div style={{ position: 'relative', zIndex: 2 }}>
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '4px 12px',
+                        background: 'rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(255,255,255,0.25)',
+                        borderRadius: '999px',
+                        marginBottom: '10px',
+                    }}>
+                        <Award size={12} color="rgba(255,255,255,0.9)" />
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.04em' }}>
+                            منصة الاعتمادات الرسمية
+                        </span>
                     </div>
-                    <h2 className="text-2xl font-black bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-transparent">
-                        أهلاً بك، {user.name} 👋
+                    <h2 style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginBottom: '6px' }}>
+                        مرحباً، {user.name} 👋
                     </h2>
-                    <p className="text-xs text-slate-300 max-w-2xl leading-relaxed font-semibold">
-                        {user.role === 'CREATOR' 
-                            ? 'يمكنك البدء بإنشاء شهادات ومعاملات رقمية جديدة، وتتبع مسار مراجعتها واعتمادها الإداري خطوة بخطوة.'
-                            : 'لديك معاملات جديدة معلقة بانتظار استعراض وتوقيع تأشيرات المراجعة أو الاعتماد النهائي العام.'
+                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.78)', fontWeight: 500, maxWidth: '500px' }}>
+                        {user.role === 'CREATOR'
+                            ? 'يمكنك البدء بإنشاء شهادات جديدة وتتبع مسار مراجعتها خطوة بخطوة.'
+                            : 'لديك معاملات جديدة بانتظار مراجعتك واعتمادك الإداري.'
                         }
                     </p>
                 </div>
 
                 {canPerform('CREATE_CERTIFICATE') && (
-                    <Button 
-                        variant="accent"
-                        onClick={() => {
-                            logger.nav('الانتقال الموجه إلى شاشة تحرير شهادة جديدة.');
-                            navigate('/create');
+                    <button
+                        onClick={() => { logger.nav('إنشاء شهادة'); navigate('/create'); }}
+                        style={{
+                            position: 'relative', zIndex: 2,
+                            padding: '11px 22px',
+                            background: 'white',
+                            color: '#0FA958',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontSize: '14px', fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            flexShrink: 0,
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                            transition: 'all 0.2s',
+                            fontFamily: 'var(--font-sans)',
                         }}
-                        className="flex-shrink-0 z-10 font-bold"
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.20)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)'; }}
                     >
-                        📝 إنشاء شهادة جديدة
-                    </Button>
+                        <FilePlus size={16} />
+                        إنشاء شهادة جديدة
+                    </button>
                 )}
-            </Card>
+            </motion.div>
 
-            {/* Performance Statistics Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* ── KPI Cards ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }} className="kpi-grid">
                 {[
-                    { label: 'إجمالي المعاملات', val: stats.total, icon: FileText, style: 'text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20' },
-                    { label: 'بانتظار الاعتماد', val: stats.pending, icon: Hourglass, style: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
-                    { label: 'معتمد نهائياً', val: stats.approved, icon: CheckCircle2, style: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-                    { label: 'مُرجَع / مرفوض', val: stats.returned, icon: AlertTriangle, style: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' }
-                ].map((item, index) => {
-                    const IconComp = item.icon;
-                    return (
-                        <motion.div key={item.label} whileHover={{ y: -4 }}>
-                            <Card className="p-6 flex items-center justify-between relative group cursor-pointer border border-slate-200/60 dark:border-slate-800/40">
-                                <div className="flex flex-col gap-1.5 text-right">
-                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</span>
-                                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{item.val}</span>
-                                </div>
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${item.style}`}>
-                                    <IconComp className="w-5.5 h-5.5" />
-                                </div>
-                            </Card>
-                        </motion.div>
-                    );
-                })}
+                    {
+                        label: 'إجمالي المعاملات',
+                        value: stats.total,
+                        icon: FileText,
+                        iconBg: 'rgba(15,169,88,0.10)',
+                        iconColor: '#0FA958',
+                        change: 'منذ البداية',
+                        changeType: 'up',
+                    },
+                    {
+                        label: 'بانتظار الاعتماد',
+                        value: stats.pending,
+                        icon: Hourglass,
+                        iconBg: 'rgba(245,158,11,0.10)',
+                        iconColor: '#F59E0B',
+                        change: stats.pending > 0 ? 'تحتاج مراجعة' : 'لا يوجد',
+                        changeType: stats.pending > 0 ? 'up' : 'up',
+                    },
+                    {
+                        label: 'معتمد نهائياً',
+                        value: stats.approved,
+                        icon: CheckCircle2,
+                        iconBg: 'rgba(16,185,129,0.10)',
+                        iconColor: '#10B981',
+                        change: stats.total > 0 ? `${Math.round(stats.approved / stats.total * 100)}%` : '0%',
+                        changeType: 'up',
+                    },
+                    {
+                        label: 'مُرجَع / مرفوض',
+                        value: stats.returned,
+                        icon: AlertTriangle,
+                        iconBg: 'rgba(239,68,68,0.10)',
+                        iconColor: '#EF4444',
+                        change: 'يحتاج مراجعة',
+                        changeType: 'down',
+                    },
+                ].map((card, i) => (
+                    <motion.div
+                        key={card.label}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.06 }}
+                    >
+                        <KpiCard {...card} />
+                    </motion.div>
+                ))}
             </div>
 
-            {/* Analytical Panels: Recharts Line Chart & Shortcuts */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Recharts Analytics Activity Chart */}
-                <Card className="lg:col-span-8 p-6 flex flex-col gap-5 border border-slate-200/60 dark:border-slate-800/40">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                            <span className="w-1.5 h-3 bg-amber-500 rounded-full" />
-                            مؤشر نشاط إصدار الشهادات الأسبوعي المباشر
+            {/* ── Analytics + Quick Access ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+
+                {/* Chart */}
+                <Card>
+                    <CardHeader>
+                        <div>
+                            <h3 style={{
+                                fontSize: 'var(--text-body-sm)', fontWeight: 800,
+                                color: 'var(--text-primary)',
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                            }}>
+                                <span style={{
+                                    width: 3, height: 16,
+                                    background: '#0FA958',
+                                    borderRadius: '99px',
+                                    display: 'inline-block',
+                                }} />
+                                نشاط إصدار الشهادات الأسبوعي
+                            </h3>
+                            <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', marginTop: '3px', fontWeight: 500 }}>
+                                آخر 7 أيام عمل
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: '#0FA958', display: 'inline-block' }} />
+                                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 600 }}>صادرة</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: '#1E88E5', display: 'inline-block' }} />
+                                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 600 }}>معتمدة</span>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div style={{ width: '100%', height: 200 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="issued" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%"  stopColor="#0FA958" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#0FA958" stopOpacity={0}    />
+                                        </linearGradient>
+                                        <linearGradient id="approved" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%"  stopColor="#1E88E5" stopOpacity={0.12} />
+                                            <stop offset="95%" stopColor="#1E88E5" stopOpacity={0}    />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11, fontFamily: 'Cairo', fontWeight: 600 }}
+                                        axisLine={false} tickLine={false} reversed
+                                    />
+                                    <YAxis
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11, fontFamily: 'Cairo' }}
+                                        axisLine={false} tickLine={false} orientation="right"
+                                    />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" />
+                                    <Tooltip
+                                        contentStyle={{
+                                            background: 'var(--bg-surface)',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '12px',
+                                            fontSize: '12px',
+                                            fontFamily: 'Cairo',
+                                            boxShadow: 'var(--shadow-overlay)',
+                                            direction: 'rtl',
+                                        }}
+                                        labelStyle={{ fontWeight: 700, color: 'var(--text-primary)' }}
+                                    />
+                                    <Area type="monotone" dataKey="issued"   name="صادرة"  stroke="#0FA958" strokeWidth={2} fillOpacity={1} fill="url(#issued)"   dot={false} />
+                                    <Area type="monotone" dataKey="approved" name="معتمدة" stroke="#1E88E5" strokeWidth={2} fillOpacity={1} fill="url(#approved)" dot={false} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Quick Access */}
+                <Card>
+                    <CardHeader>
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            الوصول السريع
                         </h3>
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-wider">تفاعلي بالكامل</span>
-                    </div>
-                    
-                    <div className="w-full h-52 rounded-2xl relative overflow-hidden flex items-center justify-center p-2 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart
-                                data={chartData}
-                                margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-                            >
-                                <defs>
-                                    <linearGradient id="colorCerts" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ca9f22" stopOpacity={0.18}/>
-                                        <stop offset="95%" stopColor="#ca9f22" stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorApprovals" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.18}/>
-                                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <XAxis 
-                                    dataKey="name" 
-                                    tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'Cairo', fontWeight: 'bold' }} 
-                                    axisLine={false}
-                                    tickLine={false}
-                                    reversed={true}
+                    </CardHeader>
+                    <CardContent>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {user.role !== 'CREATOR' && (
+                                <QuickLink
+                                    to="/pending"
+                                    icon={Inbox}
+                                    label="المعاملات المعلقة"
+                                    badge={stats.pending}
+                                    badgeVariant="warning"
                                 />
-                                <YAxis 
-                                    tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'Cairo', fontWeight: 'bold' }} 
-                                    axisLine={false}
-                                    tickLine={false}
-                                    orientation="right"
+                            )}
+                            <QuickLink
+                                to="/archive"
+                                icon={Archive}
+                                label="الأرشيف المعتمد"
+                                badge={stats.approved}
+                            />
+                            {canPerform('CREATE_CERTIFICATE') && (
+                                <QuickLink
+                                    to="/create"
+                                    icon={FilePlus}
+                                    label="إنشاء شهادة جديدة"
                                 />
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.06)" />
-                                <Tooltip 
-                                    contentStyle={{ 
-                                        backgroundColor: '#0a1122', 
-                                        borderColor: 'rgba(255,255,255,0.05)', 
-                                        borderRadius: '16px',
-                                        color: '#f8fafc',
-                                        fontSize: '11px',
-                                        fontFamily: 'Cairo',
-                                        direction: 'rtl',
-                                        textAlign: 'right',
-                                        boxShadow: 'var(--shadow-premium)'
-                                    }} 
-                                />
-                                <Area type="monotone" dataKey="الطلبات الصادرة" stroke="#ca9f22" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCerts)" />
-                                <Area type="monotone" dataKey="الاعتمادات النهائية" stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorApprovals)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </Card>
+                            )}
+                        </div>
 
-                {/* Quick Shortcuts Panel */}
-                <Card className="lg:col-span-4 p-6 flex flex-col gap-6 justify-between border border-slate-200/60 dark:border-slate-800/40">
-                    <div className="space-y-2">
-                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">الوصول الإجرائي السريع</h3>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">تابع سجل التوثيق الإداري المباشر، تحقق من طلبات الاعتماد القائمة، أو انتقل للأرشيف المصادق والمحمي.</p>
-                    </div>
-
-                    <div className="space-y-2">
-                        {user.role !== 'CREATOR' && (
-                            <Link 
-                                to="/pending" 
-                                onClick={() => logger.nav('الانتقال الموجه إلى المعاملات المعلقة بانتظار الاعتماد.')}
-                                className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-950/60 dark:hover:bg-slate-950 rounded-xl transition-all border border-slate-200/80 dark:border-slate-850"
-                            >
-                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
-                                    <Inbox className="w-4 h-4 text-amber-500" />
-                                    المعاملات المعلقة الموكلة لي
+                        {/* Summary Stats */}
+                        <div style={{
+                            marginTop: '16px',
+                            padding: '14px',
+                            background: 'var(--bg-subtle)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-default)',
+                        }}>
+                            <p style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '10px' }}>
+                                نسبة الاعتماد
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                    flex: 1, height: 6,
+                                    background: 'var(--bg-muted)',
+                                    borderRadius: '99px',
+                                    overflow: 'hidden',
+                                }}>
+                                    <div style={{
+                                        width: stats.total > 0 ? `${Math.round(stats.approved / stats.total * 100)}%` : '0%',
+                                        height: '100%',
+                                        background: 'linear-gradient(90deg, #0FA958, #10B981)',
+                                        borderRadius: '99px',
+                                        transition: 'width 1s ease',
+                                    }} />
+                                </div>
+                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--color-primary-600)', minWidth: '36px' }}>
+                                    {stats.total > 0 ? `${Math.round(stats.approved / stats.total * 100)}%` : '0%'}
                                 </span>
-                                <span className="px-2.5 py-0.5 text-[9px] font-black bg-amber-500 text-slate-950 rounded-full shadow-sm">{stats.pending}</span>
-                            </Link>
-                        )}
-                        <Link 
-                            to="/archive" 
-                            onClick={() => logger.nav('الانتقال الموجه إلى شاشة الأرشيف العام.')}
-                            className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-950/60 dark:hover:bg-slate-950 rounded-xl transition-all border border-slate-200/80 dark:border-slate-850"
-                        >
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
-                                <Archive className="w-4 h-4 text-teal-500" />
-                                استعراض السجل المعتمد
-                            </span>
-                            <span className="text-[10px] font-black text-slate-450 dark:text-slate-550">📂 {stats.approved}</span>
-                        </Link>
-                    </div>
+                            </div>
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
 
-            {/* Core Workflow Transactions Data Table */}
-            <Card className="p-6 space-y-6 border border-slate-200/60 dark:border-slate-800/40">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">سجل المعاملات والاعتمادات القائمة</h3>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500">جدول تفاعلي متطور لمراقبة حالات تدقيق وتوقيع المعاملات.</p>
+            {/* ── Transactions DataTable ── */}
+            <Card>
+                <CardHeader>
+                    <div>
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            سجل المعاملات
+                        </h3>
+                        <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', marginTop: '3px', fontWeight: 500 }}>
+                            {filteredCerts.length} معاملة
+                        </p>
                     </div>
-
-                    {/* Filter and Search Bar Controls */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative group">
-                            <Search className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Search */}
+                        <div style={{ position: 'relative' }}>
+                            <Search size={15} style={{
+                                position: 'absolute', right: '12px', top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--text-muted)', pointerEvents: 'none',
+                            }} />
                             <input
                                 type="text"
-                                placeholder="ابحث باسم المستفيد، السيريال..."
+                                placeholder="بحث..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-4 pr-10 py-2.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950/60 border border-slate-250 dark:border-slate-800 rounded-xl w-64 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all"
+                                style={{
+                                    padding: '8px 36px 8px 12px',
+                                    border: '1.5px solid var(--border-strong)',
+                                    borderRadius: '10px',
+                                    fontSize: 'var(--text-label)',
+                                    fontWeight: 500,
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-surface)',
+                                    outline: 'none',
+                                    width: '200px',
+                                    fontFamily: 'var(--font-sans)',
+                                    transition: 'all 0.15s',
+                                }}
+                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
 
-                        <div className="relative flex items-center">
-                            <Filter className="w-3.5 h-3.5 text-slate-400 absolute right-3.5 pointer-events-none" />
+                        {/* Status Filter */}
+                        <div style={{ position: 'relative' }}>
+                            <Filter size={13} style={{
+                                position: 'absolute', right: '12px', top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--text-muted)', pointerEvents: 'none',
+                            }} />
                             <select
                                 value={statusFilter}
-                                onChange={e => {
-                                    setStatusFilter(e.target.value);
-                                    logger.api(`تصفية المعاملات بحسب الحالة: ${e.target.value}`);
+                                onChange={e => setStatusFilter(e.target.value)}
+                                style={{
+                                    padding: '8px 36px 8px 12px',
+                                    border: '1.5px solid var(--border-strong)',
+                                    borderRadius: '10px',
+                                    fontSize: 'var(--text-label)',
+                                    fontWeight: 600,
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-surface)',
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                    appearance: 'none',
+                                    fontFamily: 'var(--font-sans)',
                                 }}
-                                className="pl-8 pr-10 py-2.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950/60 border border-slate-250 dark:border-slate-800 rounded-xl w-64 cursor-pointer appearance-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all"
                             >
-                                <option value="ALL">جميع الحالات الإجرائية</option>
-                                <option value="DRAFT">مسودة تحرير</option>
-                                <option value="PENDING_APPROVAL">بانتظار تأشير المساعد</option>
+                                <option value="ALL">جميع الحالات</option>
+                                <option value="DRAFT">مسودة</option>
+                                <option value="PENDING_APPROVAL">انتظار المساعد</option>
                                 <option value="APPROVED_BY_ASSISTANT">معتمد من المساعد</option>
                                 <option value="FINAL_APPROVED">معتمد نهائياً</option>
-                                <option value="RETURNED_FOR_EDIT">مُعاد للتعديل مع التنبيهات</option>
+                                <option value="RETURNED_FOR_EDIT">مُعاد للتعديل</option>
                                 <option value="REJECTED">مرفوض</option>
                             </select>
                         </div>
                     </div>
-                </div>
-
-                {/* Unified presentation DataTable */}
+                </CardHeader>
                 <DataTable
                     columns={columns}
                     data={filteredCerts}
                     isLoading={false}
-                    emptyStateMessage="لا توجد معاملات متوافقة حالياً مع الفلاتر المحددة."
+                    emptyStateMessage="لا توجد معاملات مطابقة للفلاتر المحددة"
+                    onRowClick={row => navigate(`/approvals/${row.id}`)}
                 />
             </Card>
+
+            {/* Responsive grid fix */}
+            <style>{`
+                @media (max-width: 1100px) {
+                    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+                }
+                @media (max-width: 640px) {
+                    .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+                }
+            `}</style>
         </div>
     );
 }
+
+/* ── Internal: Quick Access Link ── */
+const QuickLink = ({ to, icon: Icon, label, badge, badgeVariant = 'neutral' }) => (
+    <Link
+        to={to}
+        style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px',
+            borderRadius: '12px',
+            background: 'var(--bg-subtle)',
+            border: '1px solid var(--border-default)',
+            textDecoration: 'none',
+            transition: 'all 0.15s',
+            cursor: 'pointer',
+        }}
+        onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(15,169,88,0.05)';
+            e.currentTarget.style.borderColor = 'rgba(15,169,88,0.18)';
+        }}
+        onMouseLeave={e => {
+            e.currentTarget.style.background = 'var(--bg-subtle)';
+            e.currentTarget.style.borderColor = 'var(--border-default)';
+        }}
+    >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Icon size={15} style={{ color: 'var(--color-primary-600)', flexShrink: 0 }} strokeWidth={2} />
+            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                {label}
+            </span>
+        </div>
+        {badge !== undefined && badge !== null && (
+            <span style={{
+                fontSize: '11px', fontWeight: 800,
+                background: badgeVariant === 'warning' ? '#F59E0B' : 'var(--bg-muted)',
+                color: badgeVariant === 'warning' ? 'white' : 'var(--text-muted)',
+                borderRadius: '999px',
+                padding: '1px 8px',
+                minWidth: '24px',
+                textAlign: 'center',
+            }}>
+                {badge}
+            </span>
+        )}
+        {badge === undefined && (
+            <ArrowUpRight size={14} style={{ color: 'var(--text-muted)' }} />
+        )}
+    </Link>
+);

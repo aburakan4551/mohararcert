@@ -1,123 +1,116 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
-// 🏷️ Label Component
-export const Label = ({ children, className = '', required = false, ...props }) => (
-    <label className={`block text-xs font-bold text-slate-700 dark:text-slate-300 font-sans mb-1.5 ${className}`} {...props}>
+/**
+ * Enterprise Input System
+ * Components: Input, Textarea, Select, Label, FormGroup
+ */
+
+export const Label = ({ children, required, className = '', ...props }) => (
+    <label className={`form-label ${className}`} {...props}>
         {children}
-        {required && <span className="text-red-500 mr-1">*</span>}
+        {required && <span style={{ color: 'var(--color-danger)', marginRight: '3px' }}>*</span>}
     </label>
 );
+Label.displayName = 'Label';
 
-// 📝 Input Component
-export const Input = React.forwardRef(({
-    type = 'text',
+export const Input = forwardRef(({
     className = '',
-    error = '',
-    leftIcon: LeftIcon,
-    rightIcon: RightIcon,
+    type = 'text',
+    icon: Icon,
+    iconEnd: IconEnd,
+    error,
     ...props
 }, ref) => {
+    const hasStart = !!Icon;
+    const hasEnd   = !!IconEnd;
+
+    if (!hasStart && !hasEnd) {
+        return (
+            <div className="w-full">
+                <input
+                    ref={ref}
+                    type={type}
+                    className={`form-input ${error ? 'border-red-400 focus:!border-red-400 focus:![box-shadow:0_0_0_4px_rgba(239,68,68,0.12)]' : ''} ${className}`}
+                    {...props}
+                />
+                {error && (
+                    <p style={{ fontSize: 'var(--text-micro)', color: 'var(--color-danger)', marginTop: '4px', fontWeight: 600 }}>
+                        {error}
+                    </p>
+                )}
+            </div>
+        );
+    }
+
     return (
-        <div className="relative w-full">
-            {LeftIcon && (
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <LeftIcon className="w-4 h-4 shrink-0" />
-                </div>
-            )}
-            <input
-                ref={ref}
-                type={type}
-                className={`w-full font-sans text-sm font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950/60 border ${
-                    error
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-teal-500/10'
-                } rounded-xl px-4 py-2.5 outline-none transition-all duration-200 focus:ring-4 ${
-                    LeftIcon ? 'pl-10' : ''
-                } ${RightIcon ? 'pr-10' : ''} ${className}`}
-                {...props}
-            />
-            {RightIcon && (
-                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <RightIcon className="w-4 h-4 shrink-0" />
-                </div>
-            )}
+        <div className="w-full">
+            <div className="form-input-group">
+                {Icon && <Icon className="form-input-icon-start" />}
+                <input
+                    ref={ref}
+                    type={type}
+                    className={`form-input ${hasStart ? 'has-icon-start' : ''} ${hasEnd ? 'has-icon-end' : ''} ${error ? 'border-red-400' : ''} ${className}`}
+                    {...props}
+                />
+                {IconEnd && <IconEnd className="form-input-icon-end" />}
+            </div>
             {error && (
-                <span className="block mt-1 text-xs font-bold text-red-500 animate-fade-in">
+                <p style={{ fontSize: 'var(--text-micro)', color: 'var(--color-danger)', marginTop: '4px', fontWeight: 600 }}>
                     {error}
-                </span>
+                </p>
             )}
         </div>
     );
 });
 Input.displayName = 'Input';
 
-// 🗳️ Select Component
-export const Select = React.forwardRef(({
-    children,
+export const Textarea = forwardRef(({
     className = '',
-    error = '',
-    leftIcon: LeftIcon,
+    error,
+    rows = 4,
     ...props
-}, ref) => {
-    return (
-        <div className="relative w-full">
-            {LeftIcon && (
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                    <LeftIcon className="w-4 h-4 shrink-0" />
-                </div>
-            )}
-            <select
-                ref={ref}
-                className={`w-full font-sans text-sm font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950/60 border appearance-none ${
-                    error
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-teal-500/10'
-                } rounded-xl px-4 py-2.5 pr-10 outline-none transition-all duration-200 focus:ring-4 ${
-                    LeftIcon ? 'pl-10' : ''
-                } ${className}`}
-                {...props}
-            >
-                {children}
-            </select>
-            {/* Custom Arrow */}
-            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-            {error && (
-                <span className="block mt-1 text-xs font-bold text-red-500 animate-fade-in">
-                    {error}
-                </span>
-            )}
-        </div>
-    );
-});
+}, ref) => (
+    <div className="w-full">
+        <textarea
+            ref={ref}
+            rows={rows}
+            className={`form-input form-textarea ${error ? 'border-red-400' : ''} ${className}`}
+            {...props}
+        />
+        {error && (
+            <p style={{ fontSize: 'var(--text-micro)', color: 'var(--color-danger)', marginTop: '4px', fontWeight: 600 }}>
+                {error}
+            </p>
+        )}
+    </div>
+));
+Textarea.displayName = 'Textarea';
+
+export const Select = forwardRef(({
+    className = '',
+    error,
+    children,
+    ...props
+}, ref) => (
+    <div className="w-full">
+        <select
+            ref={ref}
+            className={`form-input form-select ${error ? 'border-red-400' : ''} ${className}`}
+            {...props}
+        >
+            {children}
+        </select>
+        {error && (
+            <p style={{ fontSize: 'var(--text-micro)', color: 'var(--color-danger)', marginTop: '4px', fontWeight: 600 }}>
+                {error}
+            </p>
+        )}
+    </div>
+));
 Select.displayName = 'Select';
 
-// 🖊️ Textarea Component
-export const Textarea = React.forwardRef(({
-    className = '',
-    error = '',
-    ...props
-}, ref) => {
-    return (
-        <div className="relative w-full">
-            <textarea
-                ref={ref}
-                className={`w-full font-sans text-sm font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950/60 border ${
-                    error
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-teal-500/10'
-                } rounded-xl px-4 py-2.5 outline-none transition-all duration-200 focus:ring-4 min-h-[100px] resize-y ${className}`}
-                {...props}
-            />
-            {error && (
-                <span className="block mt-1 text-xs font-bold text-red-500 animate-fade-in">
-                    {error}
-                </span>
-            )}
-        </div>
-    );
-});
-Textarea.displayName = 'Textarea';
+export const FormGroup = ({ children, className = '' }) => (
+    <div className={`form-group ${className}`}>{children}</div>
+);
+
+export default Input;

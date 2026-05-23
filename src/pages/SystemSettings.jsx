@@ -1,8 +1,6 @@
 /**
- * ⚙️ SystemSettings.jsx
- * Dynamic Platform Setup & Corporate Identity Customizer for mohararcert.
- * Connects directly to the repository settings service to update stamp properties,
- * visual identity, signatures, and titles dynamically.
+ * ⚙️ SystemSettings.jsx — Enterprise Identity & Platform Settings
+ * Tabbed layout: Identity | Signatories | Stamp | Colors
  */
 
 import React, { useState } from 'react';
@@ -10,253 +8,422 @@ import { useAuth } from '../context/AuthContext';
 import { settingService, auditService } from '../services/db';
 import SignatureUploader from '../components/SignatureUploader';
 import StampManager from '../components/StampManager';
-import { Settings, Save, ShieldCheck, Building, User, Sparkles, RefreshCw } from 'lucide-react';
+import {
+    Save, Building, User, Palette, Stamp,
+    CheckCircle, RefreshCw,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent, CardFooter } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import PageHeader from '../ui/layouts/PageHeader';
+
+const TABS = [
+    { id: 'identity',    label: 'هوية الجهة',          icon: Building },
+    { id: 'signatories', label: 'المعتمدون والتواقيع', icon: User     },
+    { id: 'stamp',       label: 'الختم الرسمي',        icon: Stamp    },
+    { id: 'colors',      label: 'الألوان',               icon: Palette  },
+];
 
 export default function SystemSettings() {
     const { settings, refreshSettings, user } = useAuth();
-    
+
+    const [activeTab, setActiveTab] = useState('identity');
+    const [saving,    setSaving]    = useState(false);
+    const [saved,     setSaved]     = useState(false);
+
     const [formData, setFormData] = useState({
-        orgName: settings?.orgName || '',
-        orgSubName: settings?.orgSubName || '',
-        orgLogo: settings?.orgLogo || '',
-        primaryColor: settings?.primaryColor || '#0d1f3c',
-        goldColor: settings?.goldColor || '#c9a227',
-        directorName: settings?.directorName || '',
-        directorTitle: settings?.directorTitle || '',
-        directorSignature: settings?.directorSignature || '',
-        visaLabel: settings?.visaLabel || '',
-        visaName: settings?.visaName || '',
-        visaSignature: settings?.visaSignature || '',
-        stamp: settings?.stamp || '',
-        stampSize: settings?.stampSize || 120,
-        stampOpacity: settings?.stampOpacity || 0.85,
-        stampRotation: settings?.stampRotation || -8
+        orgName:          settings?.orgName          || '',
+        orgSubName:       settings?.orgSubName       || '',
+        orgLogo:          settings?.orgLogo          || '',
+        primaryColor:     settings?.primaryColor     || '#0FA958',
+        goldColor:        settings?.goldColor        || '#D4A017',
+        directorName:     settings?.directorName     || '',
+        directorTitle:    settings?.directorTitle    || '',
+        directorSignature:settings?.directorSignature|| '',
+        visaLabel:        settings?.visaLabel        || '',
+        visaName:         settings?.visaName         || '',
+        visaSignature:    settings?.visaSignature    || '',
+        stamp:            settings?.stamp            || '',
+        stampSize:        settings?.stampSize        || 120,
+        stampOpacity:     settings?.stampOpacity     || 0.85,
+        stampRotation:    settings?.stampRotation    || -8,
     });
 
-    const [saving, setSaving] = useState(false);
-
-    const handleFieldChange = (key, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [key]: value
-        }));
-    };
+    const set = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
 
     const handleSave = async (e) => {
         if (e) e.preventDefault();
         setSaving(true);
         try {
             await settingService.update(formData);
-            await auditService.log(
-                'UPDATE_TEMPLATE', // System settings update category
-                user,
-                'تحديث إعدادات الهوية المؤسسية والأختام والمسؤولين رقمياً'
-            );
+            await auditService.log('UPDATE_TEMPLATE', user, 'تحديث إعدادات الهوية المؤسسية');
             await refreshSettings();
-            alert('تم حفظ إعدادات النظام وتحديث الهوية المؤسسية بنجاح!');
+            setSaved(true);
+            logger.api('تم حفظ الإعدادات بنجاح');
+            setTimeout(() => setSaved(false), 3000);
         } catch (e) {
-            alert('خطأ أثناء حفظ التحديثات: ' + e.message);
+            logger.error('فشل حفظ الإعدادات', e);
+            alert('خطأ أثناء الحفظ: ' + e.message);
         } finally {
             setSaving(false);
         }
     };
 
     return (
-        <form onSubmit={handleSave} className="space-y-6">
-            
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                        <Settings className="w-5 h-5 text-amber-500" />
-                        الهوية المؤسسية وإعدادات النظام الديناميكية
-                    </h2>
-                    <p className="text-xs text-slate-400">تخصيص الهوية البصرية، أسماء المعتمدين وتواقيعهم الرقمية والأختام الرسمية للجهة.</p>
-                </div>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-5 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs transition-all duration-300 shadow-md flex items-center gap-1.5 cursor-pointer"
-                >
-                    {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    <span>حفظ جميع الإعدادات</span>
-                </button>
+            {/* ── Header ── */}
+            <PageHeader
+                title="الهوية المؤسسية وإعدادات النظام"
+                subtitle="تخصيص الهوية البصرية وبيانات المعتمدين والأختام الرسمية"
+                actions={
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        size="md"
+                        isLoading={saving}
+                        leftIcon={saved ? CheckCircle : Save}
+                    >
+                        {saved ? 'تم الحفظ' : 'حفظ التغييرات'}
+                    </Button>
+                }
+            />
+
+            {/* ── Tabs ── */}
+            <div style={{
+                display: 'flex',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '4px',
+                gap: '2px',
+                boxShadow: 'var(--shadow-surface)',
+            }}>
+                {TABS.map(tab => {
+                    const Icon    = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            style={{
+                                flex: 1,
+                                padding: '9px 12px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: isActive ? 'var(--color-primary-600)' : 'transparent',
+                                color: isActive ? 'white' : 'var(--text-tertiary)',
+                                fontSize: 'var(--text-label)',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                transition: 'all 0.15s',
+                                fontFamily: 'var(--font-sans)',
+                                boxShadow: isActive ? 'var(--shadow-card)' : 'none',
+                            }}
+                            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-primary)'; }}}
+                            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}}
+                        >
+                            <Icon size={14} />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Layout Panels */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                
-                {/* Right Panel: Identity and Visuals */}
-                <div className="lg:col-span-6 space-y-6">
-                    
-                    {/* Visual Identity section */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
-                            <Building className="w-4 h-4 text-slate-400" />
-                            شعار وتسميات الجهة الرسمية
-                        </h3>
+            {/* ── Tab Content ── */}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                >
 
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="form-group">
-                                <label className="form-label">اسم المنظمة أو الوزارة *</label>
-                                <input
-                                    type="text"
-                                    value={formData.orgName}
-                                    onChange={e => handleFieldChange('orgName', e.target.value)}
-                                    className="form-control"
-                                    placeholder="وزارة التخطيط والتطوير"
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">الإدارة أو المسمى الفرعي</label>
-                                <input
-                                    type="text"
-                                    value={formData.orgSubName}
-                                    onChange={e => handleFieldChange('orgSubName', e.target.value)}
-                                    className="form-control"
-                                    placeholder="الإدارة العامة للتميز المؤسسي"
-                                />
-                            </div>
-
-                            <SignatureUploader
-                                label="شعار الجهة الرقمي"
-                                value={formData.orgLogo}
-                                onChange={v => handleFieldChange('orgLogo', v)}
-                                hint="يفضل استخدام خلفية شفافة PNG أو SVG"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Colors & Visual Tokens */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
-                            <Sparkles className="w-4 h-4 text-slate-400" />
-                            لوحة الألوان وهوية المنصة البصرية
-                        </h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-400">اللون الأساسي الفاخر:</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={formData.primaryColor}
-                                        onChange={e => handleFieldChange('primaryColor', e.target.value)}
-                                        className="w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-800 cursor-pointer p-0.5"
-                                    />
-                                    <span className="font-mono text-xs font-bold">{formData.primaryColor}</span>
+                    {/* ─── Identity Tab ─── */}
+                    {activeTab === 'identity' && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Building size={15} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                        بيانات الجهة الرسمية
+                                    </h3>
                                 </div>
-                            </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '600px' }}>
+                                    <FormField label="اسم الوزارة / المنظمة" required>
+                                        <input
+                                            type="text"
+                                            value={formData.orgName}
+                                            onChange={e => set('orgName', e.target.value)}
+                                            placeholder="وزارة الصحة"
+                                            className="form-input"
+                                        />
+                                    </FormField>
 
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-400">اللون الذهبي البرونزي:</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={formData.goldColor}
-                                        onChange={e => handleFieldChange('goldColor', e.target.value)}
-                                        className="w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-800 cursor-pointer p-0.5"
-                                    />
-                                    <span className="font-mono text-xs font-bold">{formData.goldColor}</span>
+                                    <FormField label="الإدارة أو الفرع الفرعي">
+                                        <input
+                                            type="text"
+                                            value={formData.orgSubName}
+                                            onChange={e => set('orgSubName', e.target.value)}
+                                            placeholder="فرع منطقة الحدود الشمالية"
+                                            className="form-input"
+                                        />
+                                    </FormField>
+
+                                    <FormField label="شعار الجهة الرسمي" hint="PNG أو SVG بخلفية شفافة">
+                                        <SignatureUploader
+                                            value={formData.orgLogo}
+                                            onChange={v => set('orgLogo', v)}
+                                            hint="يُستخدم في رأس الشهادات الرسمية"
+                                        />
+                                    </FormField>
                                 </div>
-                            </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* ─── Signatories Tab ─── */}
+                    {activeTab === 'signatories' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                            {/* General Manager */}
+                            <Card>
+                                <CardHeader>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary-600)' }} />
+                                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            المدير العام — المصادق النهائي
+                                        </h3>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <FormField label="الاسم الكامل" required>
+                                            <input
+                                                type="text"
+                                                value={formData.directorName}
+                                                onChange={e => set('directorName', e.target.value)}
+                                                placeholder="سعادة مدير فرع الوزارة"
+                                                className="form-input"
+                                            />
+                                        </FormField>
+                                        <FormField label="المسمى الوظيفي" required>
+                                            <input
+                                                type="text"
+                                                value={formData.directorTitle}
+                                                onChange={e => set('directorTitle', e.target.value)}
+                                                placeholder="المدير العام للفرع"
+                                                className="form-input"
+                                            />
+                                        </FormField>
+                                        <FormField label="التوقيع الرسمي" hint="يُحقن عند الاعتماد النهائي">
+                                            <SignatureUploader
+                                                value={formData.directorSignature}
+                                                onChange={v => set('directorSignature', v)}
+                                            />
+                                        </FormField>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Assistant Manager */}
+                            <Card>
+                                <CardHeader>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-accent-500)' }} />
+                                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            مساعد المدير — المراجع الإداري
+                                        </h3>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <FormField label="مسمى التأشيرة" required>
+                                            <input
+                                                type="text"
+                                                value={formData.visaLabel}
+                                                onChange={e => set('visaLabel', e.target.value)}
+                                                placeholder="مساعد المدير للتخطيط والجودة"
+                                                className="form-input"
+                                            />
+                                        </FormField>
+                                        <FormField label="الاسم الكامل" required>
+                                            <input
+                                                type="text"
+                                                value={formData.visaName}
+                                                onChange={e => set('visaName', e.target.value)}
+                                                placeholder="اسم مساعد المدير"
+                                                className="form-input"
+                                            />
+                                        </FormField>
+                                        <FormField label="توقيع التأشيرة" hint="يُحقن عند المراجعة والتأشير">
+                                            <SignatureUploader
+                                                value={formData.visaSignature}
+                                                onChange={v => set('visaSignature', v)}
+                                            />
+                                        </FormField>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Stamp custom settings */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <StampManager 
-                            settings={formData} 
-                            onSettingsChange={setFormData} 
-                        />
-                    </div>
-                </div>
+                    {/* ─── Stamp Tab ─── */}
+                    {activeTab === 'stamp' && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Stamp size={15} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                        إعدادات الختم الرسمي
+                                    </h3>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <StampManager settings={formData} onSettingsChange={setFormData} />
+                            </CardContent>
+                        </Card>
+                    )}
 
-                {/* Left Panel: Signing Authority Signatures */}
-                <div className="lg:col-span-6 space-y-6">
-                    
-                    {/* General Manager details */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
-                            <User className="w-4 h-4 text-amber-500" />
-                            أختام واعتماد المدير العام (المصادق النهائي)
-                        </h3>
+                    {/* ─── Colors Tab ─── */}
+                    {activeTab === 'colors' && (
+                        <Card>
+                            <CardHeader>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Palette size={15} style={{ color: 'var(--color-primary-600)' }} />
+                                    <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                        الهوية اللونية للشهادات
+                                    </h3>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '480px' }}>
+                                    {[
+                                        { key: 'primaryColor', label: 'اللون الأساسي', hint: 'يُستخدم في إطارات الشهادة وألوانها الرئيسية' },
+                                        { key: 'goldColor',    label: 'اللون الذهبي',  hint: 'يُستخدم في الزخارف والفواصل الرسمية'         },
+                                    ].map(({ key, label, hint }) => (
+                                        <FormField key={key} label={label} hint={hint}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                                                <div style={{
+                                                    position: 'relative',
+                                                    width: 44, height: 44,
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: '2px solid var(--border-strong)',
+                                                    overflow: 'hidden',
+                                                    flexShrink: 0,
+                                                    background: formData[key],
+                                                    boxShadow: 'var(--shadow-card)',
+                                                }}>
+                                                    <input
+                                                        type="color"
+                                                        value={formData[key]}
+                                                        onChange={e => set(key, e.target.value)}
+                                                        style={{
+                                                            position: 'absolute', inset: '-4px',
+                                                            width: 'calc(100% + 8px)',
+                                                            height: 'calc(100% + 8px)',
+                                                            opacity: 0, cursor: 'pointer',
+                                                        }}
+                                                    />
+                                                </div>
+                                                <code style={{
+                                                    fontSize: 'var(--text-label)',
+                                                    fontWeight: 700,
+                                                    color: 'var(--text-secondary)',
+                                                    background: 'var(--bg-muted)',
+                                                    padding: '4px 8px',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    letterSpacing: '0.05em',
+                                                }}>
+                                                    {formData[key].toUpperCase()}
+                                                </code>
+                                            </div>
+                                        </FormField>
+                                    ))}
+                                </div>
 
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="form-group">
-                                <label className="form-label">الاسم الكامل للمدير العام *</label>
-                                <input
-                                    type="text"
-                                    value={formData.directorName}
-                                    onChange={e => handleFieldChange('directorName', e.target.value)}
-                                    className="form-control"
-                                    placeholder="سعادة مدير فرع الوزارة"
-                                />
-                            </div>
+                                {/* Color Preview */}
+                                <div style={{
+                                    marginTop: '24px',
+                                    padding: '20px',
+                                    background: 'var(--bg-subtle)',
+                                    border: '1px solid var(--border-default)',
+                                    borderRadius: 'var(--radius-lg)',
+                                }}>
+                                    <p style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        معاينة اللوحة اللونية
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <div style={{
+                                            flex: 1, height: 36,
+                                            background: formData.primaryColor,
+                                            borderRadius: 'var(--radius-md)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 'var(--text-micro)', fontWeight: 700, color: 'white',
+                                        }}>
+                                            اللون الأساسي
+                                        </div>
+                                        <div style={{
+                                            flex: 1, height: 36,
+                                            background: formData.goldColor,
+                                            borderRadius: 'var(--radius-md)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 'var(--text-micro)', fontWeight: 700, color: 'white',
+                                        }}>
+                                            اللون الذهبي
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                            <div className="form-group">
-                                <label className="form-label">المسمى الوظيفي والصفة الرسمية *</label>
-                                <input
-                                    type="text"
-                                    value={formData.directorTitle}
-                                    onChange={e => handleFieldChange('directorTitle', e.target.value)}
-                                    className="form-control"
-                                    placeholder="المدير العام للمنصة"
-                                />
-                            </div>
+                </motion.div>
+            </AnimatePresence>
 
-                            <SignatureUploader
-                                label="توقيع المدير العام الرسمي المعتمد"
-                                value={formData.directorSignature}
-                                onChange={v => handleFieldChange('directorSignature', v)}
-                                hint="يتم حقنه تلقائياً في الشهادة عند الاعتماد النهائي"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Assistant Manager details */}
-                    <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                        <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
-                            <User className="w-4 h-4 text-purple-400" />
-                            تأشيرة ومراجعة مساعد المدير العام (المراجع الإداري)
-                        </h3>
-
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="form-group">
-                                <label className="form-label">تسمية التأشيرة الوظيفية *</label>
-                                <input
-                                    type="text"
-                                    value={formData.visaLabel}
-                                    onChange={e => handleFieldChange('visaLabel', e.target.value)}
-                                    className="form-control"
-                                    placeholder="مساعد المدير العام للتخطيط"
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">الاسم الكامل للمساعد *</label>
-                                <input
-                                    type="text"
-                                    value={formData.visaName}
-                                    onChange={e => handleFieldChange('visaName', e.target.value)}
-                                    className="form-control"
-                                    placeholder="اسم مساعد المدير العام"
-                                />
-                            </div>
-
-                            <SignatureUploader
-                                label="توقيع تأشيرة المساعد الرقمي"
-                                value={formData.visaSignature}
-                                onChange={v => handleFieldChange('visaSignature', v)}
-                                hint="يتم حقنه عند مراجعة المعاملة والموافقة عليها"
-                            />
-                        </div>
-                    </div>
-                </div>
-
+            {/* ── Sticky Save Footer ── */}
+            <div style={{
+                position: 'sticky',
+                bottom: '16px',
+                background: 'rgba(255,255,255,0.92)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '12px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                boxShadow: 'var(--shadow-floating)',
+                zIndex: 10,
+            }}>
+                <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                    التغييرات تؤثر فوراً على جميع الشهادات الجديدة
+                </p>
+                <Button type="submit" variant="primary" size="md" isLoading={saving} leftIcon={saved ? CheckCircle : Save}>
+                    {saved ? '✓ تم الحفظ بنجاح' : 'حفظ جميع الإعدادات'}
+                </Button>
             </div>
         </form>
     );
 }
+
+/* ── Internal: FormField ── */
+const FormField = ({ label, hint, required, children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <label style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+            {label}
+            {required && <span style={{ color: 'var(--color-danger)', marginRight: '3px' }}>*</span>}
+        </label>
+        {children}
+        {hint && (
+            <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                {hint}
+            </p>
+        )}
+    </div>
+);

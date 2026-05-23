@@ -1,6 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+/**
+ * Enterprise Button Component
+ * Variants: primary | accent | secondary | outline | ghost | danger
+ * Sizes: xs | sm | md | lg
+ */
 export const Button = React.forwardRef(({
     children,
     variant = 'primary',
@@ -12,51 +17,51 @@ export const Button = React.forwardRef(({
     disabled = false,
     ...props
 }, ref) => {
-    // Styles mapping following modern Vercel/Linear guidelines
-    const baseStyles = 'inline-flex items-center justify-center font-sans font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
-    
-    const variants = {
-        primary: 'bg-teal-700 hover:bg-teal-600 text-white shadow-[0_4px_12px_rgba(15,118,110,0.15)] hover:shadow-[0_6px_20px_rgba(15,118,110,0.25)] focus:ring-teal-500 border border-teal-800',
-        secondary: 'bg-slate-900 dark:bg-slate-800 text-slate-100 hover:bg-slate-800 dark:hover:bg-slate-700 border border-slate-800 dark:border-slate-700 shadow-sm focus:ring-slate-500',
-        outline: 'bg-transparent border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/60 focus:ring-teal-500',
-        ghost: 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-950 focus:ring-slate-500',
-        danger: 'bg-red-600 hover:bg-red-500 text-white shadow-sm focus:ring-red-500 border border-red-700',
-        accent: 'bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:from-amber-500 hover:to-amber-400 shadow-[0_4px_12px_rgba(217,119,6,0.15)] hover:shadow-[0_6px_20px_rgba(217,119,6,0.25)] focus:ring-amber-500 border border-amber-700',
-    };
+    const variantClass = {
+        primary:   'btn-primary',
+        accent:    'btn-accent',
+        secondary: 'btn-secondary',
+        outline:   'btn-outline',
+        ghost:     'btn-ghost',
+        danger:    'btn-danger',
+    }[variant] || 'btn-primary';
 
-    const sizes = {
-        sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
-        md: 'px-5 py-2.5 text-sm rounded-xl gap-2',
-        lg: 'px-6 py-3.5 text-base rounded-2xl gap-2.5',
-    };
+    const sizeClass = {
+        xs: 'btn-xs',
+        sm: 'btn-sm',
+        md: 'btn-md',
+        lg: 'btn-lg',
+    }[size] || 'btn-md';
 
-    const loaderColors = {
-        primary: 'border-white',
-        secondary: 'border-slate-300',
-        outline: 'border-teal-600',
-        ghost: 'border-slate-500',
-        danger: 'border-white',
-        accent: 'border-white',
-    };
+    const spinnerColor = {
+        primary:   'border-white border-t-transparent',
+        accent:    'border-white border-t-transparent',
+        secondary: 'border-gray-400 border-t-transparent',
+        outline:   'border-green-600 border-t-transparent',
+        ghost:     'border-gray-500 border-t-transparent',
+        danger:    'border-white border-t-transparent',
+    }[variant];
+
+    const iconSize = { xs: 'w-3 h-3', sm: 'w-3.5 h-3.5', md: 'w-4 h-4', lg: 'w-5 h-5' }[size] || 'w-4 h-4';
 
     return (
         <motion.button
             ref={ref}
-            whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
-            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+            whileTap={{ scale: disabled || isLoading ? 1 : 0.97 }}
+            className={`btn ${variantClass} ${sizeClass} ${className}`}
             disabled={disabled || isLoading}
             {...props}
         >
             {isLoading ? (
-                <svg className={`animate-spin h-4 w-4 ${loaderColors[variant]}`} fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <>
+                    <span className={`inline-block rounded-full border-2 animate-spin ${spinnerColor} ${iconSize}`} />
+                    <span>{children}</span>
+                </>
             ) : (
                 <>
-                    {LeftIcon && <LeftIcon className="w-4 h-4 shrink-0" />}
-                    <span>{children}</span>
-                    {RightIcon && <RightIcon className="w-4 h-4 shrink-0" />}
+                    {LeftIcon && <LeftIcon className={`${iconSize} shrink-0`} />}
+                    {children && <span>{children}</span>}
+                    {RightIcon && <RightIcon className={`${iconSize} shrink-0`} />}
                 </>
             )}
         </motion.button>
@@ -64,4 +69,54 @@ export const Button = React.forwardRef(({
 });
 
 Button.displayName = 'Button';
+
+/**
+ * Icon-only button (square)
+ */
+export const IconButton = React.forwardRef(({
+    icon: Icon,
+    size = 'md',
+    variant = 'ghost',
+    label,
+    className = '',
+    ...props
+}, ref) => {
+    const sizeMap = {
+        xs: 'w-6 h-6',
+        sm: 'w-8 h-8',
+        md: 'w-9 h-9',
+        lg: 'w-10 h-10',
+    };
+    const iconMap = {
+        xs: 'w-3 h-3',
+        sm: 'w-3.5 h-3.5',
+        md: 'w-4 h-4',
+        lg: 'w-5 h-5',
+    };
+
+    const variantClass = {
+        primary:   'btn-primary',
+        accent:    'btn-accent',
+        secondary: 'btn-secondary',
+        outline:   'btn-outline',
+        ghost:     'btn-ghost',
+        danger:    'btn-danger',
+    }[variant] || 'btn-ghost';
+
+    return (
+        <motion.button
+            ref={ref}
+            whileTap={{ scale: 0.95 }}
+            title={label}
+            aria-label={label}
+            className={`btn ${variantClass} ${sizeMap[size]} !p-0 rounded-xl ${className}`}
+            {...props}
+        >
+            {Icon && <Icon className={iconMap[size]} />}
+        </motion.button>
+    );
+});
+
+IconButton.displayName = 'IconButton';
+
 export default Button;

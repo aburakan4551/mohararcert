@@ -4,47 +4,62 @@ import { useAuth } from '../context/AuthContext';
 import { dbService, templateService, auditService, notificationService } from '../services/db';
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
-import { ArrowLeft, CheckCircle, AlertTriangle, FileText, Send, Clock, User, MessageSquare, ShieldAlert, Sparkles, Printer, Download, Calendar, ShieldCheck, Loader2 } from 'lucide-react';
+import {
+    ArrowRight, CheckCircle, AlertTriangle, FileText, Clock,
+    MessageSquare, ShieldAlert, Sparkles, Printer, Download,
+    ShieldCheck, XCircle,
+} from 'lucide-react';
 import { useLayers } from '../hooks/useLayers';
 import { logger } from '../utils/debug';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // Presentation imports
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/cards/Card';
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
 import { Badge } from '../ui/feedback/Badge';
 import { Textarea, Label } from '../ui/forms/Input';
+
+const STATUS_MAP = {
+    DRAFT:                { label: 'مسودة',                variant: 'neutral' },
+    PENDING_APPROVAL:     { label: 'انتظار تأشير المساعد', variant: 'warning' },
+    APPROVED_BY_ASSISTANT:{ label: 'معتمد من المساعد',     variant: 'info'    },
+    FINAL_APPROVED:       { label: 'معتمد نهائياً',         variant: 'success' },
+    RETURNED_FOR_EDIT:    { label: 'مُعاد للتعديل',         variant: 'danger'  },
+    REJECTED:             { label: 'مرفوض',                 variant: 'danger'  },
+    ARCHIVED:             { label: 'مؤرشف',                 variant: 'neutral' },
+};
+
+const getStatusBadge = (status) => {
+    const s = STATUS_MAP[status] || { label: '—', variant: 'neutral' };
+    return <Badge variant={s.variant} dot>{s.label}</Badge>;
+};
 
 export default function ApprovalDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, settings } = useAuth();
-    
-    const [cert, setCert] = useState(null);
-    const [template, setTemplate] = useState(null);
-    const [comments, setComments] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
-    const [exporting, setExporting] = useState(false);
-    const [scale, setScale] = useState(0.5);
 
-    const certRef = useRef();
+    const [cert,       setCert]       = useState(null);
+    const [template,   setTemplate]   = useState(null);
+    const [comments,   setComments]   = useState('');
+    const [loading,    setLoading]    = useState(true);
+    const [processing, setProcessing] = useState(false);
+    const [exporting,  setExporting]  = useState(false);
+    const [scale,      setScale]      = useState(0.5);
+
+    const certRef            = useRef();
     const previewContainerRef = useRef();
 
-    // Auto A4 Scale Observer
+    /* ── Auto Scale for A4 ── */
     useEffect(() => {
         if (loading || !cert) return;
-        
-        function measure() {
+        const measure = () => {
             const el = previewContainerRef.current;
             if (!el) return;
-            const A4_W_PX = 297 * (96 / 25.4); 
-            const A4_H_PX = 210 * (96 / 25.4); 
-            const scaleW = el.clientWidth / A4_W_PX;
-            const scaleH = el.clientHeight / A4_H_PX;
-            setScale(Math.min(scaleW, scaleH) * 0.95); // 95% safety margin
-        }
-
+            const A4_W = 297 * (96 / 25.4);
+            const A4_H = 210 * (96 / 25.4);
+            setScale(Math.min(el.clientWidth / A4_W, el.clientHeight / A4_H) * 0.94);
+        };
         const ro = new ResizeObserver(measure);
         if (previewContainerRef.current) ro.observe(previewContainerRef.current);
         measure();
@@ -53,67 +68,47 @@ export default function ApprovalDetails() {
 
     const loadCertDetails = async () => {
         setLoading(true);
-        logger.api(`جلب تفاصيل المعاملة ذات الرقم التعريفي: ${id}`);
         try {
             const data = await dbService.getById(id);
-            if (!data) {
-                logger.error(`المستند المطلوب غير موجود بقاعدة البيانات: ${id}`);
-                alert('الشهادة المطلوبة غير موجودة');
-                navigate('/dashboard');
-                return;
-            }
+            if (!data) { alert('المعاملة غير موجودة'); navigate('/dashboard'); return; }
             setCert(data);
-            logger.api(`تم استرداد بيانات المعاملة #${data.serial} بنجاح.`);
-
             if (data.templateId) {
                 const tpl = await templateService.getById(data.templateId);
                 setTemplate(tpl);
-                logger.api(`تم تحميل القالب المرتبط: ${tpl.name}`);
             }
         } catch (e) {
-            logger.error('حدث خطأ أثناء تحميل بيانات الشهادة وتفاصيل الاعتماد', e);
+            logger.error('خطأ في تحميل بيانات المعاملة', e);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        loadCertDetails();
-    }, [id]);
+    useEffect(() => { loadCertDetails(); }, [id]);
 
     const { layers: editorLayers, canvasWidth } = useLayers(cert?.templateId || 'default');
 
+    const canTakeDecision = () => {
+        if (!cert) return false;
+        if (cert.status === 'PENDING_APPROVAL'      && (user.role === 'ASSISTANT_MANAGER' || user.role === 'SUPER_ADMIN')) return true;
+        if (cert.status === 'APPROVED_BY_ASSISTANT' && (user.role === 'GENERAL_MANAGER'  || user.role === 'SUPER_ADMIN')) return true;
+        return false;
+    };
+
     const handleApprove = async () => {
         setProcessing(true);
-        logger.workflow(`بدء اتخاذ قرار الاعتماد الإداري للمعاملة: ${cert.serial}`);
         try {
-            if (user.role === 'ASSISTANT_MANAGER' || user.role === 'SUPER_ADMIN') {
-                await dbService.approveByAssistant(cert.id, user, comments || 'تم الاعتماد والتأشير بالقبول بعد التحقق من صحة المعطيات.');
-                await auditService.log('APPROVE_CERTIFICATE', user, `موافقة وتأشير المعاملة رقم: ${cert.serial}`, cert.id);
-                
-                await notificationService.create({
-                    userId: 'usr-3', 
-                    message: `تأشيرة جديدة بانتظار اعتمادك النهائي: ${cert.recipientName}`,
-                    type: 'approve'
-                });
-                logger.workflow(`تم التأشير والرفع للمدير العام بنجاح للمعاملة: ${cert.serial}`);
-            } else if (user.role === 'GENERAL_MANAGER' || user.role === 'SUPER_ADMIN') {
-                await dbService.approveFinal(cert.id, user, comments || 'تم الاعتماد النهائي والمصادقة الرقمية للمستند الرسمي.');
-                await auditService.log('APPROVE_CERTIFICATE', user, `اعتماد نهائي ومصادقة للشهادة رقم: ${cert.serial}`, cert.id);
-                
-                await notificationService.create({
-                    userId: cert.createdBy,
-                    message: `🎉 تهانينا! تمت المصادقة والاعتماد النهائي لشهادتك: ${cert.recipientName}`,
-                    type: 'approve'
-                });
-                logger.workflow(`تم الاعتماد النهائي والمصادقة للمعاملة: ${cert.serial}`);
+            if (user.role === 'ASSISTANT_MANAGER' || (user.role === 'SUPER_ADMIN' && cert.status === 'PENDING_APPROVAL')) {
+                await dbService.approveByAssistant(cert.id, user, comments || 'تم الاعتماد والتأشير بالقبول.');
+                await auditService.log('APPROVE_CERTIFICATE', user, `تأشير المعاملة: ${cert.serial}`, cert.id);
+                await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${cert.recipientName}`, type: 'approve' });
+            } else {
+                await dbService.approveFinal(cert.id, user, comments || 'تم الاعتماد النهائي والمصادقة الرسمية.');
+                await auditService.log('APPROVE_CERTIFICATE', user, `اعتماد نهائي: ${cert.serial}`, cert.id);
+                await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${cert.recipientName}`, type: 'approve' });
             }
-
-            alert('تم اعتماد المعاملة بنجاح وتمريرها للمرحلة التالية!');
             setComments('');
             await loadCertDetails();
         } catch (e) {
-            logger.error(`فشل تمرير قرار الاعتماد للمعاملة: ${cert.serial}`, e);
             alert('خطأ أثناء الاعتماد: ' + e.message);
         } finally {
             setProcessing(false);
@@ -121,53 +116,32 @@ export default function ApprovalDetails() {
     };
 
     const handleReturnForEdit = async () => {
-        if (!comments) return alert('الرجاء كتابة ملاحظات التوجيه أو سبب الإعادة للمنشئ');
+        if (!comments) { alert('يرجى كتابة سبب الإعادة'); return; }
         setProcessing(true);
-        logger.workflow(`إعادة المعاملة لإعادة التعديل: ${cert.serial}`);
         try {
             await dbService.returnForEdit(cert.id, user, comments);
-            await auditService.log('RETURN_FOR_EDIT', user, `إرجاع المعاملة رقم: ${cert.serial} لإعادة التعديل`, cert.id);
-            
-            await notificationService.create({
-                userId: cert.createdBy,
-                message: `⚠️ تمت إعادة المعاملة رقم ${cert.serial} للتعديل. الملاحظة: ${comments}`,
-                type: 'pending'
-            });
-
-            logger.workflow(`تمت إعادة المعاملة للمنشئ مع تدوين مرئيات المراجعة: ${cert.serial}`);
-            alert('تمت إعادة المعاملة للمنشئ مع تدوين الملاحظات.');
+            await auditService.log('RETURN_FOR_EDIT', user, `إعادة: ${cert.serial}`, cert.id);
+            await notificationService.create({ userId: cert.createdBy, message: `تمت إعادة المعاملة ${cert.serial} للتعديل. الملاحظة: ${comments}`, type: 'pending' });
             setComments('');
             await loadCertDetails();
         } catch (e) {
-            logger.error(`فشل تمرير أمر الإعادة للمعاملة: ${cert.serial}`, e);
-            alert('خطأ أثناء إرجاع الطلب: ' + e.message);
+            alert('خطأ أثناء الإعادة: ' + e.message);
         } finally {
             setProcessing(false);
         }
     };
 
     const handleReject = async () => {
-        if (!comments) return alert('الرجاء كتابة سبب الرفض الإداري');
-        if (!window.confirm('هل أنت متأكد من رغبتك في رفض هذا الطلب نهائياً وإغلاق المعاملة؟')) return;
-        
+        if (!comments) { alert('يرجى كتابة سبب الرفض'); return; }
+        if (!window.confirm('هل أنت متأكد من رفض هذا الطلب نهائياً؟')) return;
         setProcessing(true);
-        logger.workflow(`رفض المعاملة وإغلاق الملف نهائياً: ${cert.serial}`);
         try {
             await dbService.reject(cert.id, user, comments);
-            await auditService.log('REJECT_CERTIFICATE', user, `رفض المعاملة رقم: ${cert.serial}`, cert.id);
-            
-            await notificationService.create({
-                userId: cert.createdBy,
-                message: `❌ تم رفض طلب اعتماد شهادة: ${cert.recipientName}. السبب: ${comments}`,
-                type: 'reject'
-            });
-
-            logger.workflow(`تم إغلاق ورفض الملف الإداري للمعاملة: ${cert.serial}`);
-            alert('تم رفض المعاملة وإغلاق الطلب نهائياً.');
+            await auditService.log('REJECT_CERTIFICATE', user, `رفض: ${cert.serial}`, cert.id);
+            await notificationService.create({ userId: cert.createdBy, message: `تم رفض طلب اعتماد شهادة: ${cert.recipientName}`, type: 'reject' });
             setComments('');
             await loadCertDetails();
         } catch (e) {
-            logger.error(`فشل تمرير قرار الرفض الإداري للمعاملة: ${cert.serial}`, e);
             alert('خطأ أثناء الرفض: ' + e.message);
         } finally {
             setProcessing(false);
@@ -176,58 +150,33 @@ export default function ApprovalDetails() {
 
     const handleExport = async () => {
         setExporting(true);
-        logger.api(`تصدير المعاملة رقم ${cert.serial} بصيغة مستند PDF...`);
         try {
-            await auditService.log('EXPORT_PDF', user, `تصدير وتحميل PDF للشهادة رقم: ${cert.serial}`, cert.id);
+            await auditService.log('EXPORT_PDF', user, `تصدير PDF: ${cert.serial}`, cert.id);
             await exportSinglePDF(certRef.current, `شهادة-${cert.recipientName}.pdf`);
-            logger.api('اكتمل تصدير الملف بنجاح وتنزيله لدى جهاز المستخدم.');
         } catch (e) {
-            logger.error('حدث عطل أثناء تنزيل أو طباعة ملف PDF للشهادة', e);
             alert('فشل تصدير PDF: ' + e.message);
+        } finally {
+            setExporting(false);
         }
-        setExporting(false);
     };
 
     const handlePrint = () => {
-        logger.api(`تشغيل أمر الطباعة المباشرة للمعاملة: ${cert.serial}`);
-        auditService.log('PRINT_CERTIFICATE', user, `طباعة ورقية للشهادة رقم: ${cert.serial}`, cert.id);
-        printElements([certRef.current], `طباعة الشهادة - ${cert.recipientName}`);
+        auditService.log('PRINT_CERTIFICATE', user, `طباعة: ${cert.serial}`, cert.id);
+        printElements([certRef.current], `شهادة - ${cert.recipientName}`);
     };
 
-    const canTakeDecision = () => {
-        if (cert.status === 'PENDING_APPROVAL' && (user.role === 'ASSISTANT_MANAGER' || user.role === 'SUPER_ADMIN')) return true;
-        if (cert.status === 'APPROVED_BY_ASSISTANT' && (user.role === 'GENERAL_MANAGER' || user.role === 'SUPER_ADMIN')) return true;
-        return false;
-    };
-
-    const getStatusBadge = (status) => {
-        switch (status) {
-            case 'DRAFT':
-                return <Badge variant="warning">مسودة</Badge>;
-            case 'PENDING_APPROVAL':
-                return <Badge variant="warning">بانتظار تأشير المساعد</Badge>;
-            case 'APPROVED_BY_ASSISTANT':
-                return <Badge variant="success">معتمد من المساعد</Badge>;
-            case 'FINAL_APPROVED':
-                return <Badge variant="success">معتمد نهائياً</Badge>;
-            case 'RETURNED_FOR_EDIT':
-                return <Badge variant="danger">مُعاد للتعديل</Badge>;
-            case 'REJECTED':
-                return <Badge variant="danger">مرفوض</Badge>;
-            case 'ARCHIVED':
-                return <Badge variant="primary">مؤرشف</Badge>;
-            default:
-                return <Badge variant="secondary">—</Badge>;
-        }
-    };
-
+    /* ── Loading Skeleton ── */
     if (loading) {
         return (
-            <div className="space-y-8 py-2">
-                <div className="h-16 rounded-2xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-7 h-[450px] rounded-3xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
-                    <div className="lg:col-span-5 h-[450px] rounded-3xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="skeleton" style={{ height: '56px', borderRadius: '14px' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '20px' }}>
+                    <div className="skeleton" style={{ height: '480px', borderRadius: '20px' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div className="skeleton" style={{ height: '160px', borderRadius: '20px' }} />
+                        <div className="skeleton" style={{ height: '160px', borderRadius: '20px' }} />
+                        <div className="skeleton" style={{ height: '120px', borderRadius: '20px' }} />
+                    </div>
                 </div>
             </div>
         );
@@ -237,77 +186,128 @@ export default function ApprovalDetails() {
         recipientName: cert.recipientName,
         event: cert.event,
         date: cert.date,
-        serial: cert.serial
+        serial: cert.serial,
     };
 
+    const isFinalOrArchived = cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED';
+
     return (
-        <div className="space-y-6 py-2 text-right">
-            
-            {/* Header & Sticky Actions Panel */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/40 pb-5">
-                <div className="flex items-center gap-3">
-                    <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(-1)} 
-                        className="py-2.5 px-3 rounded-xl hover:scale-105 active:scale-95"
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ── Header Bar ── */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: '16px',
+                padding: '14px 20px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: '16px',
+                boxShadow: 'var(--shadow-surface)',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <button
+                        onClick={() => navigate(-1)}
+                        style={{
+                            width: 36, height: 36,
+                            borderRadius: '10px',
+                            border: '1.5px solid var(--border-strong)',
+                            background: 'var(--bg-subtle)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-tertiary)',
+                            transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
                     >
-                        <ArrowLeft className="w-4 h-4" />
-                    </Button>
+                        <ArrowRight size={16} />
+                    </button>
                     <div>
-                        <h2 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                            تفاصيل واعتماد المعاملة #{cert.serial}
+                        <h2 style={{ fontSize: 'var(--text-subtitle)', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                            تفاصيل المعاملة #{cert.serial}
                         </h2>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
-                            تتبع خطوات الاعتماد والموافقة الإجرائية للمستند الإداري.
-                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                            {getStatusBadge(cert.status)}
+                        </div>
                     </div>
                 </div>
 
-                {/* Print/Download Shortcuts */}
-                {(cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED') && (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="md"
-                            onClick={handlePrint}
-                            className="font-bold text-xs"
-                            leftIcon={Printer}
-                        >
-                            طباعة ورقية
+                {isFinalOrArchived && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <Button variant="outline" size="sm" onClick={handlePrint} leftIcon={Printer}>
+                            طباعة
                         </Button>
-                        <Button
-                            variant="accent"
-                            size="md"
-                            onClick={handleExport}
-                            isLoading={exporting}
-                            className="font-black text-xs"
-                            leftIcon={Download}
-                        >
+                        <Button variant="primary" size="sm" onClick={handleExport} isLoading={exporting} leftIcon={Download}>
                             تنزيل PDF
                         </Button>
                     </div>
                 )}
             </div>
 
-            {/* Split Enterprise Layout Grid (Right: Preview, Left: Info & Workflow) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Right Panel: Live scale preview container (A4 Landscape Obsidian Frame) */}
-                <div className="lg:col-span-7 space-y-4 lg:sticky lg:top-24">
-                    <Card className="border border-slate-200/60 dark:border-slate-800/40 p-5 shadow-2xl relative overflow-hidden bg-slate-950">
-                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-teal-500/20 to-transparent" />
-                        
-                        <div className="flex items-center justify-between border-b border-slate-800/40 pb-3 mb-5 text-[10px] font-black text-slate-500 tracking-wider">
-                            <span className="flex items-center gap-1.5 text-slate-400">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                👁️ معاينة المستند المعتمد والطبقات المباشرة
+            {/* ── Split Layout: 7/5 ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '20px', alignItems: 'start' }}>
+
+                {/* LEFT: Certificate Preview */}
+                <div style={{ position: 'sticky', top: '80px' }}>
+                    <Card>
+                        {/* Toolbar */}
+                        <div style={{
+                            padding: '12px 16px',
+                            background: '#0D1117',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                    width: 8, height: 8, borderRadius: '50%',
+                                    background: '#10B981',
+                                    animation: 'spin 2s linear infinite',
+                                    animationName: 'pulse',
+                                    boxShadow: '0 0 6px rgba(16,185,129,0.6)',
+                                }} />
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.65)' }}>
+                                    معاينة المستند المباشر
+                                </span>
+                            </div>
+                            <span style={{
+                                fontSize: '10px', fontWeight: 700,
+                                color: 'rgba(15,169,88,0.9)',
+                                background: 'rgba(15,169,88,0.12)',
+                                border: '1px solid rgba(15,169,88,0.20)',
+                                padding: '2px 10px',
+                                borderRadius: '999px',
+                                letterSpacing: '0.05em',
+                            }}>
+                                A4 LANDSCAPE
                             </span>
-                            <Badge variant="primary" className="uppercase font-bold">A4 landscape</Badge>
                         </div>
 
-                        <div className="w-full flex items-center justify-center overflow-hidden min-h-[360px] bg-slate-900/60 rounded-2xl relative border border-slate-800/20" ref={previewContainerRef}>
-                            <div className="flex items-center justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'center center', width: '297mm', height: '210mm', flexShrink: 0 }}>
+                        {/* Preview Canvas */}
+                        <div
+                            ref={previewContainerRef}
+                            style={{
+                                background: '#1a1f2e',
+                                minHeight: '360px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                overflow: 'hidden',
+                                position: 'relative',
+                                padding: '20px',
+                            }}
+                        >
+                            {/* dot pattern */}
+                            <div style={{
+                                position: 'absolute', inset: 0,
+                                backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+                                backgroundSize: '20px 20px',
+                                pointerEvents: 'none',
+                            }} />
+                            <div style={{
+                                transform: `scale(${scale})`,
+                                transformOrigin: 'center center',
+                                width: '297mm', height: '210mm',
+                                flexShrink: 0,
+                                position: 'relative', zIndex: 2,
+                            }}>
                                 <UnifiedCertificateEngine
                                     ref={certRef}
                                     mode="preview"
@@ -323,153 +323,350 @@ export default function ApprovalDetails() {
                     </Card>
                 </div>
 
-                {/* Left Panel: Info details, Timeline trackers, Actions panel */}
-                <div className="lg:col-span-5 space-y-6">
-                    
-                    {/* Metadata Card */}
-                    <Card className="border border-slate-200/60 dark:border-slate-800/40">
-                        <CardHeader className="border-b border-slate-100 dark:border-slate-800/20 pb-3">
-                            <CardTitle className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                <FileText className="w-4 h-4 text-teal-500" />
-                                بيانات المعاملة الأساسية
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <div className="divide-y divide-slate-100 dark:divide-slate-800/20 text-xs font-bold">
-                                <div className="py-2.5 flex justify-between gap-2">
-                                    <span className="text-slate-400">اسم صاحب الطلب:</span>
-                                    <span className="text-slate-800 dark:text-slate-200">{cert.recipientName}</span>
-                                </div>
-                                <div className="py-2.5 flex justify-between gap-2">
-                                    <span className="text-slate-400">المناسبة/الموضوع:</span>
-                                    <span className="text-slate-800 dark:text-slate-200">{cert.event}</span>
-                                </div>
-                                <div className="py-2.5 flex justify-between gap-2">
-                                    <span className="text-slate-400">التاريخ المطبوع:</span>
-                                    <span className="font-mono text-slate-800 dark:text-slate-200">{cert.date}</span>
-                                </div>
-                                <div className="py-2.5 flex justify-between gap-2">
-                                    <span className="text-slate-400">منشئ المعاملة:</span>
-                                    <span className="text-slate-800 dark:text-slate-200">{cert.creatorName || 'مستخدم النظام'}</span>
-                                </div>
-                                <div className="py-2.5 flex justify-between gap-2 items-center">
-                                    <span className="text-slate-400">الحالة الإجرائية:</span>
-                                    {getStatusBadge(cert.status)}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* RIGHT: Info + Timeline + Actions */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                    {/* Timeline Tracker */}
-                    <Card className="border border-slate-200/60 dark:border-slate-800/40">
-                        <CardHeader className="border-b border-slate-100 dark:border-slate-800/20 pb-3">
-                            <CardTitle className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                <Clock className="w-4 h-4 text-amber-500" />
-                                خط الزمن ومسار الموافقات
-                            </CardTitle>
+                    {/* ── Metadata ── */}
+                    <Card>
+                        <CardHeader>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                    width: 32, height: 32,
+                                    borderRadius: '10px',
+                                    background: 'rgba(15,169,88,0.10)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                    <FileText size={15} color="#0FA958" />
+                                </div>
+                                <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                    بيانات المعاملة
+                                </h3>
+                            </div>
                         </CardHeader>
-                        <CardContent className="p-6">
-                            <div className="space-y-5 relative before:absolute before:top-2 before:bottom-2 before:right-3.5 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800/40">
-                                {(cert.workflowHistory || []).map((step, idx) => (
-                                    <div key={idx} className="flex gap-4 relative">
-                                        <div className="w-7 h-7 rounded-full bg-slate-50 dark:bg-[#0c1626] border border-slate-200/60 dark:border-slate-800 flex items-center justify-center z-10 flex-shrink-0">
-                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2 text-[9px] font-black">
-                                                <span className="text-slate-650 dark:text-slate-350">{step.user}</span>
-                                                <span className="text-slate-400">{new Date(step.timestamp).toLocaleDateString('ar-SA')}</span>
-                                            </div>
-                                            <h4 className="text-[11px] font-black text-teal-600 dark:text-teal-400 mt-0.5">
-                                                {step.stage === 'DRAFT' && '📝 صياغة مسودة المعاملة'}
-                                                {step.stage === 'PENDING_APPROVAL' && '📤 الرفع للاعتماد الرسمي'}
-                                                {step.stage === 'APPROVED_BY_ASSISTANT' && '🔏 مراجعة وتأشير المساعد'}
-                                                {step.stage === 'FINAL_APPROVED' && '👑 مصادقة واعتماد نهائي'}
-                                                {step.stage === 'RETURNED_FOR_EDIT' && '⚠️ إرجاع للتعديل وإضافة الملاحظات'}
-                                                {step.stage === 'REJECTED' && '❌ رفض نهائي للمستند'}
-                                            </h4>
-                                            {step.comments && (
-                                                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50/50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/20 mt-2 font-semibold">
-                                                    {step.comments}
-                                                </p>
-                                            )}
-                                        </div>
+                        <CardContent>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {[
+                                    { label: 'اسم صاحب الطلب', value: cert.recipientName },
+                                    { label: 'المناسبة / الموضوع', value: cert.event },
+                                    { label: 'التاريخ المطبوع', value: cert.date, mono: true },
+                                    { label: 'منشئ المعاملة', value: cert.creatorName || 'مستخدم النظام' },
+                                    { label: 'الحالة الإجرائية', value: getStatusBadge(cert.status), isNode: true },
+                                ].map((row, i, arr) => (
+                                    <div
+                                        key={row.label}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '10px 0',
+                                            borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                                            gap: '16px',
+                                        }}
+                                    >
+                                        <span style={{ fontSize: 'var(--text-label)', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
+                                            {row.label}
+                                        </span>
+                                        {row.isNode ? row.value : (
+                                            <span style={{
+                                                fontSize: 'var(--text-label)',
+                                                fontWeight: 700,
+                                                color: 'var(--text-primary)',
+                                                textAlign: 'left',
+                                                fontFamily: row.mono ? 'monospace' : 'inherit',
+                                            }}>
+                                                {row.value}
+                                            </span>
+                                        )}
                                     </div>
                                 ))}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Decisions Control Board */}
+                    {/* ── Timeline ── */}
+                    <Card>
+                        <CardHeader>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{
+                                    width: 32, height: 32,
+                                    borderRadius: '10px',
+                                    background: 'rgba(245,158,11,0.10)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                    <Clock size={15} color="#F59E0B" />
+                                </div>
+                                <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                    مسار الموافقات
+                                </h3>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div style={{ position: 'relative' }}>
+                                {/* Vertical line */}
+                                {(cert.workflowHistory || []).length > 1 && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        right: '15px', top: '28px', bottom: '28px',
+                                        width: '2px',
+                                        background: 'var(--border-default)',
+                                    }} />
+                                )}
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    {(cert.workflowHistory || []).map((step, idx) => {
+                                        const isLast = idx === (cert.workflowHistory.length - 1);
+                                        const stageLabels = {
+                                            DRAFT:               '📝 صياغة المسودة',
+                                            PENDING_APPROVAL:    '📤 رفع للاعتماد',
+                                            APPROVED_BY_ASSISTANT:'🔏 تأشير المساعد',
+                                            FINAL_APPROVED:      '✅ اعتماد نهائي',
+                                            RETURNED_FOR_EDIT:   '⚠️ إعادة للتعديل',
+                                            REJECTED:            '❌ رفض نهائي',
+                                        };
+
+                                        return (
+                                            <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                                {/* Dot */}
+                                                <div style={{
+                                                    width: 32, height: 32,
+                                                    borderRadius: '50%',
+                                                    background: isLast ? 'rgba(15,169,88,0.10)' : 'var(--bg-muted)',
+                                                    border: `2px solid ${isLast ? 'var(--color-primary-500)' : 'var(--border-default)'}`,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    position: 'relative', zIndex: 2,
+                                                }}>
+                                                    <div style={{
+                                                        width: 8, height: 8, borderRadius: '50%',
+                                                        background: isLast ? 'var(--color-primary-500)' : 'var(--border-strong)',
+                                                    }} />
+                                                </div>
+
+                                                <div style={{ flex: 1, minWidth: 0, paddingTop: '4px' }}>
+                                                    <div style={{
+                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                                                        gap: '8px', marginBottom: '4px',
+                                                    }}>
+                                                        <h4 style={{
+                                                            fontSize: 'var(--text-label)', fontWeight: 800,
+                                                            color: isLast ? 'var(--color-primary-700)' : 'var(--text-secondary)',
+                                                        }}>
+                                                            {stageLabels[step.stage] || step.stage}
+                                                        </h4>
+                                                        <span style={{
+                                                            fontSize: 'var(--text-micro)', color: 'var(--text-muted)',
+                                                            fontWeight: 600, flexShrink: 0,
+                                                        }}>
+                                                            {new Date(step.timestamp).toLocaleDateString('ar-SA')}
+                                                        </span>
+                                                    </div>
+                                                    <p style={{
+                                                        fontSize: 'var(--text-micro)', color: 'var(--text-muted)',
+                                                        fontWeight: 600, marginBottom: step.comments ? '6px' : 0,
+                                                    }}>
+                                                        {step.user}
+                                                    </p>
+                                                    {step.comments && (
+                                                        <div style={{
+                                                            padding: '8px 12px',
+                                                            background: 'var(--bg-subtle)',
+                                                            border: '1px solid var(--border-default)',
+                                                            borderRadius: '10px',
+                                                            fontSize: 'var(--text-micro)',
+                                                            color: 'var(--text-tertiary)',
+                                                            fontWeight: 500,
+                                                            lineHeight: 1.6,
+                                                        }}>
+                                                            {step.comments}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* ── Decision Panel ── */}
                     {canTakeDecision() ? (
-                        <Card className="bg-gradient-to-br from-slate-900 to-[#070e1b] text-white border border-white/5 shadow-xl">
-                            <CardHeader className="border-b border-white/5 pb-3">
-                                <CardTitle className="text-xs font-black text-amber-400 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-                                    لوحة القرار الإداري المعتمد
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-slate-300">مرئيات وتوجيهات اللجنة (تظهر في السجل):</Label>
-                                    <Textarea
+                        <div style={{
+                            background: 'linear-gradient(145deg, #0d1117, #161b22)',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+                            overflow: 'hidden',
+                        }}>
+                            {/* Panel header */}
+                            <div style={{
+                                padding: '14px 20px',
+                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                            }}>
+                                <Sparkles size={15} color="#F59E0B" />
+                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: '#F59E0B' }}>
+                                    لوحة القرار الإداري
+                                </span>
+                            </div>
+
+                            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                {/* Comments Textarea */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{
+                                        fontSize: 'var(--text-label)', fontWeight: 700,
+                                        color: 'rgba(255,255,255,0.55)',
+                                    }}>
+                                        الملاحظات والمرئيات (تظهر في السجل):
+                                    </label>
+                                    <textarea
                                         value={comments}
                                         onChange={e => setComments(e.target.value)}
-                                        placeholder="اكتب ملاحظاتك، مرئياتك، أو سبب الإرجاع للمنشئ هنا..."
-                                        className="bg-slate-950 border-slate-800 text-slate-200 focus:border-amber-500 focus:ring-amber-550/10 placeholder-slate-700 min-h-[90px]"
+                                        rows={3}
+                                        placeholder="اكتب ملاحظاتك أو سبب الإعادة هنا..."
+                                        style={{
+                                            width: '100%',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1.5px solid rgba(255,255,255,0.10)',
+                                            borderRadius: '12px',
+                                            padding: '12px 14px',
+                                            color: 'rgba(255,255,255,0.85)',
+                                            fontSize: 'var(--text-label)',
+                                            fontFamily: 'var(--font-sans)',
+                                            outline: 'none',
+                                            resize: 'vertical',
+                                            lineHeight: 1.6,
+                                            direction: 'rtl',
+                                        }}
+                                        onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.12)'; }}
+                                        onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.10)'; e.target.style.boxShadow = 'none'; }}
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 pt-2">
-                                    <Button
-                                        variant="outline"
-                                        size="md"
+                                {/* Secondary actions */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    <button
                                         onClick={handleReturnForEdit}
                                         disabled={processing}
-                                        className="border-amber-500/20 text-amber-400 hover:bg-amber-500/10 w-full"
+                                        style={{
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            border: '1.5px solid rgba(245,158,11,0.25)',
+                                            background: 'rgba(245,158,11,0.08)',
+                                            color: '#F59E0B',
+                                            fontSize: 'var(--text-label)', fontWeight: 800,
+                                            cursor: processing ? 'not-allowed' : 'pointer',
+                                            fontFamily: 'var(--font-sans)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            transition: 'all 0.15s',
+                                        }}
+                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'rgba(245,158,11,0.14)'; }}}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.08)'; }}
                                     >
-                                        ⚠️ إرجاع للتعديل
-                                    </Button>
-                                    <Button
-                                        variant="danger"
-                                        size="md"
+                                        <AlertTriangle size={13} />
+                                        إعادة للتعديل
+                                    </button>
+                                    <button
                                         onClick={handleReject}
                                         disabled={processing}
-                                        className="border-red-500/25 bg-red-650/15 hover:bg-red-500/20 text-red-400 w-full"
+                                        style={{
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            border: '1.5px solid rgba(239,68,68,0.25)',
+                                            background: 'rgba(239,68,68,0.08)',
+                                            color: '#EF4444',
+                                            fontSize: 'var(--text-label)', fontWeight: 800,
+                                            cursor: processing ? 'not-allowed' : 'pointer',
+                                            fontFamily: 'var(--font-sans)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            transition: 'all 0.15s',
+                                        }}
+                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'rgba(239,68,68,0.14)'; }}}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
                                     >
-                                        ❌ رفض الطلب
-                                    </Button>
+                                        <XCircle size={13} />
+                                        رفض الطلب
+                                    </button>
                                 </div>
 
-                                <Button
-                                    variant="accent"
-                                    size="lg"
+                                {/* Primary Approve */}
+                                <button
                                     onClick={handleApprove}
                                     disabled={processing}
-                                    isLoading={processing}
-                                    className="w-full font-black mt-2 text-xs flex items-center justify-center gap-1.5"
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px',
+                                        background: processing ? 'rgba(15,169,88,0.5)' : 'linear-gradient(135deg, #0d7a3e, #0FA958)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        fontSize: 'var(--text-body-sm)', fontWeight: 900,
+                                        cursor: processing ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                        boxShadow: processing ? 'none' : '0 8px 20px rgba(15,169,88,0.30)',
+                                        transition: 'all 0.2s',
+                                        fontFamily: 'var(--font-sans)',
+                                    }}
+                                    onMouseEnter={e => { if (!processing) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(15,169,88,0.40)'; }}}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = processing ? 'none' : '0 8px 20px rgba(15,169,88,0.30)'; }}
                                 >
-                                    <CheckCircle className="w-4 h-4" />
-                                    <span>{user.role === 'ASSISTANT_MANAGER' ? 'التأشير والرفع للمدير العام' : 'المصادقة والاعتماد النهائي'}</span>
-                                </Button>
-                            </CardContent>
-                        </Card>
+                                    {processing ? (
+                                        <>
+                                            <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
+                                            جارٍ المعالجة...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle size={16} />
+                                            {user.role === 'ASSISTANT_MANAGER'
+                                                ? 'التأشير والرفع للمدير العام'
+                                                : 'المصادقة والاعتماد النهائي'
+                                            }
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     ) : (
-                        <Card className="border border-slate-200/60 dark:border-slate-800/40 p-6 text-center space-y-3">
-                            <ShieldCheck className="w-10 h-10 text-slate-400 dark:text-slate-650 mx-auto stroke-[1.5]" />
-                            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">القرار الإداري مقفل</h4>
-                            <p className="text-[10px] text-slate-450 dark:text-slate-500 leading-relaxed font-semibold">
-                                {cert.status === 'FINAL_APPROVED' && 'هذا المستند معتمد وموقع نهائياً ومحمي بالكامل ضد التعديل أو التغيير بأثر رجعي.'}
-                                {cert.status === 'REJECTED' && 'هذا الطلب تم رفضه وإغلاق المعاملة من قبل الإدارة.'}
-                                {cert.status === 'DRAFT' && 'الطلب لا يزال في مرحلة صياغة المسودة لدى المنشئ.'}
-                                {cert.status === 'PENDING_APPROVAL' && user.role === 'GENERAL_MANAGER' && 'المعاملة بانتظار مراجعة وتأشير المساعد أولاً.'}
-                                {cert.status === 'APPROVED_BY_ASSISTANT' && user.role === 'CREATOR' && 'المعاملة معتمدة من المساعد وبانتظار اعتماد المدير العام.'}
+                        <div style={{
+                            padding: '24px',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-default)',
+                            borderRadius: '20px',
+                            textAlign: 'center',
+                            boxShadow: 'var(--shadow-card)',
+                        }}>
+                            <div style={{
+                                width: 48, height: 48,
+                                borderRadius: '14px',
+                                background: 'var(--bg-muted)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 12px',
+                            }}>
+                                <ShieldCheck size={22} style={{ color: 'var(--text-muted)' }} strokeWidth={1.5} />
+                            </div>
+                            <h4 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                                القرار الإداري مقفل
+                            </h4>
+                            <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 500, lineHeight: 1.6 }}>
+                                {cert.status === 'FINAL_APPROVED'        && 'هذا المستند معتمد نهائياً ومحمي.'}
+                                {cert.status === 'REJECTED'              && 'هذا الطلب مرفوض وملفه مغلق.'}
+                                {cert.status === 'DRAFT'                 && 'الطلب لا يزال في مرحلة المسودة.'}
+                                {cert.status === 'PENDING_APPROVAL'      && user.role === 'GENERAL_MANAGER' && 'بانتظار تأشير المساعد أولاً.'}
+                                {cert.status === 'APPROVED_BY_ASSISTANT' && user.role === 'CREATOR'         && 'بانتظار اعتماد المدير العام.'}
+                                {cert.status === 'RETURNED_FOR_EDIT'     && 'أُعيد الطلب للمنشئ للتعديل.'}
                             </p>
-                        </Card>
+                        </div>
                     )}
                 </div>
-
             </div>
+
+            {/* Responsive */}
+            <style>{`
+                @media (max-width: 1024px) {
+                    .approval-grid { grid-template-columns: 1fr !important; }
+                }
+            `}</style>
         </div>
     );
 }

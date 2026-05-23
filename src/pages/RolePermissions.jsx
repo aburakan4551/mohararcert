@@ -1,12 +1,15 @@
 /**
- * 🛡️ RolePermissions.jsx
- * Interactive Access Control Matrix (RBAC Matrix) visualizer for mohararcert.
- * Details operations and checkmarks demonstrating the security hierarchy.
+ * 🛡️ RolePermissions.jsx — Enterprise MoH Healthcare Dashboard
+ * Interactive Access Control Matrix (RBAC Matrix) visualizer.
  */
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Check, X, ShieldAlert, Award } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import PageHeader from '../ui/layouts/PageHeader';
 
 const OPERATIONS = [
     { id: 'create', label: 'إنشاء المعاملات وصياغة المسودات', desc: 'حق صياغة وتعديل مسودات الشهادات وربطها بالقوالب.' },
@@ -21,13 +24,12 @@ const OPERATIONS = [
 ];
 
 const ROLES = [
-    { id: 'CREATOR', label: 'منشئ المعاملات', color: 'text-blue-500' },
-    { id: 'ASSISTANT_MANAGER', label: 'المراجع الإداري (المساعد)', color: 'text-purple-500' },
-    { id: 'GENERAL_MANAGER', label: 'المصادق النهائي (المدير)', color: 'text-amber-500' },
-    { id: 'SUPER_ADMIN', label: 'مدير النظام الفيدرالي', color: 'text-emerald-500' }
+    { id: 'CREATOR', label: 'منشئ المعاملات', color: 'var(--color-info)' },
+    { id: 'ASSISTANT_MANAGER', label: 'المراجع الإداري (المساعد)', color: 'var(--color-primary-600)' },
+    { id: 'GENERAL_MANAGER', label: 'المصادق النهائي (المدير)', color: 'var(--color-warning)' },
+    { id: 'SUPER_ADMIN', label: 'مدير النظام الفيدرالي', color: 'var(--color-success)' }
 ];
 
-// Matrix representing true/false permissions
 const PERMISSIONS_MATRIX = {
     create: { CREATOR: true, ASSISTANT_MANAGER: false, GENERAL_MANAGER: false, SUPER_ADMIN: true },
     bulk_excel: { CREATOR: true, ASSISTANT_MANAGER: false, GENERAL_MANAGER: false, SUPER_ADMIN: true },
@@ -44,77 +46,88 @@ export default function RolePermissions() {
     const { user } = useAuth();
 
     return (
-        <div className="space-y-6">
-            
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-amber-500" />
-                        جدول الصلاحيات العام والتحكم بالوصول (RBAC Matrix)
-                    </h2>
-                    <p className="text-xs text-slate-400">مصفوفة الصلاحيات المطبقة في النظام لعزل العمليات وحماية المسارات.</p>
-                </div>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* Info Alerts */}
-            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-start gap-3">
-                <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                    <span className="font-bold block">ملاحظة أمنية هامة:</span>
-                    <p className="leading-relaxed">
-                        يتم فرض مصفوفة التحكم في الوصول (Access Control Lists) على طبقة الخادم وطبقة المكونات (React Router Guard).
-                        أي محاولة للوصول المباشر أو تعديل المسارات البرمجية يتم حظرها تلقائياً وتسجيلها في سجل المراقبة (Audit Logs) كحركة غير مصرح بها.
+            <PageHeader
+                title="مصفوفة الصلاحيات العامة (RBAC)"
+                subtitle="جدول يوضح سياسات التحكم بالوصول ومسارات العمليات لكل دور وظيفي في النظام."
+            />
+
+            <div style={{
+                padding: '12px 16px', background: 'rgba(245,158,11,0.06)',
+                border: '1px solid rgba(245,158,11,0.18)', borderRadius: 'var(--radius-lg)',
+                display: 'flex', alignItems: 'flex-start', gap: '10px'
+            }}>
+                <ShieldAlert size={16} style={{ color: 'var(--color-warning)', marginTop: '2px', flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--color-warning)' }}>ملاحظة أمنية هامة</span>
+                    <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.5 }}>
+                        يتم فرض مصفوفة التحكم في الوصول (ACLs) على مستوى مسارات التطبيق وقواعد البيانات. أي محاولة وصول غير مصرحة يتم حظرها وتسجيلها فوراً في سجل التدقيق الأمني.
                     </p>
                 </div>
             </div>
 
-            {/* Matrix Table */}
-            <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                    <thead>
-                        <tr className="border-b border-slate-100 dark:border-slate-800/80 text-slate-400 font-bold">
-                            <th className="pb-3 w-72">العملية والعملية الإجرائية</th>
-                            {ROLES.map(r => (
-                                <th key={r.id} className="pb-3 text-center w-36">
-                                    <div className={`font-black ${r.color}`}>{r.label}</div>
-                                    <span className="text-[9px] text-slate-400 font-mono font-medium block mt-0.5">{r.id}</span>
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold">
-                        {OPERATIONS.map((op) => (
-                            <tr key={op.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/20 transition-all">
-                                <td className="py-4">
-                                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">{op.label}</h4>
-                                    <p className="text-[10px] text-slate-400 leading-relaxed font-medium mt-0.5">{op.desc}</p>
-                                </td>
-                                {ROLES.map(role => {
-                                    const hasPerm = PERMISSIONS_MATRIX[op.id][role.id];
-                                    const isActive = user.role === role.id;
-
-                                    return (
-                                        <td key={role.id} className={`py-4 text-center ${isActive ? 'bg-amber-500/[0.02] dark:bg-amber-500/[0.02]' : ''}`}>
-                                            <div className="flex items-center justify-center">
-                                                {hasPerm ? (
-                                                    <span className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                                                        <Check className="w-3.5 h-3.5" />
-                                                    </span>
-                                                ) : (
-                                                    <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-300 dark:text-slate-800 flex items-center justify-center border border-slate-200/20 dark:border-slate-800/40">
-                                                        <X className="w-3.5 h-3.5" />
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                    );
-                                })}
+            <Card>
+                <CardHeader>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Shield size={16} style={{ color: 'var(--color-primary-600)' }} />
+                        <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            جدول العمليات والصلاحيات الممنوحة
+                        </h3>
+                    </div>
+                </CardHeader>
+                
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                        <thead>
+                            <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)' }}>
+                                <th style={{ padding: '12px 16px', fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-muted)' }}>العملية الإجرائية</th>
+                                {ROLES.map(r => (
+                                    <th key={r.id} style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: r.color }}>{r.label}</div>
+                                        <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'monospace' }}>{r.id}</div>
+                                    </th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            {OPERATIONS.map((op, i) => (
+                                <motion.tr
+                                    key={op.id}
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.03 }}
+                                    style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 0.15s' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    <td style={{ padding: '16px' }}>
+                                        <h4 style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--text-primary)' }}>{op.label}</h4>
+                                        <p style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 600, marginTop: '2px' }}>{op.desc}</p>
+                                    </td>
+                                    {ROLES.map(role => {
+                                        const hasPerm = PERMISSIONS_MATRIX[op.id][role.id];
+                                        const isActive = user.role === role.id;
+                                        return (
+                                            <td key={role.id} style={{ padding: '16px', textAlign: 'center', background: isActive ? 'rgba(15,169,88,0.02)' : 'transparent' }}>
+                                                {hasPerm ? (
+                                                    <div style={{ width: 24, height: 24, margin: '0 auto', borderRadius: '50%', background: 'var(--color-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-success-border)' }}>
+                                                        <Check size={12} style={{ color: 'var(--color-success)' }} />
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ width: 24, height: 24, margin: '0 auto', borderRadius: '50%', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-default)' }}>
+                                                        <X size={12} style={{ color: 'var(--text-tertiary)' }} />
+                                                    </div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </motion.tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
 
         </div>
     );

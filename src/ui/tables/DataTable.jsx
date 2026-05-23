@@ -1,119 +1,176 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
+/**
+ * Enterprise DataTable
+ * - Sticky headers
+ * - Row hover with full-width highlight
+ * - Built-in empty state
+ * - Skeleton loading
+ * - Mobile-responsive
+ */
 export const DataTable = ({
     columns = [],
     data = [],
     isLoading = false,
-    emptyStateMessage = 'لا توجد بيانات لعرضها حالياً',
-    searchKey = '',
-    searchPlaceholder = 'بحث...',
-    onRowClick = null,
+    emptyStateMessage = 'لا توجد بيانات متاحة حالياً',
+    emptyStateIcon: EmptyIcon = null,
     className = '',
+    onRowClick,
+    rowKey = 'id',
+    skeletonRows = 6,
 }) => {
-    const [searchQuery, setSearchQuery] = useState('');
+    const [sortKey,  setSortKey]  = useState(null);
+    const [sortDir,  setSortDir]  = useState('asc');
 
-    // Filter data based on search key
-    const filteredData = React.useMemo(() => {
-        if (!searchQuery || !searchKey) return data;
-        return data.filter((row) => {
-            const val = row[searchKey];
-            if (!val) return false;
-            return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+    const handleSort = (key) => {
+        if (!key) return;
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
+
+    const sortedData = React.useMemo(() => {
+        if (!sortKey) return data;
+        return [...data].sort((a, b) => {
+            const av = a[sortKey], bv = b[sortKey];
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            const cmp = String(av).localeCompare(String(bv), 'ar');
+            return sortDir === 'asc' ? cmp : -cmp;
         });
-    }, [data, searchQuery, searchKey]);
+    }, [data, sortKey, sortDir]);
 
-    return (
-        <div className={`w-full flex flex-col gap-4 ${className}`}>
-            {/* Search Input Bar if searchKey is provided */}
-            {searchKey && (
-                <div className="relative w-full max-w-sm">
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={searchPlaceholder}
-                        className="w-full text-xs font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 focus:border-teal-500 focus:ring-teal-500/10 rounded-xl px-4 py-2.5 pl-10 outline-none transition-all focus:ring-4"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                </div>
-            )}
-
-            {/* Main Table Grid */}
-            <div className="w-full overflow-hidden bg-white/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800/40 rounded-2xl shadow-sm">
-                <div className="w-full overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-right border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800/40">
-                                {columns.map((col, idx) => (
-                                    <th
-                                        key={col.key || idx}
-                                        className={`px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider font-sans whitespace-nowrap ${
-                                            col.sticky ? 'sticky left-0 bg-slate-50 dark:bg-slate-950 z-10' : ''
-                                        }`}
-                                    >
-                                        {col.label}
-                                    </th>
+    /* ─── Skeleton Loader ─── */
+    if (isLoading) {
+        return (
+            <div className={`data-table-wrapper ${className}`}>
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            {columns.map(col => (
+                                <th key={col.key}>{col.label}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Array.from({ length: skeletonRows }).map((_, i) => (
+                            <tr key={i}>
+                                {columns.map(col => (
+                                    <td key={col.key}>
+                                        <div
+                                            className="skeleton"
+                                            style={{
+                                                height: '14px',
+                                                borderRadius: '6px',
+                                                width: col.key === 'actions' ? '70px' : '100%',
+                                            }}
+                                        />
+                                    </td>
                                 ))}
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/20">
-                            {isLoading ? (
-                                // Skeleton Loaders
-                                Array.from({ length: 5 }).map((_, rIdx) => (
-                                    <tr key={rIdx} className="animate-pulse">
-                                        {columns.map((_, cIdx) => (
-                                            <td key={cIdx} className="px-6 py-4">
-                                                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4"></div>
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))
-                            ) : filteredData.length === 0 ? (
-                                // Empty state
-                                <tr>
-                                    <td colSpan={columns.length} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center gap-2">
-                                            <svg className="w-8 h-8 text-slate-300 dark:text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
-                                                {emptyStateMessage}
-                                            </span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredData.map((row, rIdx) => (
-                                    <motion.tr
-                                        key={row.id || rIdx}
-                                        onClick={() => onRowClick && onRowClick(row)}
-                                        className={`group transition-all duration-200 hover:bg-slate-50/50 dark:hover:bg-slate-950/20 ${
-                                            onRowClick ? 'cursor-pointer' : ''
-                                        }`}
-                                        whileHover={{ x: onRowClick ? -2 : 0 }}
-                                    >
-                                        {columns.map((col, cIdx) => (
-                                            <td
-                                                key={col.key || cIdx}
-                                                className={`px-6 py-4 text-xs font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap transition-colors group-hover:text-slate-950 dark:group-hover:text-white ${
-                                                    col.sticky ? 'sticky left-0 bg-white dark:bg-slate-900 z-10' : ''
-                                                }`}
-                                            >
-                                                {col.render ? col.render(row[col.key], row) : row[col.key]}
-                                            </td>
-                                        ))}
-                                    </motion.tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
+
+    /* ─── Empty State ─── */
+    if (!isLoading && sortedData.length === 0) {
+        return (
+            <div className={`data-table-wrapper ${className}`}>
+                <div style={{
+                    padding: '3rem',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px',
+                }}>
+                    {EmptyIcon ? (
+                        <EmptyIcon style={{ width: 44, height: 44, color: 'var(--text-muted)', strokeWidth: 1.25 }} />
+                    ) : (
+                        <div style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 'var(--radius-xl)',
+                            background: 'var(--bg-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                        }}>
+                            📄
+                        </div>
+                    )}
+                    <p style={{
+                        fontSize: 'var(--text-body-sm)',
+                        color: 'var(--text-muted)',
+                        fontWeight: 600,
+                    }}>
+                        {emptyStateMessage}
+                    </p>
                 </div>
             </div>
+        );
+    }
+
+    /* ─── Table ─── */
+    return (
+        <div className={`data-table-wrapper overflow-x-auto ${className}`}>
+            <table className="data-table">
+                <thead>
+                    <tr>
+                        {columns.map(col => (
+                            <th
+                                key={col.key}
+                                onClick={() => col.sortable !== false && col.key !== 'actions' && handleSort(col.key)}
+                                style={{
+                                    cursor: col.sortable !== false && col.key !== 'actions' ? 'pointer' : 'default',
+                                    userSelect: 'none',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                    {col.label}
+                                    {col.key !== 'actions' && sortKey === col.key && (
+                                        sortDir === 'asc'
+                                            ? <ChevronUp size={12} />
+                                            : <ChevronDown size={12} />
+                                    )}
+                                </div>
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    <AnimatePresence>
+                        {sortedData.map((row, idx) => (
+                            <motion.tr
+                                key={row[rowKey] || idx}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.015 }}
+                                onClick={() => onRowClick?.(row)}
+                                style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+                            >
+                                {columns.map(col => (
+                                    <td key={col.key}>
+                                        {col.render
+                                            ? col.render(row[col.key], row)
+                                            : row[col.key] ?? '—'
+                                        }
+                                    </td>
+                                ))}
+                            </motion.tr>
+                        ))}
+                    </AnimatePresence>
+                </tbody>
+            </table>
         </div>
     );
 };

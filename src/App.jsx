@@ -59,8 +59,8 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-page)' }}>
+                <span className="spinner spinner-lg" />
             </div>
         )
     }
@@ -90,8 +90,9 @@ function LayoutWrapper() {
         >
             <Suspense
                 fallback={
-                    <div className="flex items-center justify-center h-[50vh]">
-                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', flexDirection: 'column', gap: '12px' }}>
+                        <span className="spinner spinner-md" />
+                        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 600 }}>جارٍ التحميل...</p>
                     </div>
                 }
             >

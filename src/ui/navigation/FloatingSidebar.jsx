@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
+import { Avatar } from '../components/Avatar';
 
+/**
+ * Enterprise Floating Sidebar
+ * - Minimal, compact, professional
+ * - RTL-native (right side)
+ * - Smart collapse support
+ * - Smooth spring animations
+ * - MoH Saudi Arabia identity
+ */
 export const FloatingSidebar = ({
     isOpen,
     onClose,
@@ -16,140 +25,255 @@ export const FloatingSidebar = ({
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        const handleResize = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const check = () => setIsMobile(window.innerWidth < 1024);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
     }, []);
 
     const getIcon = (iconName) => {
-        const IconComponent = Icons[iconName] || Icons.HelpCircle;
-        return <IconComponent className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />;
+        const Ic = Icons[iconName] || Icons.Circle;
+        return <Ic size={18} strokeWidth={1.75} />;
     };
 
-    const activeItemBg = 'bg-gradient-to-l from-teal-500/10 to-teal-500/0 text-teal-600 dark:text-teal-400 border-r-4 border-teal-600 dark:border-teal-400';
-    const inactiveItemBg = 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-900/40 border-r-4 border-transparent';
+    const roleLabel = {
+        SUPER_ADMIN:       'المشرف العام',
+        CREATOR:           'منشئ المعاملات',
+        ASSISTANT_MANAGER: 'مساعد المدير',
+        GENERAL_MANAGER:   'المدير العام',
+    }[currentUser?.role] || 'مستخدم النظام';
 
     return (
         <>
-            {/* Mobile Overlay Backdrop */}
-            {isOpen && isMobile && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={onClose}
-                    className="fixed inset-0 z-40 bg-slate-950/45 dark:bg-slate-950/65 backdrop-blur-sm md:hidden"
-                />
-            )}
-
-            {/* Sidebar Floating Body */}
-            <motion.aside
-                initial={isMobile ? { x: '110%' } : { x: 0 }}
-                animate={{ x: isMobile ? (isOpen ? 0 : '110%') : 0 }}
-                transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-                className={`fixed top-4 right-4 bottom-4 z-40 flex flex-col ${
-                    isCollapsed && !isMobile ? 'w-20' : 'w-64 sm:w-72'
-                } bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/40 rounded-3xl shadow-lg transition-all duration-300 ${className}`}
-                style={{ direction: 'rtl' }}
-            >
-                {/* Collapse Trigger (Desktop Only) */}
-                {!isMobile && (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="absolute top-1/2 -left-3.5 transform -translate-y-1/2 w-7.5 h-7.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center cursor-pointer shadow-md hover:text-teal-600 dark:hover:text-teal-400 hover:scale-105 active:scale-95 transition-all z-50"
-                        title={isCollapsed ? 'توسيع القائمة' : 'طي القائمة'}
-                    >
-                        {isCollapsed ? <Icons.ChevronLeft className="w-4 h-4" /> : <Icons.ChevronRight className="w-4 h-4" />}
-                    </button>
-                )}
-
-                {/* Header Profile Info / Branding Logo */}
-                <div className="flex flex-col items-center justify-center py-6 px-4 border-b border-slate-100 dark:border-slate-800/20 relative overflow-hidden group">
-                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-teal-500/5 rounded-full blur-xl group-hover:bg-teal-500/10 transition-all duration-550 pointer-events-none" />
-
+            {/* Mobile Backdrop */}
+            <AnimatePresence>
+                {isOpen && isMobile && (
                     <motion.div
-                        whileHover={{ scale: 1.05, rotate: 5 }}
-                        className="flex items-center justify-center w-11 h-11 mb-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm shrink-0"
-                    >
-                        <Icons.Award className="w-6 h-6 stroke-[1.8]" />
-                    </motion.div>
+                        key="backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: 49,
+                            background: 'rgba(0,0,0,0.35)',
+                            backdropFilter: 'blur(4px)',
+                        }}
+                    />
+                )}
+            </AnimatePresence>
 
-                    {(!isCollapsed || isMobile) ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-center"
+            {/* Sidebar Body */}
+            <motion.aside
+                initial={false}
+                animate={{
+                    x: isMobile ? (isOpen ? 0 : '110%') : 0,
+                    width: !isMobile ? (isCollapsed ? 72 : 268) : 268,
+                }}
+                transition={{ type: 'spring', damping: 30, stiffness: 260 }}
+                className={`sidebar-rail ${!isMobile && isCollapsed ? 'collapsed' : ''} ${isMobile ? 'mobile-sidebar' : ''} ${className}`}
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 50,
+                    background: 'var(--bg-surface)',
+                    borderLeft: '1px solid var(--border-default)',
+                    boxShadow: 'var(--shadow-floating)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    direction: 'rtl',
+                }}
+            >
+                {/* ── Brand / Logo ── */}
+                <div className="sidebar-brand" style={{ position: 'relative', overflow: 'hidden' }}>
+                    {/* Subtle gradient accent */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'linear-gradient(135deg, rgba(15,169,88,0.04), transparent)',
+                        pointerEvents: 'none',
+                    }} />
+
+                    <div className="sidebar-brand-icon" style={{ flexShrink: 0 }}>
+                        <Icons.Award size={20} strokeWidth={1.75} />
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                        {(!isCollapsed || isMobile) && (
+                            <motion.div
+                                key="brand-text"
+                                initial={{ opacity: 0, x: 8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 8 }}
+                                transition={{ duration: 0.18 }}
+                                className="sidebar-brand-text"
+                            >
+                                <p className="sidebar-brand-title">إدارة التميز المؤسسي</p>
+                                <p className="sidebar-brand-sub">وزارة الصحة · الحدود الشمالية</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Collapse toggle — desktop only */}
+                    {!isMobile && (
+                        <button
+                            onClick={onToggleCollapse}
+                            title={isCollapsed ? 'توسيع' : 'طي'}
+                            style={{
+                                position: 'absolute',
+                                left: -14,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: 'var(--bg-surface)',
+                                border: '1.5px solid var(--border-strong)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-muted)',
+                                zIndex: 60,
+                                boxShadow: 'var(--shadow-card)',
+                                transition: 'all var(--transition-fast)',
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = 'var(--color-primary-600)';
+                                e.currentTarget.style.borderColor = 'var(--color-primary-400)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = 'var(--text-muted)';
+                                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                            }}
                         >
-                            <h2 className="text-xs font-black tracking-tight text-slate-900 dark:text-slate-100 font-sans leading-normal">
-                                إدارة التميز المؤسسي
-                            </h2>
-                            <span className="text-[9px] text-teal-600 dark:text-teal-400 font-black uppercase tracking-wider block mt-0.5">
-                                صحة الحدود الشمالية
-                            </span>
-                        </motion.div>
-                    ) : (
-                        <span className="text-[9px] text-teal-600 dark:text-teal-450 font-bold">MOH</span>
+                            {isCollapsed
+                                ? <Icons.ChevronLeft size={13} strokeWidth={2.5} />
+                                : <Icons.ChevronRight size={13} strokeWidth={2.5} />
+                            }
+                        </button>
                     )}
                 </div>
 
-                {/* Nav Links List */}
-                <nav className="flex-1 px-3.5 py-4 overflow-y-auto space-y-1 custom-scrollbar">
+                {/* ── Navigation ── */}
+                <nav className="sidebar-nav custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
                     {navItems.map((item) => (
                         <NavLink
                             key={item.to}
                             to={item.to}
-                            onClick={onClose}
-                            className={({ isActive }) => `
-                                group flex items-center ${isCollapsed && !isMobile ? 'justify-center px-0' : 'gap-3 px-4'} py-3 rounded-xl transition-all duration-200 font-bold text-xs relative
-                                ${isActive ? activeItemBg : inactiveItemBg}
-                            `}
+                            onClick={isMobile ? onClose : undefined}
+                            title={isCollapsed && !isMobile ? item.label : undefined}
                         >
-                            <span className="shrink-0">{getIcon(item.icon)}</span>
-
-                            {(!isCollapsed || isMobile) ? (
-                                <span className="truncate tracking-wide">{item.label}</span>
-                            ) : (
-                                // Compact Hover Tooltip
-                                <div className="absolute right-20 scale-0 group-hover:scale-100 transition-all duration-150 z-50 bg-slate-950/95 dark:bg-slate-900 border border-slate-800 text-slate-200 text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-xl pointer-events-none whitespace-nowrap">
-                                    {item.label}
+                            {({ isActive }) => (
+                                <div
+                                    className={`nav-item ${isActive ? 'active' : ''}`}
+                                    style={{
+                                        justifyContent: isCollapsed && !isMobile ? 'center' : 'flex-start',
+                                        paddingRight: isCollapsed && !isMobile ? 0 : undefined,
+                                    }}
+                                >
+                                    <span className="nav-item-icon" style={{ flexShrink: 0 }}>
+                                        {getIcon(item.icon)}
+                                    </span>
+                                    <AnimatePresence mode="wait">
+                                        {(!isCollapsed || isMobile) && (
+                                            <motion.span
+                                                key="label"
+                                                initial={{ opacity: 0, width: 0 }}
+                                                animate={{ opacity: 1, width: 'auto' }}
+                                                exit={{ opacity: 0, width: 0 }}
+                                                transition={{ duration: 0.18 }}
+                                                style={{
+                                                    overflow: 'hidden',
+                                                    whiteSpace: 'nowrap',
+                                                    fontSize: 'var(--text-label)',
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {item.label}
+                                            </motion.span>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             )}
                         </NavLink>
                     ))}
                 </nav>
 
-                {/* User Section Footer */}
-                <div className="p-3 border-t border-slate-150/40 dark:border-slate-800/20 bg-slate-50/40 dark:bg-slate-950/20 rounded-b-3xl">
-                    {currentUser && (
-                        <div className={`flex items-center ${isCollapsed && !isMobile ? 'justify-center p-1' : 'gap-3 p-2.5'} mb-2.5 rounded-xl bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/30`}>
-                            <div className="flex items-center justify-center w-8.5 h-8.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 font-black text-xs shrink-0">
-                                {currentUser.name ? currentUser.name.charAt(0) : 'م'}
+                {/* ── Footer / User ── */}
+                <div className="sidebar-footer">
+                    {currentUser && (!isCollapsed || isMobile) && (
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '10px 12px',
+                                borderRadius: 'var(--radius-lg)',
+                                background: 'var(--bg-subtle)',
+                                border: '1px solid var(--border-default)',
+                                marginBottom: '8px',
+                            }}
+                        >
+                            <Avatar name={currentUser.name} size="sm" />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{
+                                    fontSize: 'var(--text-label)',
+                                    fontWeight: 700,
+                                    color: 'var(--text-primary)',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>
+                                    {currentUser.name || 'مستخدم النظام'}
+                                </p>
+                                <p style={{
+                                    fontSize: 'var(--text-micro)',
+                                    color: 'var(--color-primary-600)',
+                                    fontWeight: 700,
+                                }}>
+                                    {roleLabel}
+                                </p>
                             </div>
-
-                            {(!isCollapsed || isMobile) && (
-                                <div className="flex-1 min-w-0 text-right">
-                                    <h4 className="text-[11px] font-black truncate text-slate-800 dark:text-slate-200 leading-none">
-                                        {currentUser.name || 'مستخدم النظام'}
-                                    </h4>
-                                    <span className="text-[8px] text-teal-650 dark:text-teal-400 font-black px-1.5 py-0.5 rounded-md bg-teal-500/10 border border-teal-500/20 inline-block mt-1">
-                                        {currentUser.role === 'SUPER_ADMIN' ? 'المشرف العام' : 
-                                         currentUser.role === 'CREATOR' ? 'منشئ المعاملات' : 'مساعد المدير'}
-                                    </span>
-                                </div>
-                            )}
                         </div>
                     )}
 
-                    {/* Exit Logout */}
+                    {/* Logout Button */}
                     <button
                         onClick={onLogout}
-                        className={`flex items-center justify-center ${isCollapsed && !isMobile ? 'p-2.5' : 'gap-2 py-2.5 px-4'} w-full rounded-xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/10 hover:border-red-500/25 text-red-600 dark:text-red-400 font-black text-[11px] transition-all duration-200 cursor-pointer shadow-sm`}
                         title="تسجيل الخروج"
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: isCollapsed && !isMobile ? 'center' : 'flex-start',
+                            gap: '8px',
+                            padding: isCollapsed && !isMobile ? '10px 0' : '10px 12px',
+                            borderRadius: 'var(--radius-lg)',
+                            border: '1.5px solid rgba(239,68,68,0.15)',
+                            background: 'rgba(239,68,68,0.05)',
+                            color: 'var(--color-danger)',
+                            fontSize: 'var(--text-label)',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all var(--transition-fast)',
+                            fontFamily: 'var(--font-sans)',
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(239,68,68,0.10)';
+                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)';
+                        }}
                     >
-                        <Icons.LogOut className="w-4 h-4 shrink-0" />
+                        <Icons.LogOut size={16} strokeWidth={2} />
                         {(!isCollapsed || isMobile) && <span>تسجيل الخروج</span>}
                     </button>
                 </div>

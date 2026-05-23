@@ -1,7 +1,6 @@
 /**
- * 🗄️ Archive.jsx
- * Official Immutable Approved Certificates Vault for mohararcert.
- * Exposes finalized templates, secure filters, and optimized batch printing.
+ * 🗄️ Archive.jsx — Enterprise Official Certificate Vault
+ * Split layout: DataTable left + Preview right
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,270 +9,410 @@ import { dbService, templateService, auditService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
-import { Archive, Search, FileText, Download, Printer, ShieldCheck, Eye, Sparkles } from 'lucide-react';
+import {
+    Archive, Search, FileText, Download, Printer,
+    ShieldCheck, Eye, Calendar, User2, X,
+} from 'lucide-react';
 import { useLayers } from '../hooks/useLayers';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
+
+import { Card, CardHeader, CardContent } from '../ui/cards/Card';
+import { Badge } from '../ui/feedback/Badge';
+import { DataTable } from '../ui/tables/DataTable';
+import PageHeader from '../ui/layouts/PageHeader';
+import { Button } from '../ui/components/Button';
 
 export default function ArchivePage() {
     const { user, settings } = useAuth();
     const navigate = useNavigate();
-    const [certs, setCerts] = useState([]);
-    const [templates, setTemplates] = useState([]);
-    const [search, setSearch] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [activeCert, setActiveCert] = useState(null);
-    const [activeTemplate, setActiveTemplate] = useState(null);
-    const [scale, setScale] = useState(0.45);
-    const [exporting, setExporting] = useState(false);
 
-    const certRef = useRef();
+    const [certs,         setCerts]         = useState([]);
+    const [templates,     setTemplates]     = useState([]);
+    const [search,        setSearch]        = useState('');
+    const [loading,       setLoading]       = useState(true);
+    const [activeCert,    setActiveCert]    = useState(null);
+    const [activeTemplate,setActiveTemplate]= useState(null);
+    const [scale,         setScale]         = useState(0.45);
+    const [exporting,     setExporting]     = useState(false);
+
+    const certRef             = useRef();
     const previewContainerRef = useRef();
 
-    const loadArchive = async () => {
-        setLoading(true);
-        try {
-            const allCerts = await dbService.getAll();
-            // Filter only final approved
-            setCerts(allCerts.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED'));
-
-            const allTpls = await templateService.getAll();
-            setTemplates(allTpls);
-        } catch (e) {
-            console.error('Failed to load archive vault: ', e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        loadArchive();
+        (async () => {
+            setLoading(true);
+            try {
+                const all  = await dbService.getAll();
+                const tpls = await templateService.getAll();
+                setCerts(all.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED'));
+                setTemplates(tpls);
+                logger.api(`تحميل الأرشيف: ${all.length} معاملة معتمدة`);
+            } catch (e) {
+                logger.error('فشل تحميل الأرشيف', e);
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, []);
 
-    // Responsive scaling observer
+    /* Auto Scale for A4 Preview */
     useEffect(() => {
         if (!activeCert) return;
-        function measure() {
+        const measure = () => {
             const el = previewContainerRef.current;
             if (!el) return;
-            const A4_W_PX = 297 * (96 / 25.4); // ≈ 1122.5
-            const A4_H_PX = 210 * (96 / 25.4); // ≈ 793.7
-            const scaleW = el.clientWidth / A4_W_PX;
-            const scaleH = el.clientHeight / A4_H_PX;
-            setScale(Math.min(scaleW, scaleH));
-        }
-
+            const A4W = 297 * (96 / 25.4);
+            const A4H = 210 * (96 / 25.4);
+            setScale(Math.min(el.clientWidth / A4W, el.clientHeight / A4H) * 0.92);
+        };
         const ro = new ResizeObserver(measure);
         if (previewContainerRef.current) ro.observe(previewContainerRef.current);
         measure();
         return () => ro.disconnect();
     }, [activeCert]);
 
-    // Editor layers logic
     const { layers: editorLayers, canvasWidth } = useLayers(activeCert?.templateId || 'default');
 
-    const filteredCerts = useMemo(() => {
-        return certs.filter(c => 
-            c.recipientName.toLowerCase().includes(search.toLowerCase()) ||
-            c.event.toLowerCase().includes(search.toLowerCase()) ||
-            c.serial.includes(search)
-        );
-    }, [certs, search]);
+    const filteredCerts = useMemo(() =>
+        certs.filter(c =>
+            c.recipientName?.toLowerCase().includes(search.toLowerCase()) ||
+            c.event?.toLowerCase().includes(search.toLowerCase()) ||
+            c.serial?.includes(search)
+        ), [certs, search]);
 
-    const handleInspect = async (c) => {
+    const handleInspect = (c) => {
         setActiveCert(c);
-        const tpl = templates.find(t => t.id === c.templateId);
-        setActiveTemplate(tpl || null);
+        setActiveTemplate(templates.find(t => t.id === c.templateId) || null);
+        logger.api(`معاينة شهادة: ${c.serial}`);
     };
 
     const handleExport = async () => {
         if (!activeCert) return;
         setExporting(true);
         try {
-            await auditService.log('EXPORT_PDF', user, `تنزيل مستند رسمي للأرشيف للشهادة رقم: ${activeCert.serial}`, activeCert.id);
+            await auditService.log('EXPORT_PDF', user, `تصدير أرشيف: ${activeCert.serial}`, activeCert.id);
             await exportSinglePDF(certRef.current, `شهادة_معتمدة_${activeCert.recipientName}.pdf`);
         } catch (e) {
             alert('خطأ أثناء التصدير: ' + e.message);
+        } finally {
+            setExporting(false);
         }
-        setExporting(false);
     };
 
     const handlePrint = () => {
         if (!activeCert) return;
-        auditService.log('PRINT_CERTIFICATE', user, `طباعة مستند رسمي من الأرشيف للشهادة رقم: ${activeCert.serial}`, activeCert.id);
-        printElements([certRef.current], `طباعة الشهادة الرسمية - ${activeCert.recipientName}`);
+        auditService.log('PRINT_CERTIFICATE', user, `طباعة أرشيف: ${activeCert.serial}`, activeCert.id);
+        printElements([certRef.current], `شهادة — ${activeCert.recipientName}`);
     };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-amber-500"></div>
-            </div>
-        );
-    }
 
     const certData = activeCert ? {
         recipientName: activeCert.recipientName,
         event: activeCert.event,
         date: activeCert.date,
-        serial: activeCert.serial
+        serial: activeCert.serial,
     } : null;
 
-    return (
-        <div className="space-y-6">
-            
-            {/* Header */}
-            <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-                    <Archive className="w-5 h-5 text-amber-500" />
-                    أرشيف الشهادات الرسمي المقفل
-                </h2>
-                <p className="text-xs text-slate-400">مستندات رسمية غير قابلة للتعديل وموثقة بالتواقيع والأختام المعيارية.</p>
-            </div>
+    /* ── Table Columns ── */
+    const columns = [
+        {
+            key: 'serial',
+            label: 'الرقم',
+            render: v => (
+                <code style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-muted)', padding: '2px 7px', borderRadius: '5px' }}>
+                    {v}
+                </code>
+            ),
+        },
+        {
+            key: 'recipientName',
+            label: 'صاحب الشهادة',
+            render: (v, row) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                        width: 28, height: 28,
+                        borderRadius: '8px',
+                        background: 'rgba(15,169,88,0.10)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', fontWeight: 900,
+                        color: 'var(--color-primary-700)',
+                        flexShrink: 0,
+                    }}>
+                        {v?.charAt(0) || '؟'}
+                    </div>
+                    <div>
+                        <p style={{ fontSize: 'var(--text-body-sm)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>{v}</p>
+                        <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 500 }}>{row.event}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: 'updatedAt',
+            label: 'تاريخ الاعتماد',
+            render: v => (
+                <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={11} />
+                    {v ? new Date(v).toLocaleDateString('ar-SA') : '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'status',
+            label: 'الحالة',
+            sortable: false,
+            render: () => <Badge variant="success" dot>معتمد نهائياً</Badge>,
+        },
+        {
+            key: 'actions',
+            label: '',
+            sortable: false,
+            render: (_, row) => (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                        onClick={e => { e.stopPropagation(); handleInspect(row); }}
+                        title="معاينة سريعة"
+                        style={{
+                            width: 28, height: 28,
+                            borderRadius: '8px',
+                            border: '1.5px solid var(--border-strong)',
+                            background: activeCert?.id === row.id ? 'rgba(15,169,88,0.10)' : 'var(--bg-subtle)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: activeCert?.id === row.id ? 'var(--color-primary-600)' : 'var(--text-tertiary)',
+                            transition: 'all 0.15s',
+                        }}
+                    >
+                        <Eye size={13} />
+                    </button>
+                    <button
+                        onClick={e => { e.stopPropagation(); navigate(`/approvals/${row.id}`); }}
+                        title="التفاصيل الكاملة"
+                        style={{
+                            width: 28, height: 28,
+                            borderRadius: '8px',
+                            border: '1.5px solid var(--border-strong)',
+                            background: 'var(--bg-subtle)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-tertiary)',
+                            transition: 'all 0.15s',
+                        }}
+                    >
+                        <FileText size={13} />
+                    </button>
+                </div>
+            ),
+        },
+    ];
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                
-                {/* Right: Table list of all approved certs */}
-                <div className="lg:col-span-7 bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase">المستندات المؤرشفة</h3>
-                        
-                        {/* Search input */}
-                        <div className="relative">
-                            <Search className="absolute right-3 top-2.5 w-4 h-4 text-slate-400" />
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ── Page Header ── */}
+            <PageHeader
+                title="الأرشيف الرسمي المقفل"
+                subtitle={`${filteredCerts.length} مستند معتمد ومؤرشف — غير قابل للتعديل`}
+                actions={
+                    activeCert && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={handlePrint} leftIcon={Printer}>
+                                طباعة
+                            </Button>
+                            <Button variant="primary" size="sm" onClick={handleExport} isLoading={exporting} leftIcon={Download}>
+                                تصدير PDF
+                            </Button>
+                        </>
+                    )
+                }
+            />
+
+            {/* ── Split Layout ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: activeCert ? '1fr 380px' : '1fr', gap: '16px', alignItems: 'start' }}>
+
+                {/* DataTable Panel */}
+                <Card>
+                    <CardHeader>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Archive size={15} style={{ color: 'var(--color-primary-600)' }} />
+                            <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                المستندات المؤرشفة
+                            </h3>
+                            <span style={{
+                                fontSize: 'var(--text-micro)', fontWeight: 700,
+                                background: 'var(--color-success-bg)',
+                                color: 'var(--color-success)',
+                                border: '1px solid var(--color-success-border)',
+                                padding: '1px 8px', borderRadius: '999px',
+                            }}>
+                                {filteredCerts.length}
+                            </span>
+                        </div>
+                        {/* Search */}
+                        <div style={{ position: 'relative' }}>
+                            <Search size={14} style={{
+                                position: 'absolute', right: '10px', top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--text-muted)', pointerEvents: 'none',
+                            }} />
                             <input
                                 type="text"
-                                placeholder="ابحث بالاسم، الرقم، المناسبة..."
+                                placeholder="بحث بالاسم أو الرقم..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="pl-4 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none text-slate-700 dark:text-slate-200 w-56"
+                                style={{
+                                    padding: '8px 32px 8px 10px',
+                                    border: '1.5px solid var(--border-strong)',
+                                    borderRadius: '10px',
+                                    fontSize: 'var(--text-label)',
+                                    fontWeight: 500,
+                                    color: 'var(--text-primary)',
+                                    background: 'var(--bg-surface)',
+                                    outline: 'none',
+                                    width: '200px',
+                                    fontFamily: 'var(--font-sans)',
+                                    transition: 'all 0.15s',
+                                }}
+                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
-                    </div>
+                    </CardHeader>
+                    <DataTable
+                        columns={columns}
+                        data={filteredCerts}
+                        isLoading={loading}
+                        emptyStateMessage="لا توجد شهادات معتمدة في الأرشيف حالياً"
+                        emptyStateIcon={Archive}
+                        onRowClick={handleInspect}
+                        rowKey="id"
+                    />
+                </Card>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-right text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-800/80 text-slate-400 font-bold">
-                                    <th className="pb-3 text-center w-14">الرقم</th>
-                                    <th className="pb-3">المستفيد</th>
-                                    <th className="pb-3">الموضوع/المناسبة</th>
-                                    <th className="pb-3 text-center w-20">الإجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                                {filteredCerts.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="4" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">
-                                            لا توجد أي شهادات معتمدة نهائياً في الأرشيف حالياً.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredCerts.map((c) => (
-                                        <tr key={c.id} className={`hover:bg-slate-50/40 dark:hover:bg-slate-900/20 transition-all ${activeCert?.id === c.id ? 'bg-amber-500/5 dark:bg-amber-500/5' : ''}`}>
-                                            <td className="py-3.5 text-center font-mono font-bold text-slate-500">{c.serial}</td>
-                                            <td className="py-3.5 font-bold text-slate-800 dark:text-slate-200">{c.recipientName}</td>
-                                            <td className="py-3.5 text-slate-500 dark:text-slate-400 truncate max-w-[150px]">{c.event}</td>
-                                            <td className="py-3.5 text-center flex items-center justify-center gap-1.5">
-                                                <button
-                                                    onClick={() => handleInspect(c)}
-                                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold transition-all cursor-pointer"
-                                                    title="معاينة سريعة"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => navigate(`/approvals/${c.id}`)}
-                                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold transition-all cursor-pointer"
-                                                    title="تفاصيل الاعتماد الكاملة"
-                                                >
-                                                    <FileText className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* Left: Quick preview and print tools */}
-                <div className="lg:col-span-5">
-                    {activeCert ? (
-                        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                                <h3 className="text-xs font-black text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
-                                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                                    المعاينة المعتمدة الرسمية
-                                </h3>
-                                <span className="font-mono font-bold text-slate-500 text-[10px]">#{activeCert.serial}</span>
-                            </div>
-
-                            {/* Scale preview */}
-                            <div className="w-full flex items-center justify-center overflow-hidden h-[180px] bg-slate-950 rounded-xl relative" ref={previewContainerRef}>
-                                <div className="flex items-center justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'center center', width: '297mm', height: '210mm', flexShrink: 0 }}>
-                                    <UnifiedCertificateEngine
-                                        ref={certRef}
-                                        mode="preview"
-                                        template={activeTemplate}
-                                        layers={editorLayers}
-                                        canvasWidth={canvasWidth}
-                                        data={certData}
-                                        settings={activeCert.managerSnapshot || activeCert.assistantSnapshot || {}}
-                                        showQR={activeCert.showQR}
-                                    />
+                {/* Preview Panel */}
+                <AnimatePresence>
+                    {activeCert && (
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2 }}
+                            style={{ position: 'sticky', top: '80px' }}
+                        >
+                            <Card>
+                                {/* Preview Header */}
+                                <div style={{
+                                    padding: '12px 16px',
+                                    background: 'var(--bg-subtle)',
+                                    borderBottom: '1px solid var(--border-default)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <ShieldCheck size={14} style={{ color: 'var(--color-success)' }} />
+                                        <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            المعاينة الرسمية
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <code style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                            #{activeCert.serial}
+                                        </code>
+                                        <button
+                                            onClick={() => setActiveCert(null)}
+                                            style={{
+                                                width: 24, height: 24,
+                                                borderRadius: '7px',
+                                                border: '1.5px solid var(--border-default)',
+                                                background: 'var(--bg-surface)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                color: 'var(--text-muted)',
+                                            }}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Details meta box */}
-                            <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800/40 space-y-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                <div className="flex justify-between">
-                                    <span>المستلم:</span>
-                                    <span className="text-slate-800 dark:text-slate-200 font-bold">{activeCert.recipientName}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>تاريخ المصادقة:</span>
-                                    <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">
-                                        {activeCert.managerSnapshot ? new Date(activeCert.managerSnapshot.approvedAt).toLocaleDateString('ar-SA') : new Date(activeCert.updatedAt).toLocaleDateString('ar-SA')}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>المصادق المعتمد:</span>
-                                    <span className="text-amber-600 dark:text-amber-400 font-bold">
-                                        {activeCert.managerSnapshot?.directorName || settings?.directorName || ''} (المدير العام)
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Interactive export bar */}
-                            <div className="grid grid-cols-2 gap-3.5">
-                                <button
-                                    onClick={handlePrint}
-                                    className="py-2.5 px-4 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                {/* Certificate Preview */}
+                                <div
+                                    ref={previewContainerRef}
+                                    style={{
+                                        background: '#1a1f2e',
+                                        height: '200px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        overflow: 'hidden',
+                                        position: 'relative',
+                                    }}
                                 >
-                                    <Printer className="w-4 h-4" />
-                                    <span>طباعة المعاملة</span>
-                                </button>
-                                <button
-                                    onClick={handleExport}
-                                    disabled={exporting}
-                                    className="py-2.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    <span>{exporting ? '⏳ تصدير...' : 'تصدير عالي الجودة'}</span>
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="bg-slate-50 dark:bg-slate-900/40 p-12 text-center border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
-                            <Sparkles className="w-8 h-8 text-amber-500 mx-auto opacity-75 animate-pulse" />
-                            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">حدد شهادة لعرضها</h4>
-                            <p className="text-[10px] text-slate-400 leading-relaxed max-w-[250px] mx-auto">
-                                انقر فوق رمز العين لأي معاملة في الجدول الأيمن لعرض بطاقة المعاينة والوصول الفوري لأدوات الطباعة الورقية والتنزيل المباشر.
-                            </p>
-                        </div>
+                                    <div style={{
+                                        transform: `scale(${scale})`,
+                                        transformOrigin: 'center center',
+                                        width: '297mm', height: '210mm',
+                                        flexShrink: 0,
+                                    }}>
+                                        <UnifiedCertificateEngine
+                                            ref={certRef}
+                                            mode="preview"
+                                            template={activeTemplate}
+                                            layers={editorLayers}
+                                            canvasWidth={canvasWidth}
+                                            data={certData}
+                                            settings={activeCert.managerSnapshot || activeCert.assistantSnapshot || settings}
+                                            showQR={activeCert.showQR}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Meta Info */}
+                                <div style={{
+                                    padding: '14px 16px',
+                                    background: 'var(--bg-subtle)',
+                                    borderTop: '1px solid var(--border-default)',
+                                    borderBottom: '1px solid var(--border-default)',
+                                }}>
+                                    {[
+                                        { icon: User2,    label: 'الاسم', value: activeCert.recipientName },
+                                        { icon: FileText, label: 'المناسبة', value: activeCert.event },
+                                        {
+                                            icon: Calendar, label: 'تاريخ الاعتماد',
+                                            value: activeCert.managerSnapshot
+                                                ? new Date(activeCert.managerSnapshot.approvedAt).toLocaleDateString('ar-SA')
+                                                : new Date(activeCert.updatedAt).toLocaleDateString('ar-SA'),
+                                        },
+                                    ].map((row, i, arr) => {
+                                        const Icon = row.icon;
+                                        return (
+                                            <div key={row.label} style={{
+                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                padding: '8px 0',
+                                                borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                                            }}>
+                                                <Icon size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                                                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 600, minWidth: '70px' }}>
+                                                    {row.label}:
+                                                </span>
+                                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>
+                                                    {row.value}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Actions */}
+                                <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    <Button variant="secondary" size="sm" onClick={handlePrint} leftIcon={Printer}>
+                                        طباعة
+                                    </Button>
+                                    <Button variant="primary" size="sm" onClick={handleExport} isLoading={exporting} leftIcon={Download}>
+                                        PDF
+                                    </Button>
+                                </div>
+                            </Card>
+                        </motion.div>
                     )}
-                </div>
-
+                </AnimatePresence>
             </div>
         </div>
     );

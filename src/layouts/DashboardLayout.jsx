@@ -1,44 +1,66 @@
 /**
  * 🏛️ DashboardLayout.jsx
- * Enterprise SaaS Responsive Layout Manager.
- * Orchestrates collapsible desktop margins, mobile drawers, breadcrumbs,
- * unified dark mode classes, and isolated Z-index overlay layers.
+ * Enterprise MoH Saudi Arabia — Main Layout Manager
+ * Handles: Sidebar, Topbar, Notifications, Dark Mode, Responsive
  */
 
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
-import Sidebar from './Sidebar';
+import {
+    Menu, Sun, Moon, Bell, BellOff, Search, X, ChevronLeft,
+} from 'lucide-react';
+import FloatingSidebar from '../ui/navigation/FloatingSidebar';
+import { Avatar } from '../ui/components/Avatar';
 import { logger } from '../utils/debug';
 
-export default function DashboardLayout({ children, currentUser, onLogout, navItems = [], notifications = [], onClearNotifications }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isNotifOpen, setIsNotifOpen] = useState(false);
-    
-    // Manage sidebar collapsible state dynamically
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        return localStorage.getItem('mohararcert_sidebar_collapsed') === 'true';
-    });
+const PAGE_TITLES = {
+    '/dashboard':       { title: 'لوحة التحكم',            subtitle: 'نظرة عامة على المعاملات والإحصائيات' },
+    '/create':          { title: 'إنشاء شهادة جديدة',      subtitle: 'أنشئ وصمم شهادة رسمية جديدة' },
+    '/batch':           { title: 'استيراد Excel',           subtitle: 'إنشاء شهادات متعددة من ملف بيانات' },
+    '/my-certificates': { title: 'شهاداتي',                 subtitle: 'جميع الشهادات التي أنشأتها' },
+    '/pending':         { title: 'الطلبات المعلقة',         subtitle: 'معاملات بانتظار مراجعتك واعتمادك' },
+    '/archive':         { title: 'الأرشيف العام',           subtitle: 'السجل الكامل للمعاملات المعتمدة' },
+    '/system-settings': { title: 'إعدادات الهوية',          subtitle: 'تخصيص هوية المنظومة الرسمية' },
+    '/users':           { title: 'إدارة الحسابات',          subtitle: 'إدارة مستخدمي النظام وصلاحياتهم' },
+    '/permissions':     { title: 'صلاحيات الأدوار',         subtitle: 'تحديد صلاحيات كل دور إداري' },
+    '/audit':           { title: 'سجل التدقيق',             subtitle: 'تتبع كافة العمليات والإجراءات' },
+    '/registry':        { title: 'سجل النظام الموحد',       subtitle: 'السجل الرسمي الشامل للمعاملات' },
+};
 
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        return localStorage.getItem('theme') === 'dark' || 
-               (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    });
+export default function DashboardLayout({
+    children,
+    currentUser,
+    onLogout,
+    navItems = [],
+    notifications = [],
+    onClearNotifications,
+}) {
+    const [isSidebarOpen,  setIsSidebarOpen]  = useState(false);
+    const [isNotifOpen,    setIsNotifOpen]    = useState(false);
+    const [isCollapsed,    setIsCollapsed]    = useState(() =>
+        localStorage.getItem('mohararcert_sidebar_collapsed') === 'true'
+    );
+    const [isDarkMode, setIsDarkMode] = useState(() =>
+        localStorage.getItem('theme') === 'dark' ||
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    );
 
-    const location = useLocation();
-    const isEditor = location.pathname === '/create' || location.pathname === '/settings';
+    const location  = useLocation();
+    const isEditor  = location.pathname === '/create' || location.pathname === '/settings';
+    const pageInfo  = PAGE_TITLES[location.pathname] ||
+                      (location.pathname.startsWith('/approvals/')
+                          ? { title: 'تفاصيل واعتماد المعاملة', subtitle: 'مراجعة واتخاذ قرار الاعتماد' }
+                          : { title: 'إدارة التميز المؤسسي', subtitle: '' });
 
-    // Apply dark class dynamically to html tag for Tailwind Dark Mode support
+    /* ── Dark Mode ── */
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
-            logger.system('الوضع المظلم نشط حالياً.');
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
-            logger.system('الوضع المضيء نشط حالياً.');
         }
     }, [isDarkMode]);
 
@@ -46,164 +68,410 @@ export default function DashboardLayout({ children, currentUser, onLogout, navIt
         const next = !isCollapsed;
         setIsCollapsed(next);
         localStorage.setItem('mohararcert_sidebar_collapsed', String(next));
-        logger.system(next ? 'طي القائمة الجانبية للمستندات.' : 'توسيع القائمة الجانبية للمستندات.');
-    };
-
-    const getPageTitle = () => {
-        const path = location.pathname;
-        const match = navItems.find(item => item.to === path);
-        if (match) return match.label;
-        if (path === '/create') return 'إنشاء شهادة جديدة';
-        if (path === '/settings') return 'الإعدادات العامة';
-        if (path.startsWith('/approvals/')) return 'تفاصيل واعتماد المعاملة';
-        return 'إدارة التميز المؤسسي';
     };
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    const sidebarWidth = isCollapsed ? 72 : 268;
+
+    /* ── Editor Mode: no chrome ── */
+    if (isEditor) {
+        return (
+            <div style={{ minHeight: '100vh', direction: 'rtl' }}>
+                {children}
+            </div>
+        );
+    }
+
     return (
-        <div className={`min-h-screen bg-slate-50 dark:bg-[#050a14] text-slate-800 dark:text-slate-100 flex transition-colors duration-300 font-sans`} style={{ direction: 'rtl' }}>
-            {/* Sidebar Navigation component */}
-            <Sidebar
+        <div
+            style={{
+                minHeight: '100vh',
+                background: 'var(--bg-page)',
+                direction: 'rtl',
+                display: 'flex',
+            }}
+        >
+            {/* ── Sidebar ── */}
+            <FloatingSidebar
                 isOpen={isSidebarOpen}
-                onClose={() => {
-                    logger.nav('تم إغلاق الدرج الجانبي.');
-                    setIsSidebarOpen(false);
-                }}
+                onClose={() => setIsSidebarOpen(false)}
                 isCollapsed={isCollapsed}
                 onToggleCollapse={toggleCollapse}
                 navItems={navItems}
                 currentUser={currentUser}
-                onLogout={onLogout}
+                onLogout={() => {
+                    logger.nav('تسجيل خروج المستخدم.');
+                    onLogout?.();
+                }}
             />
 
-            {/* Main Content Area - shifts dynamically depending on isCollapsed */}
-            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isEditor ? '' : (isCollapsed ? 'md:mr-20' : 'md:mr-72')}`}>
-                
-                {/* Header / Top Bar (Glassmorphic) */}
-                {!isEditor && (
-                    <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-white/70 dark:bg-[#050a14]/70 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/40 shadow-sm transition-all duration-300">
-                        {/* Right: Drawer Hamburger + Breadcrumb */}
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => {
-                                    logger.nav('تم فتح الدرج الجانبي المتجاوب للهاتف.');
-                                    setIsSidebarOpen(true);
-                                }}
-                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 md:hidden cursor-pointer active:scale-95 transition-all"
+            {/* ── Main Content ── */}
+            <div
+                style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minWidth: 0,
+                    marginRight: `${sidebarWidth}px`,
+                    transition: 'margin-right 0.25s cubic-bezier(0.4,0,0.2,1)',
+                }}
+                className="main-area-responsive"
+            >
+                {/* ── Topbar ── */}
+                <header
+                    className="topbar"
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 40,
+                        height: 'var(--topbar-height)',
+                        background: 'rgba(255,255,255,0.92)',
+                        backdropFilter: 'blur(16px)',
+                        WebkitBackdropFilter: 'blur(16px)',
+                        borderBottom: '1px solid var(--border-default)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0 20px',
+                        gap: '12px',
+                    }}
+                >
+                    {/* Mobile menu trigger */}
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="lg:hidden"
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 'var(--radius-lg)',
+                            border: '1.5px solid var(--border-strong)',
+                            background: 'var(--bg-surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-tertiary)',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Menu size={17} />
+                    </button>
+
+                    {/* Page Title & Breadcrumb */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h1 style={{
+                            fontSize: 'var(--text-body)',
+                            fontWeight: 800,
+                            color: 'var(--text-primary)',
+                            lineHeight: 1.2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {pageInfo.title}
+                        </h1>
+                        {pageInfo.subtitle && (
+                            <p style={{
+                                fontSize: 'var(--text-micro)',
+                                color: 'var(--text-muted)',
+                                fontWeight: 500,
+                                marginTop: '1px',
+                            }}>
+                                {pageInfo.subtitle}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Right Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                        {/* Date */}
+                        <span
+                            className="hidden md:block"
+                            style={{
+                                fontSize: 'var(--text-micro)',
+                                color: 'var(--text-muted)',
+                                fontWeight: 600,
+                                padding: '5px 10px',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'var(--bg-subtle)',
+                                border: '1px solid var(--border-default)',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {new Date().toLocaleDateString('ar-SA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+
+                        {/* Dark Mode Toggle */}
+                        <TopbarIconBtn
+                            onClick={() => {
+                                setIsDarkMode(d => !d);
+                                logger.system('تبديل ثيم الواجهة.');
+                            }}
+                            title={isDarkMode ? 'الوضع المضيء' : 'الوضع المظلم'}
+                        >
+                            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                        </TopbarIconBtn>
+
+                        {/* Notifications */}
+                        <div style={{ position: 'relative' }}>
+                            <TopbarIconBtn
+                                onClick={() => setIsNotifOpen(v => !v)}
+                                title="الإشعارات"
+                                active={isNotifOpen}
                             >
-                                <Icons.Menu className="w-5 h-5" />
-                            </button>
-                            
-                            <div className="flex flex-col">
-                                <h1 className="text-sm font-black text-slate-900 dark:text-slate-50 tracking-tight flex items-center gap-2">
-                                    <span className="w-1.5 h-3 bg-amber-500 rounded-full inline-block animate-pulse" />
-                                    {getPageTitle()}
-                                </h1>
-                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1">
-                                    {new Date().toLocaleDateString('ar-SA', { dateStyle: 'full' })}
-                                </span>
-                            </div>
-                        </div>
+                                <Bell size={16} />
+                                {unreadCount > 0 && (
+                                    <span className="notif-dot" style={{
+                                        position: 'absolute', top: '-4px', left: '-4px',
+                                        fontSize: '9px', fontWeight: 900,
+                                    }}>
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </TopbarIconBtn>
 
-                        {/* Left: Theme toggle, Notifications Center */}
-                        <div className="flex items-center gap-3">
-                            
-                            {/* Dark/Light Mode Interactive Toggle */}
-                            <button
-                                onClick={() => setIsDarkMode(!isDarkMode)}
-                                className="p-2.5 rounded-xl bg-slate-100 dark:bg-[#0f1d35] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-amber-400 cursor-pointer transition-all duration-300 shadow-sm hover:scale-105"
-                                title={isDarkMode ? 'الوضع المضيء' : 'الوضع المظلم'}
-                            >
-                                {isDarkMode ? <Icons.Sun className="w-4 h-4" /> : <Icons.Moon className="w-4 h-4" />}
-                            </button>
-
-                            {/* Notifications Center Trigger */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsNotifOpen(!isNotifOpen)}
-                                    className="relative p-2.5 rounded-xl bg-slate-100 dark:bg-[#0f1d35] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer transition-all duration-300 shadow-sm hover:scale-105"
-                                >
-                                    <Icons.Bell className="w-4 h-4" />
-                                    {unreadCount > 0 && (
-                                        <span className="absolute -top-1 -left-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white ring-2 ring-white dark:ring-slate-950 animate-pulse">
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                {/* Notifications Dropdown */}
-                                <AnimatePresence>
-                                    {isNotifOpen && (
-                                        <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 15 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: 15 }}
-                                                className="absolute left-0 mt-3.5 w-80 z-50 bg-white dark:bg-[#0b1626] border border-slate-200/60 dark:border-slate-850 rounded-2xl shadow-xl overflow-hidden"
-                                                style={{ boxShadow: 'var(--shadow-premium)' }}
-                                            >
-                                                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800/80">
-                                                    <span className="font-black text-xs text-slate-900 dark:text-slate-100">الإشعارات والتنبيهات</span>
+                            {/* Notifications Dropdown */}
+                            <AnimatePresence>
+                                {isNotifOpen && (
+                                    <>
+                                        <div
+                                            style={{ position: 'fixed', inset: 0, zIndex: 45 }}
+                                            onClick={() => setIsNotifOpen(false)}
+                                        />
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.97 }}
+                                            transition={{ duration: 0.15 }}
+                                            style={{
+                                                position: 'absolute',
+                                                left: 0,
+                                                top: 'calc(100% + 8px)',
+                                                width: 320,
+                                                zIndex: 50,
+                                                background: 'var(--bg-surface)',
+                                                border: '1px solid var(--border-default)',
+                                                borderRadius: 'var(--radius-xl)',
+                                                boxShadow: 'var(--shadow-overlay)',
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                padding: '14px 16px',
+                                                borderBottom: '1px solid var(--border-default)',
+                                                background: 'var(--bg-subtle)',
+                                            }}>
+                                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                                    الإشعارات
+                                                </span>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     {unreadCount > 0 && (
-                                                        <button 
-                                                            onClick={() => { 
-                                                                logger.system('تصفية وإخلاء جميع الإشعارات.');
-                                                                onClearNotifications?.(); 
-                                                                setIsNotifOpen(false); 
+                                                        <button
+                                                            onClick={() => { onClearNotifications?.(); setIsNotifOpen(false); }}
+                                                            style={{
+                                                                fontSize: 'var(--text-micro)',
+                                                                color: 'var(--color-primary-600)',
+                                                                fontWeight: 700,
+                                                                cursor: 'pointer',
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                fontFamily: 'var(--font-sans)',
                                                             }}
-                                                            className="text-[10px] text-amber-600 dark:text-amber-400 font-black hover:underline cursor-pointer"
                                                         >
                                                             مسح الكل
                                                         </button>
                                                     )}
+                                                    <button
+                                                        onClick={() => setIsNotifOpen(false)}
+                                                        style={{
+                                                            width: 24, height: 24,
+                                                            borderRadius: 'var(--radius-md)',
+                                                            border: 'none',
+                                                            background: 'var(--bg-muted)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            cursor: 'pointer',
+                                                            color: 'var(--text-muted)',
+                                                        }}
+                                                    >
+                                                        <X size={13} />
+                                                    </button>
                                                 </div>
-                                                <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 custom-scrollbar">
-                                                    {notifications.length === 0 ? (
-                                                        <div className="p-6 text-center text-slate-400 dark:text-slate-500">
-                                                            <Icons.BellOff className="w-8 h-8 mx-auto mb-2 opacity-40 text-amber-500" />
-                                                            <p className="text-[10px] font-bold">لا توجد تنبيهات معلقة حالياً</p>
-                                                        </div>
-                                                    ) : (
-                                                        notifications.map((notif) => (
-                                                            <div key={notif.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-900/35 transition-colors cursor-pointer ${notif.read ? 'opacity-60' : 'bg-amber-500/5 dark:bg-amber-500/10'}`}>
-                                                                <div className="flex gap-3">
-                                                                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.type === 'approve' ? 'bg-teal-500 shadow-[0_0_10px_rgba(13,148,136,0.5)]' : notif.type === 'reject' ? 'bg-rose-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
-                                                                    <div className="flex-1">
-                                                                        <p className="text-xs font-bold leading-normal text-slate-800 dark:text-slate-200">{notif.message}</p>
-                                                                        <span className="text-[9px] text-slate-450 dark:text-slate-550 font-bold block mt-1.5">{notif.time}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        </>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    </header>
-                )}
+                                            </div>
 
-                {/* Main Content Area - Enforces Container layouts */}
-                <main className={`flex-1 ${isEditor ? '' : 'p-6 md:p-8 w-full container-max'}`}>
+                                            <div style={{ maxHeight: 320, overflowY: 'auto' }} className="custom-scrollbar">
+                                                {notifications.length === 0 ? (
+                                                    <div style={{
+                                                        padding: '2.5rem 1rem',
+                                                        textAlign: 'center',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        gap: '10px',
+                                                    }}>
+                                                        <BellOff size={32} strokeWidth={1.25} style={{ color: 'var(--text-muted)' }} />
+                                                        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                            لا توجد إشعارات حالياً
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    notifications.map(notif => (
+                                                        <div
+                                                            key={notif.id}
+                                                            style={{
+                                                                padding: '12px 16px',
+                                                                borderBottom: '1px solid var(--border-subtle)',
+                                                                display: 'flex',
+                                                                gap: '10px',
+                                                                background: notif.read ? 'transparent' : 'rgba(15,169,88,0.03)',
+                                                                cursor: 'pointer',
+                                                                transition: 'background var(--transition-fast)',
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = notif.read ? 'transparent' : 'rgba(15,169,88,0.03)'}
+                                                        >
+                                                            <div style={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                background: {
+                                                                    approve: 'var(--color-success)',
+                                                                    reject: 'var(--color-danger)',
+                                                                    pending: 'var(--color-warning)',
+                                                                }[notif.type] || 'var(--color-info)',
+                                                                flexShrink: 0,
+                                                                marginTop: '5px',
+                                                            }} />
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <p style={{
+                                                                    fontSize: 'var(--text-label)',
+                                                                    fontWeight: notif.read ? 500 : 700,
+                                                                    color: 'var(--text-secondary)',
+                                                                    lineHeight: 1.5,
+                                                                }}>
+                                                                    {notif.message}
+                                                                </p>
+                                                                <p style={{
+                                                                    fontSize: 'var(--text-micro)',
+                                                                    color: 'var(--text-muted)',
+                                                                    marginTop: '3px',
+                                                                    fontWeight: 500,
+                                                                }}>
+                                                                    {notif.time}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* User Avatar */}
+                        {currentUser && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '4px 10px 4px 4px',
+                                borderRadius: 'var(--radius-lg)',
+                                border: '1.5px solid var(--border-default)',
+                                background: 'var(--bg-subtle)',
+                            }}>
+                                <Avatar name={currentUser.name} size="sm" />
+                                <span className="hidden md:block" style={{
+                                    fontSize: 'var(--text-micro)',
+                                    fontWeight: 700,
+                                    color: 'var(--text-secondary)',
+                                    maxWidth: '100px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>
+                                    {currentUser.name}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </header>
+
+                {/* ── Page Content ── */}
+                <main style={{
+                    flex: 1,
+                    padding: '24px 24px',
+                    maxWidth: 'var(--content-max-width)',
+                    width: '100%',
+                    margin: '0 auto',
+                }}>
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}
-                            initial={{ opacity: 0, y: 15 }}
+                            initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -15 }}
-                            transition={{ duration: 0.25 }}
-                            className="h-full"
+                            exit={{ opacity: 0, y: -12 }}
+                            transition={{ duration: 0.2 }}
                         >
                             {children}
                         </motion.div>
                     </AnimatePresence>
                 </main>
             </div>
+
+            {/* Responsive: hide sidebar margin on mobile */}
+            <style>{`
+                @media (max-width: 1023px) {
+                    .main-area-responsive {
+                        margin-right: 0 !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
+
+/* ── Internal: Topbar Icon Button ── */
+const TopbarIconBtn = ({ children, onClick, title, active = false }) => (
+    <button
+        onClick={onClick}
+        title={title}
+        style={{
+            position: 'relative',
+            width: 36,
+            height: 36,
+            borderRadius: 'var(--radius-lg)',
+            border: '1.5px solid var(--border-default)',
+            background: active ? 'var(--color-success-bg)' : 'var(--bg-surface)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: active ? 'var(--color-primary-600)' : 'var(--text-tertiary)',
+            transition: 'all var(--transition-fast)',
+            flexShrink: 0,
+        }}
+        onMouseEnter={e => {
+            if (!active) {
+                e.currentTarget.style.background = 'var(--bg-muted)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+            }
+        }}
+        onMouseLeave={e => {
+            if (!active) {
+                e.currentTarget.style.background = 'var(--bg-surface)';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.borderColor = 'var(--border-default)';
+            }
+        }}
+    >
+        {children}
+    </button>
+);
