@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService, settingService, notificationService, auditService } from '../services/db';
+import { logger } from '../utils/debug';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
 
     // Load active session and settings
     const loadSession = useCallback(async () => {
+        logger.system('بدء استرجاع جلسة المستخدم النشطة...');
         try {
             const currentUser = await authService.getCurrentUser();
             setUser(currentUser);
@@ -26,11 +28,14 @@ export function AuthProvider({ children }) {
             setSettings(activeSettings);
 
             if (currentUser) {
+                logger.auth(`تمت استعادة جلسة المستخدم بنجاح: ${currentUser.name} (${currentUser.role})`);
                 const list = await notificationService.getByUserId(currentUser.id);
                 setNotifications(list);
+            } else {
+                logger.auth('لا توجد جلسة مستخدم نشطة حالياً في التخزين.');
             }
         } catch (e) {
-            console.error('Failed to load session details: ', e);
+            logger.error('فشل استرداد تفاصيل الجلسة النشطة للنظام', e);
         } finally {
             setInitializing(false);
         }
@@ -43,14 +48,18 @@ export function AuthProvider({ children }) {
     // Handle user authentication
     const login = async (email, password) => {
         setLoading(true);
+        logger.auth(`محاولة تسجيل دخول للمستخدم: ${email}`);
         try {
             const loggedInUser = await authService.login(email, password);
             setUser(loggedInUser);
+            logger.auth(`تم تسجيل الدخول بنجاح للمستخدم: ${loggedInUser.name} (${loggedInUser.role})`);
+            
             // Fetch their notifications
             const list = await notificationService.getByUserId(loggedInUser.id);
             setNotifications(list);
             return loggedInUser;
         } catch (e) {
+            logger.error(`فشل تسجيل الدخول للبريد: ${email}`, e);
             throw e;
         } finally {
             setLoading(false);
@@ -60,12 +69,15 @@ export function AuthProvider({ children }) {
     // Handle session termination
     const logout = async () => {
         setLoading(true);
+        const email = user?.email;
+        logger.auth(`بدء تسجيل خروج المستخدم: ${email || 'غير معروف'}`);
         try {
             await authService.logout();
             setUser(null);
             setNotifications([]);
+            logger.auth(`تم تسجيل الخروج بنجاح للمستخدم: ${email}`);
         } catch (e) {
-            console.error('Logout error: ', e);
+            logger.error('حدث خطأ أثناء محاولة تسجيل الخروج', e);
         } finally {
             setLoading(false);
         }
@@ -76,8 +88,9 @@ export function AuthProvider({ children }) {
         try {
             const activeSettings = await settingService.get();
             setSettings(activeSettings);
+            logger.system('تم تحديث إعدادات النظام الحيوية بنجاح.');
         } catch (e) {
-            console.error(e);
+            logger.error('فشل تحديث إعدادات النظام الحيوية', e);
         }
     };
 
@@ -87,8 +100,9 @@ export function AuthProvider({ children }) {
         try {
             const list = await notificationService.getByUserId(user.id);
             setNotifications(list);
+            logger.system(`تمت إعادة تحميل الإشعارات للمستخدم: ${user.name}`);
         } catch (e) {
-            console.error(e);
+            logger.error('فشل إعادة تحميل قائمة الإشعارات', e);
         }
     };
 
@@ -96,9 +110,10 @@ export function AuthProvider({ children }) {
     const readNotification = async (id) => {
         try {
             await notificationService.markAsRead(id);
+            logger.system(`تم تحديد الإشعار كقروء: ${id}`);
             await refreshNotifications();
         } catch (e) {
-            console.error(e);
+            logger.error(`فشل تعديل حالة الإشعار ${id} إلى مقروء`, e);
         }
     };
 
@@ -107,9 +122,10 @@ export function AuthProvider({ children }) {
         if (!user) return;
         try {
             await notificationService.markAllAsRead(user.id);
+            logger.system(`تم مسح جميع إشعارات المستخدم: ${user.name}`);
             await refreshNotifications();
         } catch (e) {
-            console.error(e);
+            logger.error('فشل مسح كافة الإشعارات', e);
         }
     };
 

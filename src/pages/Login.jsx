@@ -1,97 +1,147 @@
 /**
  * 🔐 Login.jsx
- * Enterprise luxury login interface for mohararcert.
- * Features dark-mode aesthetics, custom micro-animations.
+ * Premium Luxury Government Authenticator Interface for mohararcert.
+ * Solves the non-responsive redirect, features glassmorphic dark-mode aesthetics,
+ * Saudi Ministry of Health luxury branding, custom transitions, and diagnostic logs.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Award, ShieldAlert, Key, User, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { Award, ShieldAlert, Key, User, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../utils/debug';
 
 export default function Login() {
-    const { login } = useAuth();
+    const { user, login } = useAuth();
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [shake, setShake] = useState(false);
+
+    // Dynamic routing guard: Redirect logged-in users away from the login page
+    useEffect(() => {
+        if (user) {
+            logger.nav('تم الكشف عن جلسة مستخدم نشطة ومصادقة، جاري التوجيه التلقائي إلى لوحة التحكم...');
+            navigate('/dashboard', { replace: true });
+        }
+    }, [user, navigate]);
+
+    const triggerError = (msg) => {
+        setError(msg);
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+    };
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         setError('');
         
         if (!email) {
-            setError('يرجى إدخال البريد الإلكتروني');
+            triggerError('يرجى إدخال البريد الإلكتروني للعمل');
             return;
         }
 
         if (!password) {
-            setError('يرجى إدخال كلمة المرور');
+            triggerError('يرجى إدخال كلمة المرور الأمنية');
             return;
         }
 
         setSubmitting(true);
+        logger.auth(`بدء إرسال بيانات المصادقة للبريد: ${email}`);
+
         try {
             await login(email, password);
+            logger.auth('تمت المصادقة بنجاح. جاري تشغيل الموجه والتحويل إلى الصفحة الرئيسية /dashboard...');
+            navigate('/dashboard');
         } catch (err) {
-            setError(err.message || 'حدث خطأ غير متوقع أثناء تسجيل الدخول');
+            logger.error(`فشلت محاولة المصادقة بسبب خطأ: ${err.message}`, err);
+            triggerError(err.message || 'حدث خطأ غير متوقع أثناء تسجيل الدخول');
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans" style={{ direction: 'rtl' }}>
-            {/* Background design elements */}
-            <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[160px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-600/10 rounded-full blur-[160px] pointer-events-none" />
+        <div className="min-h-screen bg-[#070e1b] text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none" style={{ direction: 'rtl' }}>
+            {/* Dynamic Background Animated Ambient Blobs */}
+            <div className="absolute top-[-30%] right-[-20%] w-[80%] h-[80%] bg-gradient-to-br from-[#0c2f1f]/20 via-[#0d2a4a]/20 to-transparent rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+            <div className="absolute bottom-[-30%] left-[-20%] w-[80%] h-[80%] bg-gradient-to-tr from-[#9b7b1a]/5 via-[#0c251d]/15 to-transparent rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }} />
+            
+            {/* Mesh Grid Pattern Overlay */}
+            <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
                 
-                {/* Right Column: Title and Platform Details */}
-                <div className="md:col-span-6 flex flex-col justify-center gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_0_30px_rgba(212,175,55,0.4)]">
-                            <Award className="w-8 h-8 text-slate-950" />
+                {/* Right Column: High-End Government Identity Column */}
+                <div className="lg:col-span-6 flex flex-col justify-center gap-8 text-right p-2 md:p-6">
+                    <div className="space-y-4">
+                        {/* MoH Gold Badge */}
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#9b7b1a]/15 border border-[#9b7b1a]/30 text-amber-300 text-xs font-bold w-fit">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>بوابة المعاملات الرقمية الرسمية والاعتمادات</span>
                         </div>
-                        <div>
-                            <span className="text-xs font-black tracking-widest text-amber-500 uppercase">بوابة المعاملات الرقمية الرسمية</span>
-                            <h1 className="text-2xl font-black bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent mt-0.5">إدارة التميز المؤسسي بفرع وزارة الصحة بمنطقة الحدود الشمالية</h1>
+                        
+                        <div className="flex items-start gap-4">
+                            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 shadow-[0_0_40px_rgba(201,162,39,0.35)] flex-shrink-0">
+                                <Award className="w-10 h-10 text-slate-950 stroke-[1.8]" />
+                            </div>
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-black tracking-tight leading-snug bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+                                    إدارة التميز المؤسسي
+                                </h1>
+                                <p className="text-sm font-bold text-amber-500/90 tracking-wide uppercase">
+                                    فرع وزارة الصحة بمنطقة الحدود الشمالية
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
-                        النظام المعتمد لإصدار ومراجعة واعتماد الشهادات والمعاملات الرسمية تحت إشراف وتدقيق إدارة التميز المؤسسي لضمان أعلى معايير الجودة والحوكمة التنظيمية.
+                    <p className="text-sm text-slate-400 leading-relaxed max-w-lg font-medium">
+                        بوابة التوثيق الفنية المعتمدة لإصدار وتدقيق وتأشير المعاملات والشهادات الإدارية تحت إشراف الجودة والحوكمة المؤسسية المعتمدة لفرع الوزارة بالمنطقة.
                     </p>
 
-                    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60 text-slate-400 text-xs font-semibold">
-                        <ShieldCheck className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                        <span>يتوافق هذا النظام بالكامل مع معايير الحوكمة والخصوصية لفرع وزارة الصحة بمنطقة الحدود الشمالية.</span>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 hover:border-slate-800/80 transition-all duration-300">
+                            <h4 className="text-amber-400 font-bold text-xs mb-1">المصداقية الرقمية</h4>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">شهادات مشفرة بالكامل تحتوي على معرفات أمنية فريدة غير قابلة للتلاعب.</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 hover:border-slate-800/80 transition-all duration-300">
+                            <h4 className="text-emerald-400 font-bold text-xs mb-1">حوكمة متكاملة</h4>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">تكامل المسار الإداري من المنشئ إلى مراجع الاعتماد والمدير العام بالتوقيع الحيوي.</p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Left Column: Form Card */}
-                <div className="md:col-span-6">
+                {/* Left Column: Glassmorphism Luxury Form Card */}
+                <div className="lg:col-span-6 flex justify-center">
                     <motion.div
-                        initial={{ opacity: 0, y: 30 }}
+                        initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-slate-900/55 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="w-full max-w-md bg-slate-950/60 backdrop-blur-2xl border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden group"
+                        style={{
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)'
+                        }}
                     >
-                        {/* Subtle inner top glow */}
-                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        {/* Upper Elegant Accent Border Glow */}
+                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
 
-                        <div className="text-center mb-6">
-                            <h2 className="text-2xl font-black text-slate-100">بوابة المصادقة</h2>
-                            <p className="text-xs text-slate-500 mt-1">الرجاء إدخال البريد الإلكتروني للعمل وكلمة المرور الأمنية</p>
+                        <div className="text-center mb-8 relative">
+                            <h2 className="text-2xl font-black tracking-tight text-white">بوابة التحقق الآمن</h2>
+                            <p className="text-xs text-slate-500 mt-1.5 font-medium">سجل الدخول باستخدام بريدك الإلكتروني والرمز السري</p>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-6 relative">
                             
                             {/* Input Email */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 block">البريد الإلكتروني للعمل</label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-400 block tracking-wide">البريد الإلكتروني المهني</label>
+                                <div className="relative group">
+                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 group-focus-within:text-amber-500 transition-colors">
                                         <User className="w-4 h-4" />
                                     </span>
                                     <input
@@ -102,8 +152,8 @@ export default function Login() {
                                             setError('');
                                         }}
                                         disabled={submitting}
-                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                                        placeholder="user@moh.gov.sa"
+                                        className="w-full pl-4 pr-11 py-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed group-hover:border-slate-700"
+                                        placeholder="username@moh.gov.sa"
                                         style={{ direction: 'ltr' }}
                                         required
                                     />
@@ -111,95 +161,96 @@ export default function Login() {
                             </div>
 
                             {/* Input Password */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 block">كلمة المرور الأمنية</label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-black text-slate-400 block tracking-wide">كلمة المرور الأمنية</label>
+                                    <span className="text-[10px] text-amber-500/60 font-bold hover:text-amber-400 cursor-pointer transition-colors">نسيت كلمة المرور؟</span>
+                                </div>
+                                <div className="relative group">
+                                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 group-focus-within:text-amber-500 transition-colors">
                                         <Key className="w-4 h-4" />
                                     </span>
                                     <input
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => {
                                             setPassword(e.target.value);
                                             setError('');
                                         }}
                                         disabled={submitting}
-                                        className="w-full pl-4 pr-11 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full pl-12 pr-11 py-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 text-sm font-semibold outline-none text-slate-200 transition-all placeholder-slate-600 text-left disabled:opacity-50 disabled:cursor-not-allowed group-hover:border-slate-700"
                                         placeholder="••••••••••••"
                                         style={{ direction: 'ltr' }}
                                         required
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                                        title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
                                 </div>
                             </div>
 
-                            {error && (
-                                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold animate-shake">
-                                    <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
+                            {/* Error Message with Shake and Glow */}
+                            <AnimatePresence>
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0, x: shake ? [0, -10, 10, -10, 10, 0] : 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: shake ? 0.4 : 0.2 }}
+                                        className="flex items-start gap-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold"
+                                    >
+                                        <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                        <span>{error}</span>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
+                            {/* Login Submission Button */}
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full py-3.5 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-sm shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 transition-all duration-300 cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full py-4 px-4 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-sm shadow-xl shadow-amber-500/10 hover:shadow-amber-500/25 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
                             >
-                                {submitting ? '⏳ مصادقة...' : 'دخول للمنصة'}
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                                        <span>⏳ جاري المصادقة الأمنية...</span>
+                                    </>
+                                ) : (
+                                    <span>دخول للمنصة</span>
+                                )}
                             </button>
 
-                            {/* Quick Test Credentials Buttons */}
-                            <div className="pt-4 border-t border-slate-800/60 mt-5">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-2.5 text-center">بوابة المحاكاة وتعبئة بيانات الاختبار</span>
+                            {/* Quick Test Credentials Grid */}
+                            <div className="pt-5 border-t border-slate-800/60 mt-6">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3 text-center">بوابة محاكاة الحسابات الرسمية للاختبار</span>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setEmail('creator@moh.gov.sa');
-                                            setPassword('Aa@0555386421');
-                                            setError('');
-                                        }}
-                                        disabled={submitting}
-                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        ✍️ منشئ المعاملات
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setEmail('assistant@moh.gov.sa');
-                                            setPassword('Aa@0555386421');
-                                            setError('');
-                                        }}
-                                        disabled={submitting}
-                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        🔏 المساعد للتخطيط
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setEmail('manager@moh.gov.sa');
-                                            setPassword('Aa@0555386421');
-                                            setError('');
-                                        }}
-                                        disabled={submitting}
-                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        👑 المدير العام
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setEmail('admin@moh.gov.sa');
-                                            setPassword('Aa@0555386421');
-                                            setError('');
-                                        }}
-                                        disabled={submitting}
-                                        className="py-2 px-3 rounded-lg bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        🛡️ المشرف العام
-                                    </button>
+                                    {[
+                                        { role: 'منشئ المعاملات', email: 'creator@moh.gov.sa', emoji: '✍️' },
+                                        { role: 'المساعد للتخطيط', email: 'assistant@moh.gov.sa', emoji: '🔏' },
+                                        { role: 'المدير العام', email: 'manager@moh.gov.sa', emoji: '👑' },
+                                        { role: 'المشرف العام', email: 'admin@moh.gov.sa', emoji: '🛡️' }
+                                    ].map((acc) => (
+                                        <button
+                                            key={acc.email}
+                                            type="button"
+                                            onClick={() => {
+                                                setEmail(acc.email);
+                                                setPassword('Aa@0555386421');
+                                                setError('');
+                                                logger.auth(`Pre-seeded account credentials selected: ${acc.email}`);
+                                            }}
+                                            disabled={submitting}
+                                            className="py-2.5 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-slate-700/80 text-[11px] font-bold text-amber-400/90 hover:text-amber-300 transition-all text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {acc.emoji} {acc.role}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </form>

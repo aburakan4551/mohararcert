@@ -10,22 +10,38 @@
 }
 
 :root {
-  --primary: #1a3a6b;
-  --primary-light: #2a5298;
-  --primary-dark: #0d1f3c;
-  --gold: #c9a227;
-  --gold-light: #e8c84a;
-  --gold-dark: #9b7b1a;
-  --secondary: #2d7d46;
-  --bg: #f4f6f9;
-  --sidebar-bg: #0d1f3c;
+  --primary: #0f213b;
+  --primary-light: #18335c;
+  --primary-dark: #07101d;
+  --gold: #ca9f22;
+  --gold-light: #f5c43d;
+  --gold-dark: #967417;
+  --secondary: #10b981;
+  --bg: #f8fafc;
+  --sidebar-bg: #071020;
   --white: #ffffff;
-  --text-dark: #1a1a2e;
-  --text-muted: #6b7280;
-  --border: #d1d5db;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-  --radius: 12px;
-  --font: 'Cairo', sans-serif;
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 1px 1px 0 rgba(0,0,0,0.01);
+  --radius: 16px;
+  --font: 'IBM Plex Sans Arabic', 'Tajawal', 'Cairo', sans-serif;
+}
+
+/* ===== Custom Sleek Scrollbars ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(202, 159, 34, 0.15);
+  border-radius: 99px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(202, 159, 34, 0.35);
 }
 
 body {
@@ -35,6 +51,7 @@ body {
   direction: rtl;
   min-height: 100vh;
   overflow-x: hidden;
+  letter-spacing: -0.01em;
 }
 
 #root {
@@ -1845,13 +1862,56 @@ select.prop-input option {
 
 /* Glassmorphism panel */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 .dark .glass-panel {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(7, 14, 27, 0.7);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* ===== Shake error animation ===== */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* ===== Skeleton Loading effect ===== */
+.skeleton {
+  background: linear-gradient(90deg, rgba(226,232,240,0.5) 25%, rgba(203,213,225,0.75) 50%, rgba(226,232,240,0.5) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.6s infinite ease-in-out;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, rgba(15,23,42,0.4) 25%, rgba(30,41,59,0.7) 50%, rgba(15,23,42,0.4) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.6s infinite ease-in-out;
+}
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== Premium layout cards modifications ===== */
+.premium-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+}
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px -8px rgba(202, 159, 34, 0.12), 0 4px 4px -2px rgba(202, 159, 34, 0.04);
+}
+.dark .premium-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
+.dark .premium-card:hover {
+  box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.4), 0 4px 4px -2px rgba(0, 0, 0, 0.2);
+}
+
 
