@@ -83,11 +83,12 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
                     zIndex: 10 + idx,
                 };
 
-                // Render Text
-                if (meta.type === 'text') {
+                // Render Text or Textarea
+                if (meta.type === 'text' || meta.type === 'textarea') {
                     const fontSize = (field.fontSize || meta.defaultFontSize) * scale;
+                    const letterSpacing = field.letterSpacing ? `${field.letterSpacing * scale}px` : 'normal';
                     return (
-                        <div key={field.id || idx} style={{
+                        <div key={field._uid || idx} style={{
                             ...baseStyle,
                             color: field.color || meta.defaultColor,
                             fontFamily: field.fontFamily || meta.defaultFontFamily,
@@ -96,7 +97,8 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref
                             textAlign: field.align || 'center',
                             whiteSpace: 'pre-wrap',
                             width: field.width ? `${field.width * scale}px` : '100%',
-                            lineHeight: 1.4
+                            lineHeight: field.lineHeight || 1.6,
+                            letterSpacing: letterSpacing
                         }}>
                             {value || `[${meta.label}]`}
                         </div>

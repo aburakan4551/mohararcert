@@ -7,7 +7,6 @@ import Login from './pages/Login'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const CreateCertificate = lazy(() => import('./pages/CreateCertificate'))
-const BatchCreate = lazy(() => import('./pages/BatchCreate'))
 const MyCertificates = lazy(() => import('./pages/MyCertificates'))
 const PendingApprovals = lazy(() => import('./pages/PendingApprovals'))
 const ApprovalDetails = lazy(() => import('./pages/ApprovalDetails'))
@@ -27,8 +26,7 @@ const getNavItems = (role) => {
         case 'CREATOR':
             return [
                 { to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' },
-                { to: '/create', icon: 'FilePlus', label: 'إنشاء شهادة' },
-                { to: '/batch', icon: 'Database', label: 'استيراد Excel' },
+                { to: '/create', icon: 'FilePlus', label: 'مساحة العمل والتوليد' },
                 { to: '/my-certificates', icon: 'FolderHeart', label: 'شهاداتي الخاصة' }
             ];
         case 'ASSISTANT_MANAGER':
@@ -42,8 +40,7 @@ const getNavItems = (role) => {
         case 'SUPER_ADMIN':
             return [
                 { to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' },
-                { to: '/create', icon: 'FilePlus', label: 'إنشاء شهادة' },
-                { to: '/batch', icon: 'Database', label: 'استيراد Excel' },
+                { to: '/create', icon: 'FilePlus', label: 'مساحة العمل والتوليد' },
                 { to: '/my-certificates', icon: 'FolderHeart', label: 'شهاداتي الخاصة' },
                 { to: '/pending', icon: 'Hourglass', label: 'الطلبات المعلقة' },
                 { to: '/archive', icon: 'Archive', label: 'الأرشيف العام' },
@@ -111,14 +108,6 @@ function LayoutWrapper() {
                         element={
                             <ProtectedRoute allowedRoles={['CREATOR', 'SUPER_ADMIN']}>
                                 <CreateCertificate />
-                            </ProtectedRoute>
-                        } 
-                    />
-                    <Route 
-                        path="/batch" 
-                        element={
-                            <ProtectedRoute allowedRoles={['CREATOR', 'SUPER_ADMIN']}>
-                                <BatchCreate />
                             </ProtectedRoute>
                         } 
                     />
