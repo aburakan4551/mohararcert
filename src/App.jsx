@@ -18,6 +18,10 @@ const UsersManagement = lazy(() => import('./pages/UsersManagement'))
 const RolePermissions = lazy(() => import('./pages/RolePermissions'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 
+// New Studio Pages
+const TemplateStudio = lazy(() => import('./ui/studio/TemplateStudio/TemplateStudio'))
+const TemplateMapper = lazy(() => import('./ui/studio/TemplateMapper/TemplateMapper'))
+
 const getNavItems = (role) => {
     switch (role) {
         case 'CREATOR':
@@ -47,7 +51,8 @@ const getNavItems = (role) => {
                 { to: '/system-settings', icon: 'Settings', label: 'إعدادات الهوية' },
                 { to: '/users', icon: 'Users', label: 'إدارة الحسابات' },
                 { to: '/permissions', icon: 'ShieldAlert', label: 'صلاحيات الأدوار' },
-                { to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' }
+                { to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' },
+                { to: '/studio', icon: 'Settings2', label: 'مصمم القوالب' }
             ];
         default:
             return [];
@@ -190,6 +195,24 @@ function LayoutWrapper() {
                         element={
                             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                                 <Registry />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    {/* Template Studio */}
+                    <Route 
+                        path="/studio" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                                <TemplateStudio />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/studio/mapper/:id" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                                <TemplateMapper />
                             </ProtectedRoute>
                         } 
                     />
