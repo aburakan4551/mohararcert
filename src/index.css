@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
+}
+
 /* ===== 🎨 Enterprise Design Tokens ===== */
 :root {
   /* HSL Tailored Light Theme */

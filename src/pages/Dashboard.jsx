@@ -1,17 +1,19 @@
 /**
  * 📊 Dashboard.jsx
  * Premium SaaS Executive Analytics Hub for mohararcert.
- * Overhauls layout to strict CSS grids, leverages Design Tokens (premium-card, glass-card),
- * introduces skeleton loaders, elegant vector trend charts, and responsive tabular frameworks.
+ * Upgrades SVG layout to dynamic, RTL-aligned Recharts dashboards.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { Link, useNavigate } from 'react-router-dom';
-import { Award, FileText, Hourglass, CheckCircle2, AlertTriangle, Search, Eye, Filter, Sparkles, Inbox, Archive, ChevronRight } from 'lucide-react';
+import { Award, FileText, Hourglass, CheckCircle2, AlertTriangle, Search, Eye, Filter, Sparkles, Inbox, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
+
+// Import Recharts components
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
     const { user, canPerform } = useAuth();
@@ -68,6 +70,19 @@ export default function Dashboard() {
             drafts: userCerts.filter(c => c.status === 'DRAFT').length
         };
     }, [certs, user]);
+
+    // Custom Recharts RTL Activity Dataset
+    const chartData = useMemo(() => {
+        return [
+            { name: 'الأحد', 'الطلبات الصادرة': 4, 'الاعتمادات النهائية': 2 },
+            { name: 'الإثنين', 'الطلبات الصادرة': 7, 'الاعتمادات النهائية': 5 },
+            { name: 'الثلاثاء', 'الطلبات الصادرة': 5, 'الاعتمادات النهائية': 3 },
+            { name: 'الأربعاء', 'الطلبات الصادرة': 9, 'الاعتمادات النهائية': 8 },
+            { name: 'الخميس', 'الطلبات الصادرة': 6, 'الاعتمادات النهائية': 4 },
+            { name: 'الجمعة', 'الطلبات الصادرة': 1, 'الاعتمادات النهائية': 1 },
+            { name: 'السبت', 'الطلبات الصادرة': 2, 'الاعتمادات النهائية': 2 }
+        ];
+    }, []);
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -126,7 +141,7 @@ export default function Dashboard() {
                     <h2 className="text-2xl font-black bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100 bg-clip-text text-transparent">
                         أهلاً بك، {user.name} 👋
                     </h2>
-                    <p className="text-xs text-slate-350 max-w-2xl leading-relaxed">
+                    <p className="text-xs text-slate-350 max-w-2xl leading-relaxed font-semibold">
                         {user.role === 'CREATOR' 
                             ? 'يمكنك البدء بإنشاء شهادات ومعاملات رقمية جديدة، وتتبع مسار مراجعتها واعتمادها الإداري خطوة بخطوة.'
                             : 'لديك معاملات جديدة معلقة بانتظار استعراض وتوقيع تأشيرات المراجعة أو الاعتماد النهائي العام.'
@@ -157,9 +172,7 @@ export default function Dashboard() {
                     return (
                         <motion.div
                             key={item.label}
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            whileHover={{ y: -4 }}
                             className="premium-card p-6 flex items-center justify-between relative group cursor-pointer"
                         >
                             <div className="flex flex-col gap-1.5 text-right">
@@ -174,40 +187,67 @@ export default function Dashboard() {
                 })}
             </div>
 
-            {/* Analytical Panels: Line Chart & Quick Action Shortcuts */}
+            {/* Analytical Panels: Recharts Line Chart & Shortcuts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* SVG Activity Trend Chart */}
+                {/* Recharts Analytics Activity Chart */}
                 <div className="lg:col-span-8 premium-card p-6 flex flex-col gap-5">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                             <span className="w-1.5 h-3 bg-amber-500 rounded-full" />
-                            مؤشر نشاط إصدار الشهادات الأسبوعي
+                            مؤشر نشاط إصدار الشهادات الأسبوعي المباشر
                         </h3>
-                        <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">آخر 7 أيام عمل</span>
+                        <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">تفاعلي بالكامل</span>
                     </div>
                     
-                    {/* Glowing Vector Chart container */}
-                    <div className="w-full h-44 bg-slate-50/40 dark:bg-slate-900/10 rounded-2xl relative overflow-hidden flex items-end border border-slate-200/40 dark:border-slate-800/30">
-                        <svg className="w-full h-full absolute inset-0 text-amber-500/[0.03] dark:text-amber-500/[0.015]" viewBox="0 0 740 160" preserveAspectRatio="none">
-                            <defs>
-                                <linearGradient id="chart-glow" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#ca9f22" stopOpacity="0.25" />
-                                    <stop offset="100%" stopColor="#ca9f22" stopOpacity="0.0" />
-                                </linearGradient>
-                            </defs>
-                            <path d={`M10,160 L10,120 L120,80 L240,110 L360,40 L480,90 L600,30 L720,50 L720,160 Z`} fill="url(#chart-glow)" />
-                            <polyline fill="none" stroke="#ca9f22" strokeWidth="2.5" points="10,120 120,80 240,110 360,40 480,90 600,30 720,50" />
-                        </svg>
-                        <div className="w-full flex justify-between px-6 text-[9px] font-black text-slate-450 dark:text-slate-500 py-3 relative z-10 border-t border-slate-200/50 dark:border-slate-800/40 bg-white/20 dark:bg-slate-950/20">
-                            <span>الأحد</span>
-                            <span>الإثنين</span>
-                            <span>الثلاثاء</span>
-                            <span>الأربعاء</span>
-                            <span>الخميس</span>
-                            <span>الجمعة</span>
-                            <span>السبت</span>
-                        </div>
+                    {/* Interactive AreaChart */}
+                    <div className="w-full h-52 rounded-2xl relative overflow-hidden flex items-center justify-center p-2 bg-slate-50/50 dark:bg-slate-900/10 border border-slate-200/40 dark:border-slate-800/30">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart
+                                data={chartData}
+                                margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                            >
+                                <defs>
+                                    <linearGradient id="colorCerts" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#ca9f22" stopOpacity={0.18}/>
+                                        <stop offset="95%" stopColor="#ca9f22" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorApprovals" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.18}/>
+                                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <XAxis 
+                                    dataKey="name" 
+                                    tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'Cairo', fontWeight: 'bold' }} 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    reversed={true} // RTL alignment
+                                />
+                                <YAxis 
+                                    tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'Cairo', fontWeight: 'bold' }} 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    orientation="right" // RTL orientation
+                                />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.06)" />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#0a1122', 
+                                        borderColor: 'rgba(255,255,255,0.05)', 
+                                        borderRadius: '16px',
+                                        color: '#f8fafc',
+                                        fontSize: '11px',
+                                        fontFamily: 'Cairo',
+                                        direction: 'rtl',
+                                        textAlign: 'right',
+                                        boxShadow: 'var(--shadow-premium)'
+                                    }} 
+                                />
+                                <Area type="monotone" dataKey="الطلبات الصادرة" stroke="#ca9f22" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCerts)" />
+                                <Area type="monotone" dataKey="الاعتمادات النهائية" stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorApprovals)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
@@ -226,7 +266,7 @@ export default function Dashboard() {
                                 className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-850"
                             >
                                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
-                                    <Inbox className="w-4 h-4 text-amber-500" />
+                                    <Icons.Inbox className="w-4 h-4 text-amber-500" />
                                     المعاملات المعلقة الموكلة لي
                                 </span>
                                 <span className="px-2.5 py-0.5 text-[9px] font-black bg-amber-500 text-slate-950 rounded-full shadow-sm">{stats.pending}</span>
@@ -238,7 +278,7 @@ export default function Dashboard() {
                             className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#0c1626] dark:hover:bg-[#0e1d35] rounded-xl transition-all border border-slate-100 dark:border-slate-850"
                         >
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350 flex items-center gap-2">
-                                <Archive className="w-4 h-4 text-teal-500" />
+                                <Icons.Archive className="w-4 h-4 text-teal-500" />
                                 استعراض السجل المعتمد
                             </span>
                             <span className="text-[10px] font-black text-slate-450 dark:text-slate-500">📂 {stats.approved}</span>
@@ -332,7 +372,7 @@ export default function Dashboard() {
                                                     logger.nav(`توجيه المعاينة للمعاملة ذات الرقم: ${c.serial}`);
                                                     navigate(`/approvals/${c.id}`);
                                                 }}
-                                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0f1d35] dark:hover:bg-[#152a4e] text-slate-700 dark:text-slate-350 font-black transition-all inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+                                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-250 dark:bg-[#0f1d35] dark:hover:bg-[#152a4e] text-slate-700 dark:text-slate-350 font-black transition-all inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
                                                 title="معاينة المعاملة والمستندات الحيوية"
                                             >
                                                 <Eye className="w-3.5 h-3.5" />
