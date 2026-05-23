@@ -1,10 +1,3 @@
-/**
- * 🔍 ApprovalDetails.jsx
- * Premium SaaS Split-Panel Certificate Inspector & Workflow Decision Center.
- * Desktop: Enforces a split-view grid (Right: Obsidian Preview Container, Left: Action Dashboard, Timeline, Audit).
- * Mobile: Stacks columns first-preview, second-actions smoothly.
- */
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +8,12 @@ import { ArrowLeft, CheckCircle, AlertTriangle, FileText, Send, Clock, User, Mes
 import { useLayers } from '../hooks/useLayers';
 import { logger } from '../utils/debug';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Presentation imports
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/cards/Card';
+import { Button } from '../ui/components/Button';
+import { Badge } from '../ui/feedback/Badge';
+import { Textarea, Label } from '../ui/forms/Input';
 
 export default function ApprovalDetails() {
     const { id } = useParams();
@@ -201,13 +200,34 @@ export default function ApprovalDetails() {
         return false;
     };
 
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'DRAFT':
+                return <Badge variant="warning">مسودة</Badge>;
+            case 'PENDING_APPROVAL':
+                return <Badge variant="warning">بانتظار تأشير المساعد</Badge>;
+            case 'APPROVED_BY_ASSISTANT':
+                return <Badge variant="success">معتمد من المساعد</Badge>;
+            case 'FINAL_APPROVED':
+                return <Badge variant="success">معتمد نهائياً</Badge>;
+            case 'RETURNED_FOR_EDIT':
+                return <Badge variant="danger">مُعاد للتعديل</Badge>;
+            case 'REJECTED':
+                return <Badge variant="danger">مرفوض</Badge>;
+            case 'ARCHIVED':
+                return <Badge variant="primary">مؤرشف</Badge>;
+            default:
+                return <Badge variant="secondary">—</Badge>;
+        }
+    };
+
     if (loading) {
         return (
             <div className="space-y-8 py-2">
-                <div className="h-14 rounded-2xl skeleton" />
+                <div className="h-16 rounded-2xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-8 h-96 rounded-3xl skeleton" />
-                    <div className="lg:col-span-4 h-96 rounded-3xl skeleton" />
+                    <div className="lg:col-span-7 h-[450px] rounded-3xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
+                    <div className="lg:col-span-5 h-[450px] rounded-3xl bg-slate-200 dark:bg-slate-900/60 animate-pulse" />
                 </div>
             </div>
         );
@@ -226,55 +246,67 @@ export default function ApprovalDetails() {
             {/* Header & Sticky Actions Panel */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/40 pb-5">
                 <div className="flex items-center gap-3">
-                    <button 
+                    <Button 
+                        variant="outline"
+                        size="sm"
                         onClick={() => navigate(-1)} 
-                        className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0f1d35] dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 active:scale-95"
+                        className="py-2.5 px-3 rounded-xl hover:scale-105 active:scale-95"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                    </button>
+                    </Button>
                     <div>
-                        <h2 className="text-lg font-black text-slate-900 dark:text-slate-50">تفاصيل واعتماد المعاملة #{cert.serial}</h2>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">تتبع خطوات الاعتماد والموافقة الإجرائية للمستند الإداري.</p>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-slate-50">
+                            تفاصيل واعتماد المعاملة #{cert.serial}
+                        </h2>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
+                            تتبع خطوات الاعتماد والموافقة الإجرائية للمستند الإداري.
+                        </p>
                     </div>
                 </div>
 
                 {/* Print/Download Shortcuts */}
                 {(cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED') && (
                     <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                            variant="outline"
+                            size="md"
                             onClick={handlePrint}
-                            className="btn-premium btn-premium-outline py-2.5 px-4 font-bold text-xs"
+                            className="font-bold text-xs"
+                            leftIcon={Printer}
                         >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>طباعة ورقية</span>
-                        </button>
-                        <button
+                            طباعة ورقية
+                        </Button>
+                        <Button
+                            variant="accent"
+                            size="md"
                             onClick={handleExport}
-                            disabled={exporting}
-                            className="btn-premium btn-premium-accent py-2.5 px-4 font-black text-xs"
+                            isLoading={exporting}
+                            className="font-black text-xs"
+                            leftIcon={Download}
                         >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>{exporting ? '⏳ تصدير...' : 'تنزيل PDF'}</span>
-                        </button>
+                            تنزيل PDF
+                        </Button>
                     </div>
                 )}
             </div>
 
-            {/* Split Enterprise Layout Grid */}
+            {/* Split Enterprise Layout Grid (Right: Preview, Left: Info & Workflow) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
-                {/* Right: Live scale preview container (A4 Landscape Obsidian Frame) */}
-                <div className="lg:col-span-8 space-y-4 lg:sticky lg:top-24">
-                    <div className="bg-[#0b1322] rounded-3xl border border-white/5 p-5 shadow-2xl relative">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-5 text-[10px] font-black text-slate-500 tracking-wider">
-                            <span className="flex items-center gap-1.5">
+                {/* Right Panel: Live scale preview container (A4 Landscape Obsidian Frame) */}
+                <div className="lg:col-span-7 space-y-4 lg:sticky lg:top-24">
+                    <Card className="border border-slate-200/60 dark:border-slate-800/40 p-5 shadow-2xl relative overflow-hidden bg-slate-950">
+                        <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-teal-500/20 to-transparent" />
+                        
+                        <div className="flex items-center justify-between border-b border-slate-800/40 pb-3 mb-5 text-[10px] font-black text-slate-500 tracking-wider">
+                            <span className="flex items-center gap-1.5 text-slate-400">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 👁️ معاينة المستند المعتمد والطبقات المباشرة
                             </span>
-                            <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/15 uppercase font-bold">A4 landscape</span>
+                            <Badge variant="primary" className="uppercase font-bold">A4 landscape</Badge>
                         </div>
 
-                        <div className="w-full flex items-center justify-center overflow-hidden min-h-[360px] bg-[#070e1b]/90 rounded-2xl relative" ref={previewContainerRef}>
+                        <div className="w-full flex items-center justify-center overflow-hidden min-h-[360px] bg-slate-900/60 rounded-2xl relative border border-slate-800/20" ref={previewContainerRef}>
                             <div className="flex items-center justify-center" style={{ transform: `scale(${scale})`, transformOrigin: 'center center', width: '297mm', height: '210mm', flexShrink: 0 }}>
                                 <UnifiedCertificateEngine
                                     ref={certRef}
@@ -288,123 +320,142 @@ export default function ApprovalDetails() {
                                 />
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
-                {/* Left: Info details, Timeline trackers, Actions panel */}
-                <div className="lg:col-span-4 space-y-6">
+                {/* Left Panel: Info details, Timeline trackers, Actions panel */}
+                <div className="lg:col-span-5 space-y-6">
                     
                     {/* Metadata Card */}
-                    <div className="premium-card p-6 space-y-4">
-                        <h3 className="text-[10px] font-black text-slate-450 dark:text-slate-500 tracking-widest uppercase flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-2">
-                            <FileText className="w-3.5 h-3.5 text-teal-500" />
-                            بيانات المعاملة الأساسية
-                        </h3>
-                        
-                        <div className="divide-y divide-slate-100 dark:divide-slate-800/40 text-xs font-bold">
-                            <div className="py-2.5 flex justify-between gap-2">
-                                <span className="text-slate-400">اسم صاحب الطلب:</span>
-                                <span className="text-slate-800 dark:text-slate-200">{cert.recipientName}</span>
+                    <Card className="border border-slate-200/60 dark:border-slate-800/40">
+                        <CardHeader className="border-b border-slate-100 dark:border-slate-800/20 pb-3">
+                            <CardTitle className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <FileText className="w-4 h-4 text-teal-500" />
+                                بيانات المعاملة الأساسية
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                            <div className="divide-y divide-slate-100 dark:divide-slate-800/20 text-xs font-bold">
+                                <div className="py-2.5 flex justify-between gap-2">
+                                    <span className="text-slate-400">اسم صاحب الطلب:</span>
+                                    <span className="text-slate-800 dark:text-slate-200">{cert.recipientName}</span>
+                                </div>
+                                <div className="py-2.5 flex justify-between gap-2">
+                                    <span className="text-slate-400">المناسبة/الموضوع:</span>
+                                    <span className="text-slate-800 dark:text-slate-200">{cert.event}</span>
+                                </div>
+                                <div className="py-2.5 flex justify-between gap-2">
+                                    <span className="text-slate-400">التاريخ المطبوع:</span>
+                                    <span className="font-mono text-slate-800 dark:text-slate-200">{cert.date}</span>
+                                </div>
+                                <div className="py-2.5 flex justify-between gap-2">
+                                    <span className="text-slate-400">منشئ المعاملة:</span>
+                                    <span className="text-slate-800 dark:text-slate-200">{cert.creatorName || 'مستخدم النظام'}</span>
+                                </div>
+                                <div className="py-2.5 flex justify-between gap-2 items-center">
+                                    <span className="text-slate-400">الحالة الإجرائية:</span>
+                                    {getStatusBadge(cert.status)}
+                                </div>
                             </div>
-                            <div className="py-2.5 flex justify-between gap-2">
-                                <span className="text-slate-400">المناسبة/الموضوع:</span>
-                                <span className="text-slate-800 dark:text-slate-200">{cert.event}</span>
-                            </div>
-                            <div className="py-2.5 flex justify-between gap-2">
-                                <span className="text-slate-400">التاريخ المطبوع:</span>
-                                <span className="font-mono text-slate-800 dark:text-slate-200">{cert.date}</span>
-                            </div>
-                            <div className="py-2.5 flex justify-between gap-2">
-                                <span className="text-slate-400">منشئ المعاملة:</span>
-                                <span className="text-slate-800 dark:text-slate-200">{cert.creatorName || 'مستخدم النظام'}</span>
-                            </div>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
                     {/* Timeline Tracker */}
-                    <div className="premium-card p-6 space-y-5">
-                        <h3 className="text-[10px] font-black text-slate-450 dark:text-slate-500 tracking-widest uppercase flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-850 pb-2">
-                            <Clock className="w-3.5 h-3.5 text-amber-500" />
-                            خط الزمن ومسار الموافقات
-                        </h3>
-                        
-                        <div className="space-y-4 relative before:absolute before:top-2 before:bottom-2 before:right-3.5 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-850">
-                            {(cert.workflowHistory || []).map((step, idx) => (
-                                <div key={idx} className="flex gap-4 relative">
-                                    <div className="w-7 h-7 rounded-full bg-slate-50 dark:bg-[#0c1626] border border-slate-200/60 dark:border-slate-800 flex items-center justify-center z-10 flex-shrink-0">
-                                        <Clock className="w-3 h-3 text-slate-400" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-2 text-[9px] font-black">
-                                            <span className="text-slate-650 dark:text-slate-350">{step.user}</span>
-                                            <span className="text-slate-400">{new Date(step.timestamp).toLocaleDateString('ar-SA')}</span>
+                    <Card className="border border-slate-200/60 dark:border-slate-800/40">
+                        <CardHeader className="border-b border-slate-100 dark:border-slate-800/20 pb-3">
+                            <CardTitle className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <Clock className="w-4 h-4 text-amber-500" />
+                                خط الزمن ومسار الموافقات
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <div className="space-y-5 relative before:absolute before:top-2 before:bottom-2 before:right-3.5 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800/40">
+                                {(cert.workflowHistory || []).map((step, idx) => (
+                                    <div key={idx} className="flex gap-4 relative">
+                                        <div className="w-7 h-7 rounded-full bg-slate-50 dark:bg-[#0c1626] border border-slate-200/60 dark:border-slate-800 flex items-center justify-center z-10 flex-shrink-0">
+                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
                                         </div>
-                                        <h4 className="text-[11px] font-black text-amber-600 dark:text-amber-400 mt-0.5">
-                                            {step.stage === 'DRAFT' && '📝 صياغة مسودة المعاملة'}
-                                            {step.stage === 'PENDING_APPROVAL' && '📤 الرفع للاعتماد الرسمي'}
-                                            {step.stage === 'APPROVED_BY_ASSISTANT' && '🔏 مراجعة وتأشير المساعد'}
-                                            {step.stage === 'FINAL_APPROVED' && '👑 مصادقة واعتماد نهائي'}
-                                            {step.stage === 'RETURNED_FOR_EDIT' && '⚠️ إرجاع للتعديل وإضافة الملاحظات'}
-                                            {step.stage === 'REJECTED' && '❌ رفض نهائي للمستند'}
-                                        </h4>
-                                        {step.comments && (
-                                            <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-100/60 dark:border-slate-800/30 mt-2 font-semibold">
-                                                {step.comments}
-                                            </p>
-                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2 text-[9px] font-black">
+                                                <span className="text-slate-650 dark:text-slate-350">{step.user}</span>
+                                                <span className="text-slate-400">{new Date(step.timestamp).toLocaleDateString('ar-SA')}</span>
+                                            </div>
+                                            <h4 className="text-[11px] font-black text-teal-600 dark:text-teal-400 mt-0.5">
+                                                {step.stage === 'DRAFT' && '📝 صياغة مسودة المعاملة'}
+                                                {step.stage === 'PENDING_APPROVAL' && '📤 الرفع للاعتماد الرسمي'}
+                                                {step.stage === 'APPROVED_BY_ASSISTANT' && '🔏 مراجعة وتأشير المساعد'}
+                                                {step.stage === 'FINAL_APPROVED' && '👑 مصادقة واعتماد نهائي'}
+                                                {step.stage === 'RETURNED_FOR_EDIT' && '⚠️ إرجاع للتعديل وإضافة الملاحظات'}
+                                                {step.stage === 'REJECTED' && '❌ رفض نهائي للمستند'}
+                                            </h4>
+                                            {step.comments && (
+                                                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50/50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800/20 mt-2 font-semibold">
+                                                    {step.comments}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
 
                     {/* Decisions Control Board */}
                     {canTakeDecision() ? (
-                        <div className="bg-gradient-to-br from-slate-900 to-[#070e1b] text-white p-6 rounded-3xl border border-white/5 shadow-xl space-y-4">
-                            <h3 className="text-xs font-black text-amber-400 tracking-wider uppercase flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-                                لوحة القرار الإداري المعتمد
-                            </h3>
+                        <Card className="bg-gradient-to-br from-slate-900 to-[#070e1b] text-white border border-white/5 shadow-xl">
+                            <CardHeader className="border-b border-white/5 pb-3">
+                                <CardTitle className="text-xs font-black text-amber-400 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                                    لوحة القرار الإداري المعتمد
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-slate-300">مرئيات وتوجيهات اللجنة (تظهر في السجل):</Label>
+                                    <Textarea
+                                        value={comments}
+                                        onChange={e => setComments(e.target.value)}
+                                        placeholder="اكتب ملاحظاتك، مرئياتك، أو سبب الإرجاع للمنشئ هنا..."
+                                        className="bg-slate-950 border-slate-800 text-slate-200 focus:border-amber-500 focus:ring-amber-550/10 placeholder-slate-700 min-h-[90px]"
+                                    />
+                                </div>
 
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-slate-400 block">مرئيات وتوجيهات اللجنة (تظهر في السجل):</label>
-                                <textarea
-                                    rows="3"
-                                    value={comments}
-                                    onChange={e => setComments(e.target.value)}
-                                    placeholder="اكتب ملاحظاتك، مرئياتك، أو سبب الإرجاع للمنشئ هنا..."
-                                    className="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-amber-500 text-xs font-semibold outline-none text-slate-200 transition-all placeholder-slate-700 resize-none"
-                                />
-                            </div>
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <Button
+                                        variant="outline"
+                                        size="md"
+                                        onClick={handleReturnForEdit}
+                                        disabled={processing}
+                                        className="border-amber-500/20 text-amber-400 hover:bg-amber-500/10 w-full"
+                                    >
+                                        ⚠️ إرجاع للتعديل
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        size="md"
+                                        onClick={handleReject}
+                                        disabled={processing}
+                                        className="border-red-500/25 bg-red-650/15 hover:bg-red-500/20 text-red-400 w-full"
+                                    >
+                                        ❌ رفض الطلب
+                                    </Button>
+                                </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={handleReturnForEdit}
+                                <Button
+                                    variant="accent"
+                                    size="lg"
+                                    onClick={handleApprove}
                                     disabled={processing}
-                                    className="py-2.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 hover:border-amber-500/30 rounded-xl text-xs font-black transition-all cursor-pointer text-center active:scale-95"
+                                    isLoading={processing}
+                                    className="w-full font-black mt-2 text-xs flex items-center justify-center gap-1.5"
                                 >
-                                    ⚠️ إرجاع للتعديل
-                                </button>
-                                <button
-                                    onClick={handleReject}
-                                    disabled={processing}
-                                    className="py-2.5 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 rounded-xl text-xs font-black transition-all cursor-pointer text-center active:scale-95"
-                                >
-                                    ❌ رفض الطلب
-                                </button>
-                            </div>
-
-                            <button
-                                onClick={handleApprove}
-                                disabled={processing}
-                                className="w-full py-3 px-4 bg-gradient-to-br from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                <span>{user.role === 'ASSISTANT_MANAGER' ? 'التأشير والرفع للمدير العام' : 'المصادقة والاعتماد النهائي'}</span>
-                            </button>
-                        </div>
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>{user.role === 'ASSISTANT_MANAGER' ? 'التأشير والرفع للمدير العام' : 'المصادقة والاعتماد النهائي'}</span>
+                                </Button>
+                            </CardContent>
+                        </Card>
                     ) : (
-                        <div className="premium-card p-6 text-center space-y-3">
+                        <Card className="border border-slate-200/60 dark:border-slate-800/40 p-6 text-center space-y-3">
                             <ShieldCheck className="w-10 h-10 text-slate-400 dark:text-slate-650 mx-auto stroke-[1.5]" />
                             <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">القرار الإداري مقفل</h4>
                             <p className="text-[10px] text-slate-450 dark:text-slate-500 leading-relaxed font-semibold">
@@ -414,7 +465,7 @@ export default function ApprovalDetails() {
                                 {cert.status === 'PENDING_APPROVAL' && user.role === 'GENERAL_MANAGER' && 'المعاملة بانتظار مراجعة وتأشير المساعد أولاً.'}
                                 {cert.status === 'APPROVED_BY_ASSISTANT' && user.role === 'CREATOR' && 'المعاملة معتمدة من المساعد وبانتظار اعتماد المدير العام.'}
                             </p>
-                        </div>
+                        </Card>
                     )}
                 </div>
 
