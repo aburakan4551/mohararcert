@@ -12,10 +12,18 @@ import { useAuth } from '../../context/AuthContext';
 /* A4 Paper Ratio (Landscape) */
 const A4_ASPECT = 297 / 210;
 
-const TemplateRenderer = forwardRef(({ template, dataContext, width = 800 }, ref) => {
+const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, settings: customSettings }, ref) => {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
-    const { settings } = useAuth() || {}; // Use settings from auth context if available
+    
+    let authSettings = null;
+    try {
+        const auth = useAuth();
+        authSettings = auth ? auth.settings : null;
+    } catch (e) {
+        // Safe fallback in headless off-screen exports
+    }
+    const settings = customSettings || authSettings || {};
     
     const height = width / A4_ASPECT;
 

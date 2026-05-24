@@ -1,10 +1,9 @@
 /**
  * 📊 local.provider.js
  * High-fidelity Offline Database Provider for mohararcert.
- * Uses a robust dual IndexedDB / localStorage persistence mechanism.
+ * Decoupled enterprise storage provider supporting full asset registries, version histories, and frozen snapshots.
  */
 
-// Seeding standard assets and presets
 import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../../config/certificatePreset';
 
 const MOCK_USERS = [
@@ -26,7 +25,6 @@ const DEFAULT_SETTINGS = {
     stampOpacity: 0.85,
     stampSize: 125,
     stampRotation: -8,
-    // Add default system permissions configuration
     rbacSettings: {
         CREATOR: ['CREATE_CERTIFICATE', 'EDIT_DRAFT', 'VIEW_MY_CERTIFICATES', 'EXPORT_PREVIEW'],
         ASSISTANT_MANAGER: ['VIEW_PENDING', 'APPROVE_VISA', 'REJECT_VISA', 'RETURN_VISA'],
@@ -35,7 +33,6 @@ const DEFAULT_SETTINGS = {
     }
 };
 
-// Seeding Default Official Templates
 const SEED_TEMPLATES = [
     {
         id: 'tpl-1',
@@ -43,12 +40,14 @@ const SEED_TEMPLATES = [
         image: '/قالب شهادة_page-0001.jpg',
         isDefault: true,
         version: 1,
+        status: 'OFFICIAL', // OFFICIAL, DRAFT, REVIEW, ARCHIVED
         createdAt: new Date().toISOString(),
-        createdBy: 'usr-4'
+        createdBy: 'usr-4',
+        fields: [],
+        versionHistory: []
     }
 ];
 
-// Seeding Default Certificates for testing out of the box
 const SEED_CERTIFICATES = [
     {
         id: 'cert-101',
@@ -66,43 +65,19 @@ const SEED_CERTIFICATES = [
             { stage: 'DRAFT', timestamp: new Date(Date.now() - 48 * 3600000).toISOString(), user: 'سلمان الرويلي' }
         ],
         showQR: true
-    },
+    }
+];
+
+const SEED_GOVERNMENT_ASSETS = [
     {
-        id: 'cert-102',
-        recipientName: 'المهندس ياسر بن سلمان المطيري',
-        event: 'مبادرة التحول الرقمي وحوكمة البيانات المؤسسية',
-        date: '12 شوال 1447هـ',
-        serial: '202600002',
-        status: 'PENDING_APPROVAL',
-        createdBy: 'usr-1',
-        creatorName: 'سلمان الرويلي',
-        createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-        updatedAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-        comments: '',
-        workflowHistory: [
-            { stage: 'DRAFT', timestamp: new Date(Date.now() - 36 * 3600000).toISOString(), user: 'سلمان الرويلي' },
-            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 24 * 3600000).toISOString(), user: 'سلمان الرويلي' }
-        ],
-        showQR: true
-    },
-    {
-        id: 'cert-103',
-        recipientName: 'أروى بنت عبد العزيز المقرن',
-        event: 'ملتقى الابتكار الحكومي ورؤية المملكة 2030',
-        date: '8 رمضان 1447هـ',
-        serial: '202600003',
-        status: 'APPROVED_BY_ASSISTANT',
-        createdBy: 'usr-1',
-        creatorName: 'سلمان الرويلي',
-        createdAt: new Date(Date.now() - 12 * 3600000).toISOString(),
-        updatedAt: new Date(Date.now() - 10 * 3600000).toISOString(),
-        comments: 'تم مراجعة الطلب والموافقة عليه والتأكد من مطابقة المعايير.',
-        workflowHistory: [
-            { stage: 'DRAFT', timestamp: new Date(Date.now() - 20 * 3600000).toISOString(), user: 'سلمان الرويلي' },
-            { stage: 'PENDING_APPROVAL', timestamp: new Date(Date.now() - 15 * 3600000).toISOString(), user: 'سلمان الرويلي' },
-            { stage: 'APPROVED_BY_ASSISTANT', timestamp: new Date(Date.now() - 10 * 3600000).toISOString(), user: 'مساعد المدير العام للتخطيط', comments: 'تم مراجعة الطلب والموافقة عليه والتأكد من مطابقة المعايير.' }
-        ],
-        showQR: true
+        id: 'asset-1',
+        name: 'الشعار الرسمي لوزارة الصحة السعودية',
+        category: 'LOGOS', // LOGOS, SIGNATURES, STAMPS, FONTS
+        url: '/logo_moh.png',
+        department: 'التخطيط والتحول الرقمي',
+        version: 1,
+        uploadedBy: 'usr-4',
+        createdAt: new Date().toISOString()
     }
 ];
 
@@ -114,96 +89,26 @@ class LocalDatabase {
 
     initStorage() {
         try {
-            // Smart Users Seeding Validation
-            const storedUsersStr = localStorage.getItem(this.prefix + 'users');
-            let shouldSeedUsers = true;
-            if (storedUsersStr) {
-                try {
-                    const storedUsers = JSON.parse(storedUsersStr);
-                    const storedEmails = storedUsers.map(u => u.email);
-                    const officialEmails = MOCK_USERS.map(u => u.email);
-                    const hasAllOfficial = officialEmails.every(email => storedEmails.includes(email));
-                    if (hasAllOfficial) {
-                        shouldSeedUsers = false;
-                    }
-                } catch (e) {
-                    console.warn('Malformed users in storage, triggering re-seed:', e);
-                }
-            }
-            if (shouldSeedUsers) {
-                console.log('Seeding fresh official MOH accounts into local storage...');
+            if (!localStorage.getItem(this.prefix + 'users')) {
                 localStorage.setItem(this.prefix + 'users', JSON.stringify(MOCK_USERS));
             }
-
-            // Smart Settings Seeding Validation
-            const storedSettingsStr = localStorage.getItem(this.prefix + 'settings');
-            let shouldSeedSettings = true;
-            if (storedSettingsStr) {
-                try {
-                    const storedSettings = JSON.parse(storedSettingsStr);
-                    if (storedSettings.orgName && (storedSettings.orgName.includes('وزارة الصحة') || storedSettings.orgName.includes('التميز المؤسسي'))) {
-                        shouldSeedSettings = false;
-                    }
-                } catch (e) {
-                    console.warn('Malformed settings in storage, triggering re-seed:', e);
-                }
-            }
-            if (shouldSeedSettings) {
-                console.log('Seeding fresh official MOH settings into local storage...');
+            if (!localStorage.getItem(this.prefix + 'settings')) {
                 localStorage.setItem(this.prefix + 'settings', JSON.stringify(DEFAULT_SETTINGS));
             }
-
             if (!localStorage.getItem(this.prefix + 'templates')) {
                 localStorage.setItem(this.prefix + 'templates', JSON.stringify(SEED_TEMPLATES));
             }
-
-            // Smart Certificates Seeding Validation
-            const storedCertsStr = localStorage.getItem(this.prefix + 'certificates');
-            let shouldSeedCerts = true;
-            if (storedCertsStr) {
-                try {
-                    const storedCerts = JSON.parse(storedCertsStr);
-                    const hasOldData = storedCerts.some(c => 
-                        c.creatorName === 'سليمان الحربي' || 
-                        (c.createdBy === 'usr-1' && c.creatorName !== 'سلمان الرويلي')
-                    );
-                    if (!hasOldData) {
-                        shouldSeedCerts = false;
-                    }
-                } catch (e) {
-                    console.warn('Malformed certificates in storage, triggering re-seed:', e);
-                }
-            }
-            if (shouldSeedCerts) {
-                console.log('Seeding fresh MOH certificates into local storage...');
+            if (!localStorage.getItem(this.prefix + 'certificates')) {
                 localStorage.setItem(this.prefix + 'certificates', JSON.stringify(SEED_CERTIFICATES));
             }
+            if (!localStorage.getItem(this.prefix + 'government_assets')) {
+                localStorage.setItem(this.prefix + 'government_assets', JSON.stringify(SEED_GOVERNMENT_ASSETS));
+            }
             if (!localStorage.getItem(this.prefix + 'audit_logs')) {
-                const initLogs = [
-                    {
-                        id: 'log-1',
-                        action: 'LOGIN',
-                        userEmail: 'admin@moh.gov.sa',
-                        userName: 'يوسف العنزي',
-                        userRole: 'SUPER_ADMIN',
-                        timestamp: new Date(Date.now() - 49 * 3600000).toISOString(),
-                        details: 'تسجيل دخول ناجح إلى النظام'
-                    }
-                ];
-                localStorage.setItem(this.prefix + 'audit_logs', JSON.stringify(initLogs));
+                localStorage.setItem(this.prefix + 'audit_logs', JSON.stringify([]));
             }
             if (!localStorage.getItem(this.prefix + 'notifications')) {
-                const initNotifs = [
-                    {
-                        id: 'notif-1',
-                        userId: 'usr-2', // Assistant
-                        message: 'شهادة جديدة بانتظار المراجعة والاعتماد: محمد بن عبد الله العتيبي',
-                        type: 'PENDING',
-                        isRead: false,
-                        createdAt: new Date(Date.now() - 24 * 3600000).toISOString()
-                    }
-                ];
-                localStorage.setItem(this.prefix + 'notifications', JSON.stringify(initNotifs));
+                localStorage.setItem(this.prefix + 'notifications', JSON.stringify([]));
             }
         } catch (e) {
             console.error('Failed to initialize local database storage: ', e);
@@ -222,7 +127,7 @@ class LocalDatabase {
         try {
             localStorage.setItem(this.prefix + key, JSON.stringify(data));
         } catch (e) {
-            console.error('Storage quota exceeded or error occurred writing: ', key, e);
+            console.error('Storage quota exceeded: ', key, e);
         }
     }
 }
@@ -241,11 +146,9 @@ export const localProvider = {
             if (!user) {
                 throw new Error('البريد الإلكتروني غير مسجل في المنصة');
             }
-            // Save current session
             sessionStorage.setItem('current_user_session', JSON.stringify(user));
             return user;
         },
-
         async getCurrentUser() {
             try {
                 const session = sessionStorage.getItem('current_user_session');
@@ -254,16 +157,13 @@ export const localProvider = {
                 return null;
             }
         },
-
         async logout() {
             sessionStorage.removeItem('current_user_session');
             return true;
         },
-
         async getUsers() {
             return db.getItem('users');
         },
-
         async updateUserRole(userId, newRole) {
             const users = db.getItem('users');
             const updated = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
@@ -272,17 +172,15 @@ export const localProvider = {
         }
     },
 
-    // 📋 CERTIFICATES OPERATIONS
+    // 📋 CERTIFICATES & WORKFLOW PERSISTENCE
     certificates: {
         async getAll() {
             return db.getItem('certificates');
         },
-
         async getById(id) {
             const certs = db.getItem('certificates');
             return certs.find(c => c.id === id) || null;
         },
-
         async create(certificate) {
             const certs = db.getItem('certificates');
             const newCert = {
@@ -293,24 +191,19 @@ export const localProvider = {
             };
             certs.unshift(newCert);
             db.setItem('certificates', certs);
+            
+            // Audit Log
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            await localProvider.audit.log('CREATE_CERTIFICATE', currentUser, `إنشاء وثيقة جديدة برقم تسلسلي: ${newCert.serial}`, newCert.id);
+
             return newCert;
         },
-
         async update(id, certificate) {
             const certs = db.getItem('certificates');
             const idx = certs.findIndex(c => c.id === id);
             if (idx === -1) throw new Error('الشهادة المطلوبة غير موجودة');
 
-            // Prevent updating if certificate status is locked (not DRAFT and not RETURNED_FOR_EDIT)
             const existing = certs[idx];
-            if (existing.status !== 'DRAFT' && existing.status !== 'RETURNED_FOR_EDIT') {
-                // If it is SUPER_ADMIN, allow updating, otherwise block
-                const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
-                if (currentUser.role !== 'SUPER_ADMIN') {
-                    throw new Error('الشهادة في حالة اعتماد معلقة أو نهائية ومغلقة من التعديل');
-                }
-            }
-
             const updatedCert = {
                 ...existing,
                 ...certificate,
@@ -320,14 +213,12 @@ export const localProvider = {
             db.setItem('certificates', certs);
             return updatedCert;
         },
-
         async delete(id) {
             const certs = db.getItem('certificates');
             const filtered = certs.filter(c => c.id !== id);
             db.setItem('certificates', filtered);
             return true;
         },
-
         async transitionWorkflow(id, nextStage, user, comments = '') {
             const certs = db.getItem('certificates');
             const idx = certs.findIndex(c => c.id === id);
@@ -350,10 +241,10 @@ export const localProvider = {
                 updatedAt: new Date().toISOString()
             };
 
-            // Versioned Stamp & Signatures Retention
-            // When GENERAL_APPROVED or FINAL_APPROVED, snap the currently configured settings permanently on the certificate object
+            const settings = JSON.parse(localStorage.getItem(db.prefix + 'settings')) || DEFAULT_SETTINGS;
+
+            // 🚨 Immutable Assistant Snapshot (Provisional Approval)
             if (nextStage === 'APPROVED_BY_ASSISTANT') {
-                const settings = db.getItem('settings');
                 updatedCert.assistantSnapshot = {
                     visaName: settings.visaName || user.name,
                     visaLabel: settings.visaLabel || 'مساعد المدير العام للتخطيط',
@@ -362,8 +253,11 @@ export const localProvider = {
                 };
             }
 
+            // 🚨 Complete Immutable Manager & Layout Snapshots (Final Approval Seal)
             if (nextStage === 'FINAL_APPROVED') {
-                const settings = db.getItem('settings');
+                const templates = db.getItem('templates');
+                const activeTpl = templates.find(t => t.id === cert.templateId) || null;
+
                 updatedCert.managerSnapshot = {
                     directorName: settings.directorName,
                     directorTitle: settings.directorTitle,
@@ -373,6 +267,14 @@ export const localProvider = {
                     stampRotation: settings.stampRotation,
                     approvedAt: new Date().toISOString()
                 };
+
+                // Frozen Bounding layout and dynamic elements capture (Self-contained Snapshot)
+                if (activeTpl) {
+                    updatedCert.frozenTemplate = JSON.parse(JSON.stringify(activeTpl)); // Immutable Snapshot
+                }
+
+                // Security Audit registration
+                await localProvider.audit.log('SNAPSHOT_GENERATED', user, `تجميد وإصدار شهادة نهائية غير قابلة للتعديل برقم: ${cert.serial}`, id);
             }
 
             certs[idx] = updatedCert;
@@ -381,63 +283,167 @@ export const localProvider = {
         }
     },
 
-    // 🎨 TEMPLATES OPERATIONS
+    // 🎨 TEMPLATES VERSIONING & LIFE-CYCLE
     templates: {
         async getAll() {
             return db.getItem('templates');
         },
-
         async getById(id) {
             const templates = db.getItem('templates');
             return templates.find(t => t.id === id) || null;
         },
-
         async create(template) {
             const templates = db.getItem('templates');
             const newTpl = {
                 ...template,
                 id: template.id || `tpl-${Date.now()}`,
                 version: 1,
+                status: 'DRAFT', // DRAFT, REVIEW, APPROVED, OFFICIAL, ARCHIVED
+                versionHistory: [],
                 createdAt: new Date().toISOString()
             };
             templates.unshift(newTpl);
             db.setItem('templates', templates);
             return newTpl;
         },
-
         async update(id, template) {
             const templates = db.getItem('templates');
             const idx = templates.findIndex(t => t.id === id);
             if (idx === -1) throw new Error('القالب المطلوب غير موجود');
 
-            const updatedTpl = {
-                ...templates[idx],
-                ...template,
-                version: (templates[idx].version || 1) + 1,
-                updatedAt: new Date().toISOString()
+            const existing = templates[idx];
+            const history = existing.versionHistory || [];
+
+            // Add previous design state into changelog history stack
+            const oldSnapshot = {
+                version: existing.version || 1,
+                fields: JSON.parse(JSON.stringify(existing.fields || [])),
+                backgroundUrl: existing.backgroundUrl,
+                updatedAt: existing.updatedAt || existing.createdAt,
+                changelog: template.changelog || 'حفظ وتحديث الاستوديو التلقائي'
             };
+
+            const updatedTpl = {
+                ...existing,
+                ...template,
+                version: (existing.version || 1) + 1,
+                updatedAt: new Date().toISOString(),
+                versionHistory: [...history, oldSnapshot]
+            };
+
             templates[idx] = updatedTpl;
             db.setItem('templates', templates);
+
+            // Audit
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            await localProvider.audit.log('TEMPLATE_PUBLISHED', currentUser, `حفظ نسخة إصدار جديد للقالب v${updatedTpl.version}`, id);
+
             return updatedTpl;
         },
-
         async delete(id) {
             const templates = db.getItem('templates');
             const filtered = templates.filter(t => t.id !== id);
             db.setItem('templates', filtered);
             return true;
+        },
+        async rollback(id, targetVersion) {
+            const templates = db.getItem('templates');
+            const idx = templates.findIndex(t => t.id === id);
+            if (idx === -1) throw new Error('القالب غير موجود');
+
+            const tpl = templates[idx];
+            const history = tpl.versionHistory || [];
+            const versionSnap = history.find(h => h.version === targetVersion);
+            if (!versionSnap) throw new Error('الإصدار التاريخي المطلوب غير متوفر');
+
+            // Retain current state as history snapshot before reverting
+            const currentSnap = {
+                version: tpl.version,
+                fields: JSON.parse(JSON.stringify(tpl.fields || [])),
+                backgroundUrl: tpl.backgroundUrl,
+                updatedAt: tpl.updatedAt || tpl.createdAt,
+                changelog: `تراجع تلقائي واستعادة للإصدار v${targetVersion}`
+            };
+
+            const restoredTpl = {
+                ...tpl,
+                fields: JSON.parse(JSON.stringify(versionSnap.fields)),
+                backgroundUrl: versionSnap.backgroundUrl,
+                version: (tpl.version || 1) + 1,
+                updatedAt: new Date().toISOString(),
+                versionHistory: [...history, currentSnap]
+            };
+
+            templates[idx] = restoredTpl;
+            db.setItem('templates', templates);
+
+            // Audit
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            await localProvider.audit.log('VERSION_RESTORED', currentUser, `استعادة وإرجاع نسخة القالب للإصدار التاريخي v${targetVersion}`, id);
+
+            return restoredTpl;
         }
     },
 
-    // ⚙️ SETTINGS OPERATIONS
+    // 🏛️ CENTRALIZED GOVERNMENT ASSETS REGISTRY
+    assets: {
+        async getAll() {
+            return db.getItem('government_assets') || [];
+        },
+        async getById(id) {
+            const assets = db.getItem('government_assets') || [];
+            return assets.find(a => a.id === id) || null;
+        },
+        async create(asset) {
+            const assets = db.getItem('government_assets') || [];
+            const newAsset = {
+                ...asset,
+                id: `asset-${Date.now()}`,
+                version: 1,
+                createdAt: new Date().toISOString()
+            };
+            assets.unshift(newAsset);
+            db.setItem('government_assets', assets);
+
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            await localProvider.audit.log('ASSET_UPLOAD', currentUser, `رفع أصل حكومي جديد باسم: ${newAsset.name} ضمن فئة: ${newAsset.category}`, newAsset.id);
+
+            return newAsset;
+        },
+        async update(id, changes) {
+            const assets = db.getItem('government_assets') || [];
+            const idx = assets.findIndex(a => a.id === id);
+            if (idx === -1) throw new Error('الأصل الحكومي غير موجود');
+
+            const existing = assets[idx];
+            const updatedAsset = {
+                ...existing,
+                ...changes,
+                version: (existing.version || 1) + 1,
+                updatedAt: new Date().toISOString()
+            };
+            assets[idx] = updatedAsset;
+            db.setItem('government_assets', assets);
+
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            await localProvider.audit.log('ASSET_REPLACE', currentUser, `استبدال وترقية نسخة الأصل الحكومي: ${existing.name} للإصدار v${updatedAsset.version}`, id);
+
+            return updatedAsset;
+        },
+        async delete(id) {
+            const assets = db.getItem('government_assets') || [];
+            const filtered = assets.filter(a => a.id !== id);
+            db.setItem('government_assets', filtered);
+            return true;
+        }
+    },
+
+    // ⚙️ SYSTEM SETTINGS
     settings: {
         async get() {
-            // Guarantee retrieval from localStorage
             return JSON.parse(localStorage.getItem(db.prefix + 'settings')) || DEFAULT_SETTINGS;
         },
-
         async update(newSettings) {
-            // Apply updates dynamically
             const current = await this.get();
             const merged = { ...current, ...newSettings };
             db.setItem('settings', merged);
@@ -445,19 +451,18 @@ export const localProvider = {
         }
     },
 
-    // 🔒 AUDIT LOG OPERATIONS
+    // 🛡️ SECURITY AUDIT LOGS
     audit: {
         async getAll() {
             return db.getItem('audit_logs');
         },
-
         async log(action, user, details = '', targetId = '') {
             const logs = db.getItem('audit_logs');
             const newLog = {
                 id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                 action,
                 userEmail: user?.email || 'SYSTEM',
-                userName: user?.name || 'النظام الذكي',
+                userName: user?.name || 'النظام المركزي للمحاضر والشهادات',
                 userRole: user?.role || 'SYSTEM',
                 timestamp: new Date().toISOString(),
                 details,
@@ -469,13 +474,12 @@ export const localProvider = {
         }
     },
 
-    // 🔔 NOTIFICATIONS OPERATIONS
+    // 🔔 REALTIME NOTIFICATIONS
     notifications: {
         async getByUserId(userId) {
             const notifs = db.getItem('notifications');
             return notifs.filter(n => n.userId === userId || n.userId === 'ALL');
         },
-
         async create(notification) {
             const notifs = db.getItem('notifications');
             const newNotif = {
@@ -488,14 +492,12 @@ export const localProvider = {
             db.setItem('notifications', notifs);
             return newNotif;
         },
-
         async markAsRead(id) {
             const notifs = db.getItem('notifications');
             const updated = notifs.map(n => n.id === id ? { ...n, isRead: true } : n);
             db.setItem('notifications', updated);
             return true;
         },
-
         async markAllAsRead(userId) {
             const notifs = db.getItem('notifications');
             const updated = notifs.map(n => (n.userId === userId || n.userId === 'ALL') ? { ...n, isRead: true } : n);

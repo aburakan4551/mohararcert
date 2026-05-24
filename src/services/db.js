@@ -65,7 +65,17 @@ export const templateService = {
     getById: (id) => provider.templates.getById(id),
     create: (template) => provider.templates.create(template),
     update: (id, template) => provider.templates.update(id, template),
-    delete: (id) => provider.templates.delete(id)
+    delete: (id) => provider.templates.delete(id),
+    rollback: (id, targetVersion) => provider.templates.rollback(id, targetVersion)
+};
+
+// 🏛️ Centralized Organization Assets Service
+export const assetService = {
+    getAll: () => provider.assets.getAll(),
+    getById: (id) => provider.assets.getById(id),
+    create: (asset) => provider.assets.create(asset),
+    update: (id, changes) => provider.assets.update(id, changes),
+    delete: (id) => provider.assets.delete(id)
 };
 
 // ⚙️ Organization Settings Service

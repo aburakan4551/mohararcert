@@ -26,6 +26,8 @@ const PAGE_TITLES = {
     '/permissions':     { title: 'صلاحيات الأدوار',         subtitle: 'تحديد صلاحيات كل دور إداري' },
     '/audit':           { title: 'سجل التدقيق',             subtitle: 'تتبع كافة العمليات والإجراءات' },
     '/registry':        { title: 'سجل النظام الموحد',       subtitle: 'السجل الرسمي الشامل للمعاملات' },
+    '/assets':          { title: 'حوكمة الأصول الرسمية',    subtitle: 'إدارة وتأمين الأختام والتواقيع والشعارات الرسمية' },
+    '/diagnostics':     { title: 'التشخيص ومراقبة الأداء',  subtitle: 'فحص جهد الأنظمة وسعة الذاكرة ومعدل الإطارات' },
 };
 
 export default function DashboardLayout({

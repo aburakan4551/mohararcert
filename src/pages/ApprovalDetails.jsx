@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { dbService, templateService, auditService, notificationService } from '../services/db';
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
+import { ExportEngine } from '../engine/StudioEngine/ExportEngine';
 import {
     ArrowRight, CheckCircle, AlertTriangle, FileText, Clock,
     MessageSquare, ShieldAlert, Sparkles, Printer, Download,
@@ -72,7 +73,9 @@ export default function ApprovalDetails() {
             const data = await dbService.getById(id);
             if (!data) { alert('المعاملة غير موجودة'); navigate('/dashboard'); return; }
             setCert(data);
-            if (data.templateId) {
+            if (data.frozenTemplate) {
+                setTemplate(data.frozenTemplate);
+            } else if (data.templateId) {
                 const tpl = await templateService.getById(data.templateId);
                 setTemplate(tpl);
             }
@@ -148,11 +151,46 @@ export default function ApprovalDetails() {
         }
     };
 
+    const getApprovedSettings = () => {
+        if (!cert) return settings;
+        return {
+            ...settings,
+            directorName: cert.managerSnapshot?.directorName || settings?.directorName,
+            directorTitle: cert.managerSnapshot?.directorTitle || settings?.directorTitle,
+            directorSignature: cert.managerSnapshot?.directorSignature || settings?.directorSignature,
+            visaName: cert.assistantSnapshot?.visaName || settings?.visaName,
+            visaLabel: cert.assistantSnapshot?.visaLabel || settings?.visaLabel,
+            visaSignature: cert.assistantSnapshot?.visaSignature || settings?.visaSignature,
+            stamp: cert.managerSnapshot?.stamp || settings?.stamp,
+            stampSize: cert.managerSnapshot?.stampSize || settings?.stampSize,
+            stampRotation: cert.managerSnapshot?.stampRotation || settings?.stampRotation
+        };
+    };
+
     const handleExport = async () => {
         setExporting(true);
         try {
-            await auditService.log('EXPORT_PDF', user, `تصدير PDF: ${cert.serial}`, cert.id);
-            await exportSinglePDF(certRef.current, `شهادة-${cert.recipientName}.pdf`);
+            await auditService.log('EXPORT_PDF', user, `تصدير PDF عبر محرك التصدير الافتراضي: ${cert.serial}`, cert.id);
+            
+            const previewName = cert.prefix ? `${cert.prefix}/ ${cert.recipientName}` : cert.recipientName;
+            const dataContext = {
+                recipient_name: previewName,
+                certificate_title: 'شهادة شكر وتقدير',
+                reason: cert.reasonText || cert.reason || '',
+                date: cert.date || '',
+                serial_number: cert.serial,
+                qr_code: cert.showQR ? `CERT:${cert.serial}|${previewName}` : ''
+            };
+
+            await ExportEngine.exportHeadless(
+                template,
+                dataContext,
+                getApprovedSettings(),
+                {
+                    filename: `شهادة-${cert.recipientName}.pdf`,
+                    format: 'pdf'
+                }
+            );
         } catch (e) {
             alert('فشل تصدير PDF: ' + e.message);
         } finally {
@@ -315,7 +353,7 @@ export default function ApprovalDetails() {
                                     layers={editorLayers}
                                     canvasWidth={canvasWidth}
                                     data={certData}
-                                    settings={settings}
+                                    settings={getApprovedSettings()}
                                     showQR={cert.showQR}
                                 />
                             </div>

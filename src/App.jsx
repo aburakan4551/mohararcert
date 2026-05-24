@@ -16,6 +16,9 @@ const SystemSettings = lazy(() => import('./pages/SystemSettings'))
 const UsersManagement = lazy(() => import('./pages/UsersManagement'))
 const RolePermissions = lazy(() => import('./pages/RolePermissions'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
+const AssetGovernance = lazy(() => import('./pages/AssetGovernance'))
+const Diagnostics = lazy(() => import('./pages/Diagnostics'))
+
 
 // New Studio Pages
 const TemplateStudio = lazy(() => import('./ui/studio/TemplateStudio/TemplateStudio'))
@@ -45,10 +48,12 @@ const getNavItems = (role) => {
                 { to: '/pending', icon: 'Hourglass', label: 'الطلبات المعلقة' },
                 { to: '/archive', icon: 'Archive', label: 'الأرشيف العام' },
                 { to: '/registry', icon: 'BookOpen', label: 'سجل النظام الموحد' },
+                { to: '/assets', icon: 'ShieldCheck', label: 'حوكمة الأصول الرسمية' },
                 { to: '/system-settings', icon: 'Settings', label: 'إعدادات الهوية' },
                 { to: '/users', icon: 'Users', label: 'إدارة الحسابات' },
                 { to: '/permissions', icon: 'ShieldAlert', label: 'صلاحيات الأدوار' },
                 { to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' },
+                { to: '/diagnostics', icon: 'Activity', label: 'التشخيص ومراقبة الأداء' },
                 { to: '/studio', icon: 'Settings2', label: 'مصمم القوالب' }
             ];
         default:
@@ -184,6 +189,22 @@ function LayoutWrapper() {
                         element={
                             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                                 <Registry />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/assets" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                                <AssetGovernance />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/diagnostics" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                                <Diagnostics />
                             </ProtectedRoute>
                         } 
                     />
