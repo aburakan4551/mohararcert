@@ -2039,7 +2039,7 @@ export default function TemplateMapper() {
                             <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 900, color: '#0ea5e9', display: 'block', marginBottom: '10px' }}>مقارنة الحقول النصية ومواقعها (Textual Diff View):</span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {compareTarget.fields.map(oldF => {
+                                    {(compareTarget.fields || []).map(oldF => {
                                         const curF = fields.find(x => x.fieldId === oldF.fieldId);
                                         const oldMeta = getFieldMeta(oldF.fieldId);
                                         

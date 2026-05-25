@@ -108,7 +108,7 @@ export default function TemplateStudio() {
                         <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <h4 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>{tpl.name}</h4>
-                                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>{tpl.fields.length} حقول معرفة (Mapped Fields)</span>
+                                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>{(tpl.fields || []).length} حقول معرفة (Mapped Fields)</span>
                             </div>
 
                             <div style={{ display: 'flex', gap: '8px' }}>

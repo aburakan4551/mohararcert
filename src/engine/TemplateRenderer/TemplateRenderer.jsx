@@ -98,7 +98,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                     left: `${field.x}%`,
                     transform: `translate(-50%, -50%) rotate(${field.rotation || 0}deg)`,
                     opacity: field.opacity || 1,
-                    zIndex: 10 + (template.fields.length - 1 - idx),
+                    zIndex: 10 + ((template.fields || []).length - 1 - idx),
                 };
 
                 // Render Text or Textarea
