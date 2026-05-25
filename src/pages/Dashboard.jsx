@@ -35,9 +35,50 @@ const getStatusBadge = (status) => {
     return <Badge variant={s.variant} dot>{s.label}</Badge>;
 };
 
+// 📏 Custom ResizeObserver Telemetry hook with deferred render & cleanup to prevent loops
+function useChartDimensions() {
+    const ref = React.useRef(null);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    const animationFrameId = React.useRef(null);
+
+    useEffect(() => {
+        const element = ref.current;
+        if (!element) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            if (!entries || entries.length === 0) return;
+            const entry = entries[0];
+            const { width, height } = entry.contentRect;
+            
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+
+            animationFrameId.current = requestAnimationFrame(() => {
+                if (width > 0 && height > 0) {
+                    setDimensions({ width: Math.floor(width), height: Math.floor(height) });
+                } else {
+                    setDimensions({ width: 0, height: 0 });
+                }
+            });
+        });
+
+        resizeObserver.observe(element);
+        return () => {
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    return [ref, dimensions.width, dimensions.height];
+}
+
 export default function Dashboard() {
     const { user, canPerform } = useAuth();
     const navigate = useNavigate();
+    const [chartRef, chartWidth, chartHeight] = useChartDimensions();
     const [certs,        setCerts]        = useState([]);
     const [search,       setSearch]       = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
@@ -312,10 +353,10 @@ export default function Dashboard() {
             </div>
 
             {/* ── Analytics + Quick Access ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', minWidth: 0, minHeight: 0 }}>
 
                 {/* Chart */}
-                <Card>
+                <Card style={{ minWidth: 0, minHeight: '300px', contain: 'layout style paint' }}>
                     <CardHeader>
                         <div>
                             <h3 style={{
@@ -347,9 +388,9 @@ export default function Dashboard() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div style={{ width: '100%', height: 200 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
+                        <div ref={chartRef} style={{ width: '100%', height: '220px', minWidth: 0, minHeight: 0, position: 'relative', contain: 'layout paint' }}>
+                            {chartWidth > 0 && chartHeight > 0 ? (
+                                <AreaChart width={chartWidth} height={chartHeight} data={chartData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="issued" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%"  stopColor="#0FA958" stopOpacity={0.15} />
@@ -385,7 +426,11 @@ export default function Dashboard() {
                                     <Area type="monotone" dataKey="issued"   name="صادرة"  stroke="#0FA958" strokeWidth={2} fillOpacity={1} fill="url(#issued)"   dot={false} />
                                     <Area type="monotone" dataKey="approved" name="معتمدة" stroke="#1E88E5" strokeWidth={2} fillOpacity={1} fill="url(#approved)" dot={false} />
                                 </AreaChart>
-                            </ResponsiveContainer>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
+                                    جاري تهيئة مساحة الرسم...
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

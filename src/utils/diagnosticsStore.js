@@ -19,7 +19,8 @@ class DiagnosticsStore {
                 totalRetries: 0
             },
             queueRetries: [],
-            snapshotTimings: []
+            snapshotTimings: [],
+            initializationErrors: [] // Track structured template/system initialization phase errors
         };
         this.subscribers = new Set();
     }
@@ -139,6 +140,22 @@ class DiagnosticsStore {
             this.metrics.snapshotTimings.unshift(entry);
             if (this.metrics.snapshotTimings.length > MAX_ENTRIES) {
                 this.metrics.snapshotTimings.pop();
+            }
+            this.notify();
+        });
+    }
+
+    logInitializationError(phase, error, context = '') {
+        this.runAsync(() => {
+            const entry = {
+                phase,
+                error: error?.message || String(error),
+                context,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            this.metrics.initializationErrors.unshift(entry);
+            if (this.metrics.initializationErrors.length > MAX_ENTRIES) {
+                this.metrics.initializationErrors.pop();
             }
             this.notify();
         });

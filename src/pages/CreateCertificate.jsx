@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSerial } from '../hooks/useSerial';
-import { dbService, auditService, notificationService } from '../services/db';
+import { dbService, auditService, notificationService, templateService } from '../services/db';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Save, Send, LayoutTemplate, QrCode, FileSpreadsheet, UserPlus, Database, ChevronLeft, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
 import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
@@ -87,15 +87,21 @@ export default function CreateCertificate() {
     const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
     const [bulkProgress, setBulkProgress] = useState(0);
 
-    // Load templates
+    // Load templates from unified database provider
     useEffect(() => {
-        const stored = localStorage.getItem('official_templates');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            const officials = parsed.filter(t => t.status === 'OFFICIAL');
-            setTemplates(officials);
-            if (officials.length > 0 && !editId) setSelectedTemplateId(officials[0].id);
-        }
+        const fetchTemplates = async () => {
+            try {
+                const data = await templateService.getAll();
+                const officials = (data || []).filter(t => t.status === 'OFFICIAL');
+                setTemplates(officials);
+                if (officials.length > 0 && !editId) {
+                    setSelectedTemplateId(officials[0].id);
+                }
+            } catch (e) {
+                console.error("Failed to load official templates:", e);
+            }
+        };
+        fetchTemplates();
     }, [editId]);
 
     // Load edit data if single

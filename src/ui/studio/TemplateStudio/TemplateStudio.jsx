@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Image as ImageIcon, Settings2, Trash2, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { dbService } from '../../../services/db';
+import { dbService, templateService } from '../../../services/db';
 import { Card, CardHeader, CardContent } from '../../cards/Card';
 import { Button } from '../../components/Button';
 import PageHeader from '../../layouts/PageHeader';
@@ -26,60 +26,47 @@ export default function TemplateStudio() {
         loadTemplates();
     }, [user, navigate]);
 
-    const loadTemplates = () => {
+    const loadTemplates = async () => {
+        setLoading(true);
         try {
-            // Mock fetching templates from localStorage for the new structure
-            const stored = localStorage.getItem('official_templates');
-            if (stored) {
-                setTemplates(JSON.parse(stored));
-            } else {
-                // Seed default
-                const defaultTpl = [{
-                    id: 'tpl_default_1',
-                    name: 'قالب شكر وتقدير القياسي',
-                    backgroundUrl: '/certificate-bg.png', // Assuming public folder asset
-                    status: 'OFFICIAL',
-                    fields: [
-                        { fieldId: 'recipient_name', x: 50, y: 45, fontSize: 42, color: '#000000', fontFamily: 'Cairo', align: 'center' },
-                        { fieldId: 'certificate_title', x: 50, y: 25, fontSize: 34, color: '#0d1f3c', fontFamily: 'Cairo', align: 'center', fontWeight: '900' },
-                        { fieldId: 'reason', x: 50, y: 55, fontSize: 24, color: '#333333', fontFamily: 'Amiri', align: 'center' },
-                        { fieldId: 'date', x: 25, y: 75, fontSize: 16, color: '#666666', fontFamily: 'Cairo', align: 'center' }
-                    ]
-                }];
-                localStorage.setItem('official_templates', JSON.stringify(defaultTpl));
-                setTemplates(defaultTpl);
-            }
+            const data = await templateService.getAll();
+            setTemplates(data || []);
         } catch (e) {
-            console.error(e);
+            console.error("Failed to load templates from dbService:", e);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (!window.confirm('هل أنت متأكد من حذف هذا القالب؟ سيؤثر على استخراج الشهادات القادمة.')) return;
-        const updated = templates.filter(t => t.id !== id);
-        localStorage.setItem('official_templates', JSON.stringify(updated));
-        setTemplates(updated);
+        try {
+            await templateService.delete(id);
+            await loadTemplates();
+        } catch (e) {
+            alert("فشل حذف القالب: " + e.message);
+        }
     };
 
-    const handleCreateNew = () => {
+    const handleCreateNew = async () => {
         const name = prompt("أدخل اسم القالب الجديد:");
         if (!name) return;
         
-        const newTpl = {
-            id: `tpl_${Date.now()}`,
-            name: name,
-            backgroundUrl: '',
-            status: 'DRAFT',
-            fields: []
-        };
-        const updated = [...templates, newTpl];
-        localStorage.setItem('official_templates', JSON.stringify(updated));
-        setTemplates(updated);
-        
-        // Navigate to mapper
-        navigate(`/studio/mapper/${newTpl.id}`);
+        try {
+            const newTpl = {
+                name: name,
+                backgroundUrl: '',
+                status: 'DRAFT',
+                fields: []
+            };
+            const created = await templateService.create(newTpl);
+            if (created) {
+                // Navigate directly to the studio mapper
+                navigate(`/studio/mapper/${created.id}`);
+            }
+        } catch (e) {
+            alert("فشل إنشاء القالب: " + e.message);
+        }
     };
 
     return (

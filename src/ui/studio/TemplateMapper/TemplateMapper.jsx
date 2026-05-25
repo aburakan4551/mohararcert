@@ -194,6 +194,10 @@ export default function TemplateMapper() {
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+    // Robust Telemetry & Hydration lifecycle states
+    const [initStatus, setInitStatus] = useState('loading'); // 'loading' | 'failed' | 'recovered' | 'fallback-loaded' | 'ready'
+    const [initErrorMsg, setInitErrorMsg] = useState('');
+
     // Layer Renaming
     const [renamingFieldUid, setRenamingFieldUid] = useState(null);
     const [renameValue, setRenameValue] = useState('');
@@ -244,10 +248,148 @@ export default function TemplateMapper() {
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, fieldUid: null });
 
     useEffect(() => {
-        loadTemplate();
-        loadCustomPresets();
-        loadAssets();
-    }, [id]);
+        let active = true;
+        const currentId = id;
+        
+        console.log(`[TRACING 🚀] route enter with id: ${currentId}`);
+        setInitStatus('loading');
+        setInitErrorMsg('');
+        
+        const initPipeline = async () => {
+            console.log(`[TRACING ⚙️] starting initialization pipeline for template ID: ${currentId}`);
+            
+            let templateLoaded = false;
+            let presetsLoaded = false;
+            let assetsLoaded = false;
+            
+            // 1. Critical Phase: Load Template Design & Hydrate Fields
+            try {
+                if (!currentId) {
+                    throw new Error("معرف القالب غير محدد بالرابط (Missing Route Param 'id')");
+                }
+                
+                console.log(`[TRACING ⏳] phase 1: loading template [ID: ${currentId}]`);
+                const found = await templateService.getById(currentId);
+                
+                if (!active) {
+                    console.log(`[TRACING 🛑] template resolved but aborted because route or page index changed.`);
+                    return;
+                }
+                
+                if (found) {
+                    console.log(`[TRACING 🧬] template resolved successfully: "${found.name}" [version: v${found.version || 1}]`);
+                    setTemplate(found);
+                    
+                    console.log("[TRACING 💧] hydration started: mapping fields structure");
+                    const loadedPages = found.pages || [{ pageNum: 1, fields: found.fields || [], backgroundUrl: found.backgroundUrl }];
+                    const activePageFields = loadedPages[currentPageIndex]?.fields || [];
+                    console.log(`[TRACING 📜] template pages count: ${loadedPages.length}, current page index: ${currentPageIndex}`);
+                    
+                    const mappedFields = (activePageFields || []).filter(Boolean).map(f => ({
+                        ...f,
+                        _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
+                        hidden: f.hidden || false,
+                        locked: f.locked || false,
+                        lineHeight: f.lineHeight || 1.6,
+                        letterSpacing: f.letterSpacing || 0,
+                        aspectRatioLocked: f.aspectRatioLocked || false
+                    }));
+                    
+                    setFields(mappedFields);
+                    historyEngine.initialize(mappedFields);
+                    setHasUnsavedChanges(false);
+                    setSaveStatus('saved');
+                    templateLoaded = true;
+                    console.log(`[TRACING 🛡️] hydration complete: mapped ${mappedFields.length} fields successfully.`);
+                } else {
+                    console.warn(`[TRACING ⚠️] template resolved to null (not found in database registry) for ID: ${currentId}`);
+                    diagnosticsStore.logInitializationError("TEMPLATE_NOT_FOUND", `القالب رقم ${currentId} غير موجود بقاعدة البيانات`, `ID: ${currentId}`);
+                    setInitErrorMsg(`لم يتم العثور على القالب المطلوبة برقم: ${currentId} في قاعدة البيانات.`);
+                    setInitStatus('failed');
+                    return;
+                }
+            } catch (err) {
+                console.error(`[TRACING 🚨] critical error in loadTemplate stage for ID: ${currentId}`, err);
+                diagnosticsStore.logInitializationError("LOAD_TEMPLATE_FAILED", err, `ID: ${currentId}, PageIndex: ${currentPageIndex}`);
+                setInitErrorMsg(`فشل تحميل القالب (Load Template Stage): ${err.message || err}`);
+                setInitStatus('failed');
+                return;
+            }
+            
+            // 2. Non-Critical Phase: Load Custom Presets
+            try {
+                console.log(`[TRACING ⏳] phase 2: loading custom presets`);
+                const custom = await presetStorage.getPresets();
+                if (active) {
+                    setCustomPresets(custom || []);
+                    presetsLoaded = true;
+                    console.log(`[TRACING 📦] custom presets loaded count: ${custom?.length || 0}`);
+                }
+            } catch (err) {
+                console.error(`[TRACING ⚠️] non-critical failure: custom presets failed to load.`, err);
+                diagnosticsStore.logInitializationError("LOAD_PRESETS_FAILED", err, `ID: ${currentId}`);
+                // Proceed since it is non-critical
+            }
+            
+            // 3. Non-Critical Phase: Load Shared Assets
+            try {
+                console.log(`[TRACING ⏳] phase 3: loading shared department assets`);
+                const data = await assetService.getAll();
+                if (active) {
+                    const assetsList = data || [];
+                    if (user?.role === 'CREATOR') {
+                        setAssets(assetsList.filter(a => a.approved !== false));
+                    } else {
+                        setAssets(assetsList);
+                    }
+                    assetsLoaded = true;
+                    console.log(`[TRACING 🖼️] shared assets loaded count: ${assetsList.length}`);
+                }
+            } catch (err) {
+                console.error(`[TRACING ⚠️] non-critical failure: assets library failed to load.`, err);
+                diagnosticsStore.logInitializationError("LOAD_ASSETS_FAILED", err, `ID: ${currentId}`);
+                // Proceed since it is non-critical
+            }
+            
+            // 4. Resolve final pipeline status cleanly and prevent silent freezes
+            if (active) {
+                if (templateLoaded) {
+                    if (presetsLoaded && assetsLoaded) {
+                        setInitStatus('ready');
+                        console.log("[TRACING ✨] template studio initialized successfully in pristine state [status: ready]");
+                    } else if (presetsLoaded || assetsLoaded) {
+                        setInitStatus('recovered');
+                        console.log("[TRACING ⚠️] template studio initialized with recovered state (minor non-critical errors caught) [status: recovered]");
+                    } else {
+                        setInitStatus('fallback-loaded');
+                        console.log("[TRACING ⚠️] template studio initialized with fallback state (critical assets missing but template structure loaded) [status: fallback-loaded]");
+                    }
+                } else {
+                    setInitStatus('failed');
+                    console.log("[TRACING 🚨] template studio failed to initialize critical components [status: failed]");
+                }
+            }
+        };
+        
+        initPipeline();
+        
+        return () => {
+            console.log(`[TRACING 🛑] cleanup for route ID: ${currentId}`);
+            active = false;
+        };
+    }, [id, currentPageIndex]);
+
+    useEffect(() => {
+        if (canvasRef.current) {
+            console.log("[TRACING 🎨] canvas mounted");
+        }
+    }, [template]);
+
+    useEffect(() => {
+        if (template) {
+            console.log("[TRACING ⚡] render complete");
+        }
+    }, [fields, zoom]);
 
     // Background tasks queue subscription
     useEffect(() => {
@@ -258,16 +400,16 @@ export default function TemplateMapper() {
     }, []);
 
     const loadTemplate = async () => {
+        console.log("[TRACING ⏳] manual template fetch triggered for id:", id);
         try {
             const found = await templateService.getById(id);
             if (found) {
+                console.log(`[TRACING 🧬] template resolved: ${found.name}`);
                 setTemplate(found);
                 
-                // Load page structure, support legacy fallback
                 const loadedPages = found.pages || [{ pageNum: 1, fields: found.fields || [], backgroundUrl: found.backgroundUrl }];
                 const activePageFields = loadedPages[currentPageIndex]?.fields || [];
-
-                const mappedFields = activePageFields.map(f => ({
+                const mappedFields = (activePageFields || []).filter(Boolean).map(f => ({
                     ...f,
                     _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
                     hidden: f.hidden || false,
@@ -281,26 +423,36 @@ export default function TemplateMapper() {
                 historyEngine.initialize(mappedFields);
                 setHasUnsavedChanges(false);
                 setSaveStatus('saved');
-            } else {
-                navigate('/studio');
             }
         } catch (e) {
-            console.error("فشل تحميل قالب التصميم: ", e);
+            console.error("[TRACING 🚨] manual template load failed: ", e);
+            diagnosticsStore.logInitializationError("MANUAL_LOAD_TEMPLATE_FAILED", e, `ID: ${id}`);
+            throw e;
         }
     };
 
     const loadCustomPresets = async () => {
-        const custom = await presetStorage.getPresets();
-        setCustomPresets(custom);
+        try {
+            const custom = await presetStorage.getPresets();
+            setCustomPresets(custom || []);
+        } catch (e) {
+            console.error("[TRACING ⚠️] failed to load custom presets:", e);
+            diagnosticsStore.logInitializationError("MANUAL_LOAD_PRESETS_FAILED", e, `ID: ${id}`);
+        }
     };
 
     const loadAssets = async () => {
-        const data = await assetService.getAll();
-        // Role-based visibility filtration: Creaters only see approved ones, admins see all
-        if (user?.role === 'CREATOR') {
-            setAssets(data.filter(a => a.approved !== false));
-        } else {
-            setAssets(data);
+        try {
+            const data = await assetService.getAll();
+            const assetsList = data || [];
+            if (user?.role === 'CREATOR') {
+                setAssets(assetsList.filter(a => a.approved !== false));
+            } else {
+                setAssets(assetsList);
+            }
+        } catch (e) {
+            console.error("[TRACING ⚠️] failed to load assets:", e);
+            diagnosticsStore.logInitializationError("MANUAL_LOAD_ASSETS_FAILED", e, `ID: ${id}`);
         }
     };
 
@@ -1065,6 +1217,57 @@ export default function TemplateMapper() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [hasUnsavedChanges]);
 
+    if (initStatus === 'loading') {
+        return (
+            <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'Cairo' }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', border: '4px solid rgba(255,255,255,0.08)', borderTopColor: '#10b981', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: '13px', fontWeight: 800, color: '#a1a1aa' }}>تحميل استوديو القوالب وتفاصيل الهوية الرسمية...</p>
+                <style>{`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
+    if (initStatus === 'failed') {
+        return (
+            <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cairo', padding: '24px', direction: 'rtl' }}>
+                <div style={{ background: '#141416', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ef4444' }}>
+                        <ShieldAlert size={28} />
+                        <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0 }}>فشل تهيئة استوديو التصميم</h2>
+                    </div>
+                    
+                    <p style={{ fontSize: '13px', color: '#e4e4e7', lineHeight: 1.6, margin: 0 }}>
+                        {initErrorMsg || 'حدث خطأ غير متوقع أثناء تحميل القالب أو أصول الهوية.'}
+                    </p>
+
+                    <div style={{ background: '#0c0c0e', padding: '12px', borderRadius: '8px', border: '1px solid #222225', fontSize: '11px', color: '#a1a1aa' }}>
+                        <span style={{ fontWeight: 800, display: 'block', marginBottom: '4px', color: '#ef4444' }}>معلومات التتبع الفني للمشرف:</span>
+                        <code style={{ wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                            Template ID: {id || 'None'}<br />
+                            Active Provider: local_offline_db
+                        </code>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                        <button style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => { setInitStatus('loading'); setInitErrorMsg(''); loadTemplate(); loadCustomPresets(); loadAssets(); }}>
+                            إعادة المحاولة
+                        </button>
+                        <button style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }} onClick={handleBack}>
+                            العودة للرئيسية
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!template) return <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
+
     // Touch dragging & gesture scroll conflict preventions on mobile/tablets
     useEffect(() => {
         const preventCanvasScroll = (e) => {
@@ -1098,6 +1301,45 @@ export default function TemplateMapper() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
+            {(initStatus === 'recovered' || initStatus === 'fallback-loaded') && (
+                <div style={{
+                    background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                    borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
+                    padding: '8px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    zIndex: 101,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#f59e0b',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AlertTriangle size={14} />
+                        <span>
+                            {initStatus === 'recovered' 
+                                ? '⚠️ وضع الاسترداد النشط: تم تجاوز بعض أخطاء تحميل الأصول الفرعية بنجاح لحفظ استقرار منصة التصميم.' 
+                                : '⚠️ وضع التشغيل الاحتياطي: فشل الاتصال بخوادم المكونات الإضافية وتثبيت المسودات بالكامل. تم تحميل القالب الرئيسي فقط لتفادي التعطل.'}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={() => setInitStatus('ready')} 
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(245, 158, 11, 0.2)',
+                            color: '#fff',
+                            padding: '3px 10px',
+                            borderRadius: '4px',
+                            fontSize: '9px',
+                            cursor: 'pointer',
+                            fontWeight: 800,
+                        }}
+                    >
+                        تجاهل التنبيه
+                    </button>
+                </div>
+            )}
             
             {/* ─── 🏛️ TOP ACTION BAR ─── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', background: '#141416', padding: '10px 24px', borderBottom: '1px solid #222225', zIndex: 100 }}>

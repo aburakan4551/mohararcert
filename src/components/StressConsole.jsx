@@ -58,7 +58,8 @@ export default function StressConsole() {
             totalRetries: 0
         },
         queueRetries: [],
-        snapshotTimings: []
+        snapshotTimings: [],
+        initializationErrors: [] // track hydration / startup failures
     });
 
     // Active Dashboard Tab
@@ -785,6 +786,48 @@ export default function StressConsole() {
                                                                 ))
                                                             )}
                                                         </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Initialization & Hydration Telemetry Errors Table */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225', marginTop: '16px' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <ShieldAlert size={16} style={{ color: '#f59e0b' }} />
+                                    سجل أخطاء تهيئة النظام والقوالب (Initialization & Hydration Errors)
+                                </span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>درجة الخطورة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>الوقت</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>المرحلة (Phase)</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>تفاصيل الخطأ التشغيلي</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>سياق التتبع (Context)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {!telemetry.initializationErrors || telemetry.initializationErrors.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لا توجد أخطاء تهيئة أو Hydration مسجلة. الكفاءة 100%!</td>
+                                                </tr>
+                                            ) : (
+                                                telemetry.initializationErrors.map((err, idx) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px' }}><Badge variant="warning" dot>⚠️ خطأ تهيئة (Warning)</Badge></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>{err.timestamp}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}><code>{err.phase}</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#fca5a5' }}>{err.error}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#a1a1aa' }}>{err.context || '—'}</td>
                                                     </tr>
                                                 ))
                                             )}
