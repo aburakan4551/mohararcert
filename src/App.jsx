@@ -1,28 +1,149 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense, lazy, Component, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { TemplateProvider } from './context/TemplateContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import DashboardLayout from './layouts/DashboardLayout'
 import Login from './pages/Login'
+import { diagnosticsStore } from './utils/diagnosticsStore'
 
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const CreateCertificate = lazy(() => import('./pages/CreateCertificate'))
-const MyCertificates = lazy(() => import('./pages/MyCertificates'))
-const PendingApprovals = lazy(() => import('./pages/PendingApprovals'))
-const ApprovalDetails = lazy(() => import('./pages/ApprovalDetails'))
-const Archive = lazy(() => import('./pages/Archive'))
-const Registry = lazy(() => import('./pages/Registry'))
-const SystemSettings = lazy(() => import('./pages/SystemSettings'))
-const UsersManagement = lazy(() => import('./pages/UsersManagement'))
-const RolePermissions = lazy(() => import('./pages/RolePermissions'))
-const AuditLogs = lazy(() => import('./pages/AuditLogs'))
-const AssetGovernance = lazy(() => import('./pages/AssetGovernance'))
-const Diagnostics = lazy(() => import('./pages/Diagnostics'))
+// 🛡️ Global Error Boundary to catch render failures and provide premium Arabic recovery console
+class GlobalErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("[CRITICAL 🚨] GlobalErrorBoundary caught a rendering crash:", error, errorInfo);
+        try {
+            diagnosticsStore.logInitializationError("SYSTEM_CRASH", error, errorInfo?.componentStack?.slice(0, 150));
+        } catch (e) {}
+    }
+
+    handleReset = () => {
+        try {
+            sessionStorage.clear();
+            localStorage.clear();
+        } catch (e) {}
+        window.location.href = "/";
+    };
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{
+                    minHeight: '100vh',
+                    background: '#0c0c0e',
+                    color: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'Cairo, sans-serif',
+                    padding: '24px',
+                    direction: 'rtl'
+                }}>
+                    <div style={{
+                        background: '#141416',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '16px',
+                        padding: '32px',
+                        maxWidth: '480px',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '20px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.6)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ef4444' }}>
+                            <span style={{ fontSize: '28px' }}>🚨</span>
+                            <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0 }}>عطل تشغيلي في منصة الاعتمادات</h2>
+                        </div>
+                        
+                        <p style={{ fontSize: '13px', color: '#e4e4e7', lineHeight: 1.6, margin: 0 }}>
+                            نعتذر، واجهت المنصة عطلاً تشغيلياً مفاجئاً أثناء رندرة مكونات الصفحة. تم عزل وتطويق الفشل بنجاح لحماية سلامة البيانات.
+                        </p>
+
+                        <div style={{ background: '#0c0c0e', padding: '12px', borderRadius: '8px', border: '1px solid #222225', fontSize: '11px', color: '#a1a1aa' }}>
+                            <span style={{ fontWeight: 800, display: 'block', marginBottom: '4px', color: '#ef4444' }}>معلومات الخطأ (Observability Log):</span>
+                            <code style={{ wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>
+                                {this.state.error?.message || String(this.state.error)}
+                            </code>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                            <button 
+                                style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                                onClick={() => window.location.reload()}
+                            >
+                                تحديث الصفحة
+                            </button>
+                            <button 
+                                style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
+                                onClick={this.handleReset}
+                            >
+                                تصفير الجلسة والعودة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
+// 🔄 Resilient dynamic importer wrapper to handle Vercel SPA chunk fetch/hash caching mismatches
+function safeLazy(importFn) {
+    return lazy(async () => {
+        try {
+            return await importFn();
+        } catch (error) {
+            console.error("[LAZY 🚨] failed to load dynamically imported module chunk:", error);
+            
+            const isChunkError = 
+                error.name === "TypeError" ||
+                /failed/i.test(error.message) ||
+                /import/i.test(error.message) ||
+                error.message?.includes("Failed to fetch dynamically imported module") ||
+                error.message?.includes("MIME type");
+                
+            if (isChunkError && typeof window !== 'undefined') {
+                const hasReloaded = sessionStorage.getItem('chunk_reload_retry');
+                if (!hasReloaded) {
+                    sessionStorage.setItem('chunk_reload_retry', 'true');
+                    console.log("[LAZY 🔄] Chunk loading failed. Performing hard reload to fetch fresh assets...");
+                    window.location.reload();
+                    return new Promise(() => {}); // Return unresolved promise to halt render while reloading
+                }
+            }
+            throw error;
+        }
+    });
+}
+
+const Dashboard = safeLazy(() => import('./pages/Dashboard'))
+const CreateCertificate = safeLazy(() => import('./pages/CreateCertificate'))
+const MyCertificates = safeLazy(() => import('./pages/MyCertificates'))
+const PendingApprovals = safeLazy(() => import('./pages/PendingApprovals'))
+const ApprovalDetails = safeLazy(() => import('./pages/ApprovalDetails'))
+const Archive = safeLazy(() => import('./pages/Archive'))
+const Registry = safeLazy(() => import('./pages/Registry'))
+const SystemSettings = safeLazy(() => import('./pages/SystemSettings'))
+const UsersManagement = safeLazy(() => import('./pages/UsersManagement'))
+const RolePermissions = safeLazy(() => import('./pages/RolePermissions'))
+const AuditLogs = safeLazy(() => import('./pages/AuditLogs'))
+const AssetGovernance = safeLazy(() => import('./pages/AssetGovernance'))
+const Diagnostics = safeLazy(() => import('./pages/Diagnostics'))
 
 
 // New Studio Pages
-const TemplateStudio = lazy(() => import('./ui/studio/TemplateStudio/TemplateStudio'))
-const TemplateMapper = lazy(() => import('./ui/studio/TemplateMapper/TemplateMapper'))
+const TemplateStudio = safeLazy(() => import('./ui/studio/TemplateStudio/TemplateStudio'))
+const TemplateMapper = safeLazy(() => import('./ui/studio/TemplateMapper/TemplateMapper'))
 
 const getNavItems = (role) => {
     switch (role) {
@@ -236,24 +357,32 @@ function LayoutWrapper() {
 }
 
 export default function App() {
+    useEffect(() => {
+        try {
+            sessionStorage.removeItem('chunk_reload_retry');
+        } catch (e) {}
+    }, []);
+
     return (
-        <BrowserRouter>
-            <AuthProvider>
-                <TemplateProvider>
-                    <Routes>
-                        <Route path="/login" element={<Login />} />
-                        <Route 
-                            path="/*" 
-                            element={
-                                <ProtectedRoute>
-                                    <LayoutWrapper />
-                                </ProtectedRoute>
-                            } 
-                        />
-                    </Routes>
-                </TemplateProvider>
-            </AuthProvider>
-        </BrowserRouter>
+        <GlobalErrorBoundary>
+            <BrowserRouter>
+                <AuthProvider>
+                    <TemplateProvider>
+                        <Routes>
+                            <Route path="/login" element={<Login />} />
+                            <Route 
+                                path="/*" 
+                                element={
+                                    <ProtectedRoute>
+                                        <LayoutWrapper />
+                                    </ProtectedRoute>
+                                } 
+                            />
+                        </Routes>
+                    </TemplateProvider>
+                </AuthProvider>
+            </BrowserRouter>
+        </GlobalErrorBoundary>
     )
 }
 
