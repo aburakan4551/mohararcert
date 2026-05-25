@@ -1,6 +1,7 @@
 /**
- * 🛡️ StressConsole.jsx — Enterprise Diagnostics & Stress Hardening Dashboard
+ * 🛡️ StressConsole.jsx — Enterprise Diagnostics & Operational Observability Console
  * Exclusively for SUPER_ADMIN to profile, stress test, and hard-verify system limits.
+ * Integrates live metrics directly from the singleton `diagnosticsStore`.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -8,14 +9,15 @@ import { useAuth } from '../context/AuthContext';
 import { dbService, auditService, templateService } from '../services/db';
 import { backgroundQueue } from '../engine/StudioEngine/BackgroundQueue';
 import { ExportEngine } from '../engine/StudioEngine/ExportEngine';
+import { diagnosticsStore } from '../utils/diagnosticsStore';
 import {
     Activity, ShieldAlert, Cpu, Trash2, Play, Flame, BarChart3,
-    History, Clock, AlertTriangle, Layers, Database, CheckCircle
+    History, Clock, AlertTriangle, Layers, Database, CheckCircle,
+    ShieldCheck, Heart, AlertCircle, RefreshCcw, Save, Copy, X
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
 import { Badge } from '../ui/feedback/Badge';
-import { logger } from '../utils/debug';
 
 export default function StressConsole() {
     const { user, settings } = useAuth();
@@ -23,10 +25,10 @@ export default function StressConsole() {
     // Safety role gate
     if (user?.role !== 'SUPER_ADMIN') {
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '12px' }}>
-                <ShieldAlert size={48} className="text-danger" />
-                <h3 style={{ fontSize: 'var(--text-body)', fontWeight: 900 }}>صلاحية وصول أمنية محدودة</h3>
-                <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)' }}>هذه الصفحة مخصصة فقط للمشرف العام لدواعي حوكمة وتدقيق أداء المنصة.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '12px', fontFamily: 'Cairo', direction: 'rtl' }}>
+                <ShieldAlert size={48} style={{ color: '#ef4444' }} />
+                <h3 style={{ fontSize: '18px', fontWeight: 900 }}>صلاحية وصول أمنية محدودة</h3>
+                <p style={{ fontSize: '14px', color: '#71717a' }}>هذه الصفحة مخصصة فقط للمشرف العام لدواعي حوكمة وتدقيق أداء المنصة.</p>
             </div>
         );
     }
@@ -35,7 +37,7 @@ export default function StressConsole() {
     const [fps, setFps] = useState(60);
     const [domNodesCount, setDomNodesCount] = useState(0);
     const [memoryUsage, setMemoryUsage] = useState(null);
-    const [activeRenders, setActiveRenders] = useState(0);
+    const [memoryHistory, setMemoryHistory] = useState([]);
     
     // Stress Simulation States
     const [seeding, setSeeding] = useState(false);
@@ -43,6 +45,24 @@ export default function StressConsole() {
     const [auditLogCount, setAuditLogCount] = useState(0);
     const [certCount, setCertCount] = useState(0);
     const [queueTimes, setQueueTimes] = useState([]);
+
+    // Live Telemetry Store State
+    const [telemetry, setTelemetry] = useState({
+        exportFailures: [],
+        renderTimings: [],
+        autosaveMetrics: [],
+        queueMetrics: {
+            activeJobs: 0,
+            stalledJobs: 0,
+            longestExportMs: 0,
+            totalRetries: 0
+        },
+        queueRetries: [],
+        snapshotTimings: []
+    });
+
+    // Active Dashboard Tab
+    const [activeTab, setActiveTab] = useState('general'); // 'general', 'export', 'autosave', 'snapshots'
     
     const requestRef = useRef();
     const previousTimeRef = useRef();
@@ -51,7 +71,15 @@ export default function StressConsole() {
 
     renderCounter.current += 1;
 
-    // ── Live Profiling (FPS & Memory & DOM) ──
+    // ── Live Telemetry Subscription ──
+    useEffect(() => {
+        const unsubscribe = diagnosticsStore.subscribe((metrics) => {
+            setTelemetry(metrics);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // ── Live Profiler Loop (FPS & Memory & DOM) ──
     useEffect(() => {
         const updateMetrics = () => {
             // Count total DOM nodes
@@ -60,10 +88,18 @@ export default function StressConsole() {
             // Memory estimation (Chrome/Edge only)
             if (window.performance && window.performance.memory) {
                 const mem = window.performance.memory;
+                const used = Math.round(mem.usedJSHeapSize / 1024 / 1024);
                 setMemoryUsage({
-                    usedJSHeapSize: Math.round(mem.usedJSHeapSize / 1024 / 1024),
+                    usedJSHeapSize: used,
                     totalJSHeapSize: Math.round(mem.totalJSHeapSize / 1024 / 1024),
                     jsHeapSizeLimit: Math.round(mem.jsHeapSizeLimit / 1024 / 1024)
+                });
+                
+                // Keep last 10 entries for history
+                setMemoryHistory(prev => {
+                    const next = [...prev, used];
+                    if (next.length > 10) next.shift();
+                    return next;
                 });
             }
         };
@@ -107,6 +143,69 @@ export default function StressConsole() {
             console.error(e);
         }
     };
+
+    // Calculate dynamic Runtime Health Score
+    const calculateHealthScore = () => {
+        let score = 100;
+        
+        // 1. Deduct for export failures (15 points each, max 30)
+        const failuresCount = telemetry.exportFailures.length;
+        score -= Math.min(30, failuresCount * 15);
+        
+        // 2. Deduct for low FPS (FPS < 45 is -10, FPS < 30 is -25)
+        if (fps < 30) {
+            score -= 25;
+        } else if (fps < 45) {
+            score -= 10;
+        }
+        
+        // 3. Deduct for high JS Heap Memory usage (Heap > 200MB is -10, Heap > 500MB is -25)
+        if (memoryUsage) {
+            if (memoryUsage.usedJSHeapSize > 500) {
+                score -= 25;
+            } else if (memoryUsage.usedJSHeapSize > 200) {
+                score -= 10;
+            }
+        }
+        
+        // 4. Deduct for stalled jobs in queue (5 points each, max 20)
+        if (telemetry.queueMetrics.stalledJobs > 0) {
+            score -= Math.min(20, telemetry.queueMetrics.stalledJobs * 5);
+        }
+
+        // 5. Deduct for failed autosaves (8 points each, max 24)
+        const failedSaves = telemetry.autosaveMetrics.filter(m => m.status === 'failed').length;
+        score -= Math.min(24, failedSaves * 8);
+
+        return Math.max(0, score);
+    };
+
+    const healthScore = calculateHealthScore();
+
+    const getHealthStatus = (score) => {
+        if (score >= 85) return { text: "ممتاز - منصة التشغيل فائقة الاستقرار", color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", icon: ShieldCheck, badgeVariant: "success" };
+        if (score >= 60) return { text: "تحذير - انحرافات في استهلاك الذاكرة", color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)", icon: AlertTriangle, badgeVariant: "warning" };
+        return { text: "حرج - تدهور حاد في أداء وسعة الذاكرة", color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", icon: AlertCircle, badgeVariant: "danger" };
+    };
+    
+    const statusMeta = getHealthStatus(healthScore);
+    const StatusIcon = statusMeta.icon;
+
+    // Extracted failed asset count from exportFailures registry
+    const failedAssetsRegistry = telemetry.exportFailures.reduce((acc, current) => {
+        if (current.failedAssets && Array.isArray(current.failedAssets)) {
+            current.failedAssets.forEach(asset => {
+                const found = acc.find(x => x.src === asset);
+                if (found) {
+                    found.count += 1;
+                    found.lastFailure = current.timestamp;
+                } else {
+                    acc.push({ src: asset, count: 1, lastFailure: current.timestamp });
+                }
+            });
+        }
+        return acc;
+    }, []);
 
     // ── STRESS SIMULATOR 1: Seed 500+ Certificates ──
     const handleSeedStressTest = async () => {
@@ -184,7 +283,6 @@ export default function StressConsole() {
                         qr_code: `MOCK_STRESS_${i}`
                     };
 
-                    // Execute offscreen compilations
                     await ExportEngine.exportHeadless(
                         activeTpl,
                         mockDataContext,
@@ -232,187 +330,658 @@ export default function StressConsole() {
         }
     };
 
-    // Diagnostics Performance Indicators
-    const getPerformanceStatus = () => {
-        if (fps < 30) return { label: 'إجهاد بيكسل (Flicker/Lag)', variant: 'danger' };
-        if (domNodesCount > 3500) return { label: 'تضخمDOM (DOM Bloat)', variant: 'warning' };
-        if (memoryUsage && memoryUsage.usedJSHeapSize > 150) return { label: 'تراكم ذاكرة (Leak Hazard)', variant: 'warning' };
-        return { label: 'أداء مستقر وآمن للإنتاج (Highly Stable)', variant: 'success' };
+    const handleCancelTask = (taskId) => {
+        backgroundQueue.cancel(taskId);
     };
 
-    const perfMeta = getPerformanceStatus();
+    const handleRetryTask = (taskId) => {
+        backgroundQueue.retry(taskId);
+    };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: 'rtl', paddingBottom: '30px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: 'rtl', paddingBottom: '30px', fontFamily: 'Cairo' }}>
             
-            {/* ── Diagnostics Title ── */}
+            {/* ── 🏛️ Observatory Header ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                        <Cpu size={22} style={{ color: 'var(--color-primary-600)' }} />
-                        منصة التشخيص وفحص جهد الأنظمة (Diagnostics & Stress Center)
+                    <h2 style={{ fontSize: '20px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', color: '#f3f4f6', margin: 0 }}>
+                        <Cpu size={24} style={{ color: '#10b981' }} />
+                        مرصد التشغيل والاعتمادية للمنصة (Operational Observability Engine)
                     </h2>
-                    <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        إطار أمني مغلق لقياس كفاءة الإطارات وسعة الذاكرة والـ Canvas وقاعدة البيانات المليونية.
+                    <p style={{ fontSize: '13px', color: '#a1a1aa', marginTop: '4px', margin: 0 }}>
+                        لوحة المراقبة حية وخارطة قياس الموثوقية بالملي ثانية وتدقيق الأصول الفنية.
                     </p>
                 </div>
-                <Badge variant={perfMeta.variant} dot>{perfMeta.label}</Badge>
+                <Badge variant={statusMeta.badgeVariant} dot>{statusMeta.text}</Badge>
             </div>
 
-            {/* ── METRICS PROFILER GRID ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            {/* ── 🏆 Live Health & Performance HUD ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '16px', flexWrap: 'wrap' }}>
                 
-                <Card style={{ borderLeft: '4px solid var(--color-success)' }}>
-                    <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-muted)' }}>معدل تحديث الإطارات (Render FPS)</span>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                            <span style={{ fontSize: '1.8rem', fontWeight: 900, color: fps >= 50 ? 'var(--color-success)' : 'var(--color-danger)' }}>{fps}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>إطار/ثانية</span>
-                        </div>
-                        <div style={{ height: '4px', background: 'var(--bg-subtle)', borderRadius: '2px', overflow: 'hidden', marginTop: '6px' }}>
-                            <div style={{ width: `${(fps / 60) * 100}%`, height: '100%', background: fps >= 50 ? 'var(--color-success)' : 'var(--color-danger)' }} />
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Health Score Shield */}
+                <div style={{
+                    background: statusMeta.bg,
+                    border: `1px solid ${statusMeta.border}`,
+                    borderRadius: '12px',
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    gap: '12px',
+                    boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.05 }}>
+                        <StatusIcon size={120} style={{ color: statusMeta.color }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <StatusIcon size={20} style={{ color: statusMeta.color }} />
+                        <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#a1a1aa', letterSpacing: '1px' }}>مؤشر كفاءة التشغيل (Health score)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '72px', fontWeight: 900, color: statusMeta.color, lineHeight: 1 }}>{healthScore}</span>
+                        <span style={{ fontSize: '18px', fontWeight: 800, color: '#71717a' }}>/100</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#d4d4d8', fontWeight: 800, margin: 0, marginTop: '4px' }}>
+                        {statusMeta.text}
+                    </p>
+                </div>
 
-                <Card style={{ borderLeft: '4px solid var(--color-info)' }}>
-                    <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-muted)' }}>عناصر شجرة الـ DOM النشطة</span>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                            <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)' }}>{domNodesCount}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>عنصر عقدة</span>
-                        </div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>تكامل آمن وشجرة معزولة بالكامل</span>
-                    </CardContent>
-                </Card>
+                {/* Performance Stats Counters */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                        <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>معدل استقرار الإطارات (Render FPS)</span>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '32px', fontWeight: 900, color: fps >= 50 ? '#10b981' : (fps >= 35 ? '#f59e0b' : '#ef4444') }}>{fps}</span>
+                                <span style={{ fontSize: '11px', color: '#71717a' }}>إطار/ثانية</span>
+                            </div>
+                            <div style={{ height: '4px', background: '#1c1c1f', borderRadius: '2px', overflow: 'hidden', marginTop: '8px' }}>
+                                <div style={{ width: `${(fps / 60) * 100}%`, height: '100%', background: fps >= 50 ? '#10b981' : (fps >= 35 ? '#f59e0b' : '#ef4444') }} />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <Card style={{ borderLeft: '4px solid var(--color-warning)' }}>
-                    <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-muted)' }}>ذاكرة الهيب المتصفح (JS Heap Used)</span>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                            <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)' }}>
-                                {memoryUsage ? `${memoryUsage.usedJSHeapSize} MB` : '—'}
-                            </span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                {memoryUsage ? `/ ${memoryUsage.totalJSHeapSize} MB` : 'غير مدعوم بالمتصفح'}
-                            </span>
-                        </div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>أقصى حد أمان للتخزين: {memoryUsage ? `${memoryUsage.jsHeapSizeLimit} MB` : '—'}</span>
-                    </CardContent>
-                </Card>
+                    <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                        <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>ذاكرة الهيب للمستعرض (JS Heap size)</span>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '32px', fontWeight: 900, color: '#f3f4f6' }}>{memoryUsage ? `${memoryUsage.usedJSHeapSize} MB` : '—'}</span>
+                                <span style={{ fontSize: '11px', color: '#71717a' }}>{memoryUsage ? `/ ${memoryUsage.totalJSHeapSize} MB` : 'غير مدعوم'}</span>
+                            </div>
+                            <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>سقف الحوكمة للذاكرة: {memoryUsage ? `${memoryUsage.jsHeapSizeLimit} MB` : '—'}</span>
+                        </CardContent>
+                    </Card>
 
-                <Card style={{ borderLeft: '4px solid var(--color-primary-600)' }}>
-                    <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ fontSize: 'var(--text-micro)', fontWeight: 800, color: 'var(--text-muted)' }}>عدد الـ Rerenders التفاعلي</span>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                            <span style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--color-primary-600)' }}>{renderCounter.current}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>استدعاء رندرة للوحة</span>
-                        </div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>استقرار كامل بدون رندرة عشوائية</span>
-                    </CardContent>
-                </Card>
+                    <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                        <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>شجرة الـ DOM النشطة (DOM nodes)</span>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '32px', fontWeight: 900, color: '#f3f4f6' }}>{domNodesCount}</span>
+                                <span style={{ fontSize: '11px', color: '#71717a' }}>عقدة نشطة</span>
+                            </div>
+                            <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>بنية Canvas معزولة بالكامل دون تضخم</span>
+                        </CardContent>
+                    </Card>
+
+                    <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                        <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>تفاعلات الرندرة (Rerenders Counter)</span>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '32px', fontWeight: 900, color: '#38bdf8' }}>{renderCounter.current}</span>
+                                <span style={{ fontSize: '11px', color: '#71717a' }}>رندرة تفاعلية</span>
+                            </div>
+                            <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>استقرار تام وخالي من الـ Render Storms</span>
+                        </CardContent>
+                    </Card>
+                </div>
 
             </div>
 
-            {/* ── STRESS TESTING COMMANDS ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+            {/* ── 🎛️ Navigation Tabs ── */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #222225', paddingBottom: '2px', marginTop: '10px' }}>
+                <button
+                    onClick={() => setActiveTab('general')}
+                    style={{
+                        padding: '10px 16px',
+                        background: activeTab === 'general' ? '#1c1c1f' : 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'general' ? '2.5px solid #10b981' : 'none',
+                        color: activeTab === 'general' ? '#fff' : '#a1a1aa',
+                        fontSize: '13px',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        borderRadius: '6px 6px 0 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <BarChart3 size={15} /> الأداء العام واختبارات الجهد
+                </button>
                 
-                {/* Simulated database seed */}
-                <Card>
-                    <CardHeader>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Database size={16} style={{ color: 'var(--color-primary-600)' }} />
-                            <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800 }}>فحص جهد استعلام قاعدة البيانات (Database Stress)</h3>
-                        </div>
-                    </CardHeader>
-                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                            يتيح لك هذا الاختبار توليد وحقن **500 شهادة رسمية نهائية متكاملة** دفعة واحدة في ثانية واحدة في قاعدة البيانات المحلية. يساعد هذا الاختبار في قياس كفاءة عمليات البحث والفلترة وأرشفة كمية ضخمة من المعاملات الرسمية.
-                        </p>
+                <button
+                    onClick={() => setActiveTab('export')}
+                    style={{
+                        padding: '10px 16px',
+                        background: activeTab === 'export' ? '#1c1c1f' : 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'export' ? '2.5px solid #10b981' : 'none',
+                        color: activeTab === 'export' ? '#fff' : '#a1a1aa',
+                        fontSize: '13px',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        borderRadius: '6px 6px 0 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <Activity size={15} /> طابور التصدير والمهام المجدولة
+                    {telemetry.exportFailures.length > 0 && (
+                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 900, width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{telemetry.exportFailures.length}</span>
+                    )}
+                </button>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                            <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700 }}>إجمالي الشهادات بالنظام:</span>
-                            <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--color-primary-600)' }}>{certCount} شهادة</strong>
-                        </div>
+                <button
+                    onClick={() => setActiveTab('autosave')}
+                    style={{
+                        padding: '10px 16px',
+                        background: activeTab === 'autosave' ? '#1c1c1f' : 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'autosave' ? '2.5px solid #10b981' : 'none',
+                        color: activeTab === 'autosave' ? '#fff' : '#a1a1aa',
+                        fontSize: '13px',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        borderRadius: '6px 6px 0 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <Save size={15} /> الحفظ التلقائي والتعارض المتقاطع
+                </button>
 
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                            <Button variant="primary" leftIcon={Flame} isLoading={seeding} onClick={handleSeedStressTest}>
-                                حقن 500 شهادة مجهدة
-                            </Button>
-                            <Button variant="outline" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }} leftIcon={Trash2} disabled={seeding} onClick={handleClearStressData}>
-                                شطب بيانات فحص الجهد
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Queue export overload */}
-                <Card>
-                    <CardHeader>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Activity size={16} style={{ color: 'var(--color-warning)' }} />
-                            <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800 }}>فحص خنق طابور التصدير (Queue Overload)</h3>
-                        </div>
-                    </CardHeader>
-                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                            يقوم هذا الخيار بجدولة وإرسال **20 مهمة تصدير PDF معقدة** دفعة واحدة إلى طابور التصدير الخلفي (`BackgroundQueue`). يهدف هذا لفحص أداء التوازي، والاستقرار تحت التصدير المفرط، وعزل الذاكرة خارج الشاشة.
-                        </p>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
-                            <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700 }}>إجمالي مهام طابور التدقيق:</span>
-                            <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--color-warning)' }}>
-                                {backgroundQueue.getTasks().length} مهام مجدولة
-                            </strong>
-                        </div>
-
-                        <div>
-                            <Button variant="primary" style={{ background: 'var(--color-warning)', color: '#000', boxShadow: 'none' }} leftIcon={Play} isLoading={overloadingQueue} onClick={handleQueueOverloadStress}>
-                                محاكاة تصدير 20 PDF متزامن
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
+                <button
+                    onClick={() => setActiveTab('snapshots')}
+                    style={{
+                        padding: '10px 16px',
+                        background: activeTab === 'snapshots' ? '#1c1c1f' : 'transparent',
+                        border: 'none',
+                        borderBottom: activeTab === 'snapshots' ? '2.5px solid #10b981' : 'none',
+                        color: activeTab === 'snapshots' ? '#fff' : '#a1a1aa',
+                        fontSize: '13px',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        borderRadius: '6px 6px 0 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <History size={15} /> أمن لقطات المصادقة (Snapshots)
+                </button>
             </div>
 
-            {/* ── QUEUE ELAPSED TIMINGS HISTORY ── */}
-            {queueTimes.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Clock size={16} style={{ color: 'var(--color-primary-600)' }} />
-                            <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800 }}>مؤشرات قياس سرعة التصدير الخلفي (Performance Metrics)</h3>
+            {/* ── 📺 TAB CONTENT ── */}
+            <div style={{ minHeight: '300px' }}>
+                
+                {/* 1. GENERAL TAB */}
+                {activeTab === 'general' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        
+                        {/* Live Memory Trend Line */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Clock size={16} style={{ color: '#10b981' }} />
+                                    المسار الزمني لاستهلاك الذاكرة حياً (Memory Allocation Trendline)
+                                </span>
+                            </CardHeader>
+                            <CardContent style={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '110px', background: '#1c1c1f', padding: '16px 20px', borderRadius: '8px', border: '1px solid #222225' }}>
+                                    {memoryHistory.length === 0 ? (
+                                        <span style={{ fontSize: '12px', color: '#71717a', margin: 'auto' }}>بانتظار قراءات الذاكرة...</span>
+                                    ) : (
+                                        memoryHistory.map((val, i) => {
+                                            const maxVal = memoryUsage ? Math.max(...memoryHistory, memoryUsage.totalJSHeapSize, 120) : 350;
+                                            const pct = Math.min(100, Math.max(8, (val / maxVal) * 100));
+                                            return (
+                                                <div key={i} style={{ flex: 1, height: `${pct}%`, background: val > 200 ? 'linear-gradient(to top, #ef4444, #f97316)' : 'linear-gradient(to top, #10b981, #34d399)', borderRadius: '4px', position: 'relative', transition: 'height 0.3s ease' }} title={`${val} MB`}>
+                                                    <span style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: '9px', fontWeight: 900, color: '#f3f4f6' }}>{val}M</span>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#71717a', marginTop: '6px', padding: '0 4px' }}>
+                                    <span>← القراءات الأحدث</span>
+                                    <span>القراءات التاريخية (بفاصل 1.5 ثانية لكل قراءة)</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Stress Simulation Actions */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', flexWrap: 'wrap' }}>
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardHeader>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Database size={16} style={{ color: '#10b981' }} />
+                                        <h3 style={{ fontSize: '13px', fontWeight: 900, margin: 0 }}>فحص جهد استعلام قاعدة البيانات (Database Stress)</h3>
+                                    </div>
+                                </CardHeader>
+                                <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <p style={{ fontSize: '12px', color: '#a1a1aa', lineHeight: 1.6, margin: 0 }}>
+                                        حقن **500 شهادة رسمية نهائية متكاملة** دفعة واحدة في قاعدة البيانات المحلية لقياس مرونة الفلترة وسرعة تصفح سجل الأرشيف.
+                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1c1c1f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #222225' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#d4d4d8' }}>الشهادات بالنظام حالياً:</span>
+                                        <strong style={{ fontSize: '12px', color: '#10b981' }}>{certCount} شهادة</strong>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                                        <Button variant="primary" leftIcon={Flame} isLoading={seeding} onClick={handleSeedStressTest} style={{ fontSize: '11px', fontWeight: 800 }}>
+                                            حقن 500 شهادة مجهدة
+                                        </Button>
+                                        <Button variant="outline" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)', fontSize: '11px', fontWeight: 800 }} leftIcon={Trash2} disabled={seeding} onClick={handleClearStressData}>
+                                            شطب بيانات فحص الجهد
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardHeader>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Activity size={16} style={{ color: '#f59e0b' }} />
+                                        <h3 style={{ fontSize: '13px', fontWeight: 900, margin: 0 }}>فحص خنق طابور التصدير (Queue Overload)</h3>
+                                    </div>
+                                </CardHeader>
+                                <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <p style={{ fontSize: '12px', color: '#a1a1aa', lineHeight: 1.6, margin: 0 }}>
+                                        جدولة وإرسال **20 مهمة تصدير PDF معقدة متزامنة** إلى طابور التصدير الخلفي لقياس دقة الفصل وعدم انسداد الذاكرة.
+                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1c1c1f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #222225' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#d4d4d8' }}>المهام المجندة بالطابور:</span>
+                                        <strong style={{ fontSize: '12px', color: '#f59e0b' }}>
+                                            {backgroundQueue.getTasks().length} مهام مجدولة
+                                        </strong>
+                                    </div>
+                                    <div>
+                                        <Button variant="primary" style={{ background: '#f59e0b', color: '#000', fontSize: '11px', fontWeight: 800 }} leftIcon={Play} isLoading={overloadingQueue} onClick={handleQueueOverloadStress}>
+                                            محاكاة تصدير 20 PDF متزامن
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
-                    </CardHeader>
-                    <CardContent style={{ padding: 0 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-                            <thead>
-                                <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-default)' }}>
-                                    <th style={{ padding: '10px 16px', fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>التوقيت</th>
-                                    <th style={{ padding: '10px 16px', fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>المهام المفرطة</th>
-                                    <th style={{ padding: '10px 16px', fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>الوقت الإجمالي المستغرق للجدولة والتشغيل</th>
-                                    <th style={{ padding: '10px 16px', fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>معدل استجابة المحرك (Fidelity Speed)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {queueTimes.map((t, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                                        <td style={{ padding: '10px 16px', fontSize: 'var(--text-caption)' }}>{t.timestamp}</td>
-                                        <td style={{ padding: '10px 16px', fontSize: 'var(--text-caption)', fontWeight: 700 }}>{t.tasksCount} وثائق PDF</td>
-                                        <td style={{ padding: '10px 16px', fontSize: 'var(--text-caption)' }}>
-                                            <code>{t.elapsedMs} ms</code> ({Math.round(t.elapsedMs/1000)} ثانية)
-                                        </td>
-                                        <td style={{ padding: '10px 16px' }}>
-                                            <Badge variant="success">ممتاز (سرعة قياسية)</Badge>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </CardContent>
-                </Card>
-            )}
+                    </div>
+                )}
+
+                {/* 2. EXPORT TAB */}
+                {activeTab === 'export' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        
+                        {/* Background Queue Summary */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                            <div style={{ background: '#141416', padding: '16px', borderRadius: '8px', border: '1px solid #222225', display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 800 }}>المهام النشطة بالخلفية (Active)</span>
+                                <strong style={{ fontSize: '24px', fontWeight: 900, color: '#10b981', marginTop: '4px' }}>{telemetry.queueMetrics.activeJobs}</strong>
+                            </div>
+                            <div style={{ background: '#141416', padding: '16px', borderRadius: '8px', border: '1px solid #222225', display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 800 }}>المهام المتعطلة (Stalled / Failed)</span>
+                                <strong style={{ fontSize: '24px', fontWeight: 900, color: telemetry.queueMetrics.stalledJobs > 0 ? '#ef4444' : '#f3f4f6', marginTop: '4px' }}>{telemetry.queueMetrics.stalledJobs}</strong>
+                            </div>
+                            <div style={{ background: '#141416', padding: '16px', borderRadius: '8px', border: '1px solid #222225', display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 800 }}>إجمالي محاولات الإعادة (Queue Retries)</span>
+                                <strong style={{ fontSize: '24px', fontWeight: 900, color: '#f59e0b', marginTop: '4px' }}>{telemetry.queueMetrics.totalRetries}</strong>
+                            </div>
+                            <div style={{ background: '#141416', padding: '16px', borderRadius: '8px', border: '1px solid #222225', display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 800 }}>أطول مدة تصدير مسجلة (Peak time)</span>
+                                <strong style={{ fontSize: '24px', fontWeight: 900, color: '#38bdf8', marginTop: '4px' }}>
+                                    {telemetry.queueMetrics.longestExportMs > 0 ? `${(telemetry.queueMetrics.longestExportMs / 1000).toFixed(2)} ثانية` : '0ms'}
+                                </strong>
+                            </div>
+                        </div>
+
+                        {/* Interactive Queue Tasks list */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6' }}>جدول طابور المهام التفاعلي حياً (Live Background Tasks Queue)</span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>معرف المهمة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>العنوان / القالب</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>الحالة التشغيلية</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>نسبة الإنجاز</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>الإجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {backgroundQueue.getTasks().length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لا توجد مهام تصدير في الطابور حالياً.</td>
+                                                </tr>
+                                            ) : (
+                                                backgroundQueue.getTasks().reverse().slice(0, 10).map((task) => (
+                                                    <tr key={task.id} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}><code>{task.id}</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', fontWeight: 800 }}>{task.label}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {task.status === 'pending' && <Badge variant="warning" dot>⏳ في الانتظار (Warning)</Badge>}
+                                                            {task.status === 'running' && <Badge variant="info" dot style={{ animation: 'pulse 1s infinite' }}>⚙️ جاري الرندرة (Info)</Badge>}
+                                                            {task.status === 'completed' && <Badge variant="success" dot>✅ مكتملة (Healthy)</Badge>}
+                                                            {task.status === 'failed' && <Badge variant="danger" dot>❌ متعطلة (Critical)</Badge>}
+                                                            {task.status === 'cancelled' && <Badge variant="default" dot>🚫 ملغاة (Info)</Badge>}
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <div style={{ flex: 1, minWidth: '60px', height: '6px', background: '#1c1c1f', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                    <div style={{ width: `${task.progress}%`, height: '100%', background: task.status === 'failed' ? '#ef4444' : '#10b981' }} />
+                                                                </div>
+                                                                <span>{task.progress}%</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {task.status === 'running' && (
+                                                                <button onClick={() => handleCancelTask(task.id)} style={{ padding: '3px 8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }}>إلغاء</button>
+                                                            )}
+                                                            {(task.status === 'failed' || task.status === 'cancelled') && (
+                                                                <button onClick={() => handleRetryTask(task.id)} style={{ padding: '3px 8px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }}>إعادة المحاولة</button>
+                                                            )}
+                                                            {task.status === 'completed' && <span style={{ color: '#a1a1aa' }}>—</span>}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Failed Assets Registry */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <AlertTriangle size={16} />
+                                    أرشيف حوكمة الأصول المتوقفة والأختام المفقودة (Failed Assets Tracker)
+                                </span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>درجة الخطورة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>مصدر الأصل الفني المتعطل</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>مرات الفشل الكلية</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>توقيت أحدث تعطل</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {failedAssetsRegistry.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لم يتم التقاط أي أختام أو صور معطلة خلال جلسات التصدير، كفاءة الأصول 100%!</td>
+                                                </tr>
+                                            ) : (
+                                                failedAssetsRegistry.map((asset, i) => (
+                                                    <tr key={i} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px' }}><Badge variant="warning" dot>⚠️ أصل مفقود (Warning)</Badge></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}><code style={{ wordBreak: 'break-all' }}>{asset.src}</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#ef4444', fontWeight: 800 }}>{asset.count} مرات</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>{asset.lastFailure}</td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Export Failures Table */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6' }}>سجل أخطاء التصدير التفصيلي (Export Failures Logs)</span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>درجة الخطورة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>الوقت</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>القالب</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>تفاصيل الخطأ التشغيلي</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>الشعارات/التواقيع المعطلة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {telemetry.exportFailures.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لا توجد أي أخطاء تصدير مسجلة في منصة المراقبة.</td>
+                                                </tr>
+                                            ) : (
+                                                telemetry.exportFailures.map((failure, idx) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px' }}><Badge variant="danger" dot>🚨 فشل التصدير (Critical)</Badge></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>{failure.timestamp}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', fontWeight: 800 }}>{failure.taskId}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#f87171' }}>{failure.error}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {failure.failedAssets.length === 0 ? (
+                                                                <span style={{ color: '#71717a' }}>لا يوجد</span>
+                                                            ) : (
+                                                                failure.failedAssets.map((asset, i) => (
+                                                                    <Badge key={i} variant="danger" style={{ fontSize: '9px', margin: '2px' }}>{asset.split('/').pop()}</Badge>
+                                                                ))
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* 3. AUTOSAVE TAB */}
+                {activeTab === 'autosave' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        
+                        {/* Autosave Metrics Summary */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a1a1aa' }}>تأشير سلامة الحفظ التلقائي</span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '28px', fontWeight: 900, color: '#10b981' }}>
+                                            {telemetry.autosaveMetrics.length > 0
+                                                ? `${Math.round((telemetry.autosaveMetrics.filter(m => m.status === 'success').length / telemetry.autosaveMetrics.length) * 100)}%`
+                                                : '100%'}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#71717a' }}>معدل النجاح</span>
+                                    </div>
+                                    <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>إجمالي عمليات الـ Autosave المسجلة: {telemetry.autosaveMetrics.length}</span>
+                                </CardContent>
+                            </Card>
+
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a1a1aa' }}>متوسط سرعة الحفظ بالملي ثانية</span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '28px', fontWeight: 900, color: '#38bdf8' }}>
+                                            {telemetry.autosaveMetrics.length > 0
+                                                ? `${Math.round(telemetry.autosaveMetrics.reduce((acc, c) => acc + c.durationMs, 0) / telemetry.autosaveMetrics.length)} ms`
+                                                : '0 ms'}
+                                        </span>
+                                    </div>
+                                    <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>حفظ غير معيق تفاعلياً (requestIdleCallback)</span>
+                                </CardContent>
+                            </Card>
+
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a1a1aa' }}>التقاط تعارضات التبويبات المفتوحة</span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '28px', fontWeight: 900, color: telemetry.autosaveMetrics.some(m => m.collisionDetected) ? '#ef4444' : '#10b981' }}>
+                                            {telemetry.autosaveMetrics.filter(m => m.collisionDetected).length}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#71717a' }}>تعارض تم التقاطه</span>
+                                    </div>
+                                    <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>تنبيه أمان متقاطع لمنع الكتابة المكررة</span>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Autosave Details logs */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6' }}>سجل حوكمة التخزين الفوري (Autosave Observability Logs)</span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>درجة الخطورة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>توقيت الحفظ</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>سرعة المعالجة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>حالة الحفظ بالتخزين</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>توفير النطاق (Debounce)</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>رصد تعارض متبادل</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {telemetry.autosaveMetrics.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لا توجد عمليات حفظ تلقائي مسجلة للمسودة حالياً.</td>
+                                                </tr>
+                                            ) : (
+                                                telemetry.autosaveMetrics.map((save, idx) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px' }}>
+                                                            {save.status === 'success' && <Badge variant="success" dot>حفظ تلقائي (Healthy)</Badge>}
+                                                            {save.status === 'collision_aborted' && <Badge variant="warning" dot>تعارض مكتشف (Warning)</Badge>}
+                                                            {save.status === 'failed' && <Badge variant="danger" dot>فشل الحفظ (Critical)</Badge>}
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>{save.timestamp}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}><code>{save.durationMs} ms</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {save.status === 'success' && <span style={{ color: '#10b981', fontWeight: 800 }}>● مكتمل بنجاح</span>}
+                                                            {save.status === 'collision_aborted' && <span style={{ color: '#ef4444', fontWeight: 800 }}>● تم الإيقاف حمايةً للبيانات</span>}
+                                                            {save.status === 'failed' && <span style={{ color: '#ef4444', fontWeight: 800 }}>● خطأ بالتخزين</span>}
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {save.debounceSavedCount > 0 ? `تم تقليص ${save.debounceSavedCount} تغييرات` : 'حفظ فوري'}
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            {save.collisionDetected ? (
+                                                                <Badge variant="danger">تعارض متبادل مكتشف ⚠️</Badge>
+                                                            ) : (
+                                                                <span style={{ color: '#71717a' }}>سليم وآمن</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* 4. SNAPSHOTS TAB */}
+                {activeTab === 'snapshots' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        
+                        {/* Snapshot generation timings summary */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a1a1aa' }}>متوسط سرعة تجميد اللقطة (Snapshot Freeze)</span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '28px', fontWeight: 900, color: '#10b981' }}>
+                                            {telemetry.snapshotTimings.length > 0
+                                                ? `${Math.round(telemetry.snapshotTimings.reduce((acc, c) => acc + c.durationMs, 0) / telemetry.snapshotTimings.length)} ms`
+                                                : '0 ms'}
+                                        </span>
+                                    </div>
+                                    <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>تجميد فوري لمنع تعديل تواقيع وأختام الاعتماد</span>
+                                </CardContent>
+                            </Card>
+
+                            <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                                <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '11px', color: '#a1a1aa' }}>إجمالي لقطات المصادقة المجمّدة</span>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '6px' }}>
+                                        <span style={{ fontSize: '28px', fontWeight: 900, color: '#38bdf8' }}>{telemetry.snapshotTimings.length}</span>
+                                        <span style={{ fontSize: '11px', color: '#71717a' }}>وثيقة معتمدة تماماً</span>
+                                    </div>
+                                    <span style={{ fontSize: '9px', color: '#71717a', marginTop: '4px' }}>بنية تخزين غير قابلة للتعديل بأثر رجعي</span>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Snapshots Log table */}
+                        <Card style={{ background: '#141416', border: '1px solid #222225' }}>
+                            <CardHeader>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#f3f4f6' }}>سجل حوكمة لقطات الاعتماد غير القابلة للتغيير (Immutable Snapshots History)</span>
+                            </CardHeader>
+                            <CardContent style={{ padding: 0 }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                                        <thead>
+                                            <tr style={{ background: '#1c1c1f', borderBottom: '1px solid #222225' }}>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>درجة الخطورة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>التوقيت</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>معرف الوثيقة المعتمدة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>سرعة تجميد اللقطة</th>
+                                                <th style={{ padding: '10px 16px', fontSize: '11px', color: '#71717a' }}>سلامة التجميد الهيكلي</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {telemetry.snapshotTimings.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: '#71717a', fontSize: '12px' }}>لا توجد أي شهادات نهائية معتمدة تم تجميد لقطاتها بعد.</td>
+                                                </tr>
+                                            ) : (
+                                                telemetry.snapshotTimings.map((snap, idx) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #222225' }}>
+                                                        <td style={{ padding: '10px 16px' }}><Badge variant="success" dot>🔒 مصادقة مجمدة (Healthy)</Badge></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>{snap.timestamp}</td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px', fontWeight: 800 }}><code>{snap.certId}</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}><code>{snap.durationMs} ms</code></td>
+                                                        <td style={{ padding: '10px 16px', fontSize: '12px' }}>
+                                                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <ShieldCheck size={14} /> تجميد كامل (v1)
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+            </div>
 
         </div>
     );

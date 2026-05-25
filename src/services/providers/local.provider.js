@@ -5,6 +5,8 @@
  */
 
 import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../../config/certificatePreset';
+import { diagnosticsStore } from '../../utils/diagnosticsStore';
+
 
 const MOCK_USERS = [
     { id: 'usr-1', email: 'creator@moh.gov.sa', role: 'CREATOR', name: 'سلمان الرويلي' },
@@ -255,6 +257,7 @@ export const localProvider = {
 
             // 🚨 Complete Immutable Manager & Layout Snapshots (Final Approval Seal)
             if (nextStage === 'FINAL_APPROVED') {
+                const startTime = performance.now();
                 const templates = db.getItem('templates');
                 const activeTpl = templates.find(t => t.id === cert.templateId) || null;
 
@@ -272,6 +275,9 @@ export const localProvider = {
                 if (activeTpl) {
                     updatedCert.frozenTemplate = JSON.parse(JSON.stringify(activeTpl)); // Immutable Snapshot
                 }
+
+                const elapsed = Math.round(performance.now() - startTime);
+                diagnosticsStore.logSnapshotTiming(id, elapsed);
 
                 // Security Audit registration
                 await localProvider.audit.log('SNAPSHOT_GENERATED', user, `تجميد وإصدار شهادة نهائية غير قابلة للتعديل برقم: ${cert.serial}`, id);

@@ -32,6 +32,8 @@ import SelectionEngine from '../../../engine/StudioEngine/SelectionEngine';
 import { ImageProcessor } from '../../../engine/StudioEngine/ImageProcessor';
 import { backgroundQueue } from '../../../engine/StudioEngine/BackgroundQueue';
 import { ExportEngine } from '../../../engine/StudioEngine/ExportEngine';
+import { diagnosticsStore } from '../../../utils/diagnosticsStore';
+
 
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
@@ -305,6 +307,7 @@ export default function TemplateMapper() {
     const handleSave = async (showToast = true, changelogDesc = 'تحديث تلقائي للاستوديو') => {
         if (isSaving) return;
 
+        const startTimer = performance.now();
         setIsSaving(true);
         setSaveStatus('saving');
         setSaveError(null);
@@ -339,6 +342,7 @@ export default function TemplateMapper() {
                 if (!overwrite) {
                     setSaveStatus('unsaved');
                     setIsSaving(false);
+                    diagnosticsStore.logAutosave(0, 'collision_aborted', 0, true);
                     return;
                 }
             }
@@ -349,12 +353,18 @@ export default function TemplateMapper() {
                 setHasUnsavedChanges(false);
                 setSaveStatus('saved');
                 if (showToast) alert('تم حفظ ونشر الإصدار الجديد لقالب التصميم بنجاح.');
+
+                const elapsed = Math.round(performance.now() - startTimer);
+                diagnosticsStore.logAutosave(elapsed, 'success', 1, false);
             }
         } catch (e) {
             console.error(e);
             setSaveStatus('error');
             setSaveError(e.message);
             if (showToast) alert('فشل التخزين: ' + e.message);
+
+            const elapsed = Math.round(performance.now() - startTimer);
+            diagnosticsStore.logAutosave(elapsed, 'failed', 0, false);
         } finally {
             setIsSaving(false);
         }
@@ -809,8 +819,10 @@ export default function TemplateMapper() {
     const startInteraction = () => {
         window.removeEventListener('pointermove', handleGlobalPointerMove);
         window.removeEventListener('pointerup', handleGlobalPointerUp);
+        window.removeEventListener('pointercancel', handleGlobalPointerUp);
         window.addEventListener('pointermove', handleGlobalPointerMove);
         window.addEventListener('pointerup', handleGlobalPointerUp);
+        window.addEventListener('pointercancel', handleGlobalPointerUp);
     };
 
     // --- INTERACTION: Drag & Multi-drag --- //
@@ -1023,6 +1035,7 @@ export default function TemplateMapper() {
     const handleGlobalPointerUp = () => {
         window.removeEventListener('pointermove', handleGlobalPointerMove);
         window.removeEventListener('pointerup', handleGlobalPointerUp);
+        window.removeEventListener('pointercancel', handleGlobalPointerUp);
 
         if (dragData.current.active) {
             dragData.current.active = false;
@@ -1051,6 +1064,31 @@ export default function TemplateMapper() {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [hasUnsavedChanges]);
+
+    // Touch dragging & gesture scroll conflict preventions on mobile/tablets
+    useEffect(() => {
+        const preventCanvasScroll = (e) => {
+            if (isDragging || isResizing || selectedIdsRef.current.length > 0) {
+                if (e.cancelable) e.preventDefault();
+            }
+        };
+        const preventGestureZoom = (e) => {
+            if (e.cancelable) e.preventDefault();
+        };
+        const canvasEl = canvasRef.current;
+        if (canvasEl) {
+            canvasEl.addEventListener('touchstart', preventCanvasScroll, { passive: false });
+            canvasEl.addEventListener('touchmove', preventCanvasScroll, { passive: false });
+            canvasEl.addEventListener('gesturestart', preventGestureZoom, { passive: false });
+        }
+        return () => {
+            if (canvasEl) {
+                canvasEl.removeEventListener('touchstart', preventCanvasScroll);
+                canvasEl.removeEventListener('touchmove', preventCanvasScroll);
+                canvasEl.removeEventListener('gesturestart', preventGestureZoom);
+            }
+        };
+    }, [isDragging, isResizing]);
 
     if (!template) return <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
 
@@ -1291,7 +1329,8 @@ export default function TemplateMapper() {
                             transition: (isDragging || isResizing) ? 'none' : 'transform 0.12s ease',
                             overflow: 'hidden',
                             marginTop: showRulers ? '18px' : '0',
-                            marginLeft: showRulers ? '18px' : '0'
+                            marginLeft: showRulers ? '18px' : '0',
+                            touchAction: 'none'
                         }}
                     >
                         {/* Printable Area Safe limits */}
@@ -1358,7 +1397,8 @@ export default function TemplateMapper() {
                                         lineHeight: f.lineHeight || 1.6,
                                         letterSpacing: `${f.letterSpacing || 0}px`,
                                         width: f.width ? `${f.width}px` : '100%',
-                                        userSelect: 'none'
+                                        userSelect: 'none',
+                                        touchAction: 'none'
                                     }}
                                 >
                                     {meta?.type === 'text' || meta?.type === 'textarea' ? (

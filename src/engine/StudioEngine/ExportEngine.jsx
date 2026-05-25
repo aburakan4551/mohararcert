@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import TemplateRenderer from '../TemplateRenderer/TemplateRenderer';
+import { diagnosticsStore } from '../../utils/diagnosticsStore';
 
 export class ExportEngine {
     /**
@@ -25,6 +26,10 @@ export class ExportEngine {
         } = options;
 
         if (!template) throw new Error("قالب التصميم غير متوفر للتصدير");
+
+        const startTimer = performance.now();
+        const startMem = (window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0;
+        const failedAssets = [];
 
         // 1. Create a detached off-screen DOM container
         const offscreenContainer = document.createElement('div');
@@ -74,14 +79,26 @@ export class ExportEngine {
                     setTimeout(resolve, 800);
                 });
 
-                // Wait for all img elements in container to finish loading
+                // Wait for all img elements in container with a strict timeout safety
                 const images = offscreenContainer.querySelectorAll('img');
                 await Promise.all(
                     Array.from(images).map(img => {
                         if (img.complete) return Promise.resolve();
                         return new Promise(res => {
-                            img.onload = res;
-                            img.onerror = res;
+                            const timeout = setTimeout(() => {
+                                console.warn(`Image loading timed out: ${img.src}`);
+                                failedAssets.push(img.src);
+                                res();
+                            }, 5000);
+                            img.onload = () => {
+                                clearTimeout(timeout);
+                                res();
+                            };
+                            img.onerror = () => {
+                                clearTimeout(timeout);
+                                failedAssets.push(img.src);
+                                res(); // Safe fallback: proceed on error
+                            };
                         });
                     })
                 );
@@ -99,8 +116,8 @@ export class ExportEngine {
 
                 if (format === 'png') {
                     // PNG Export
-                    const imgData = canvas.toDataURL('image/png', 1.0);
-                    const link = document.createElement('a');
+                    let imgData = canvas.toDataURL('image/png', 1.0);
+                    let link = document.createElement('a');
                     link.download = filename.replace('.pdf', '.png');
                     link.href = imgData;
                     link.click();
@@ -108,18 +125,31 @@ export class ExportEngine {
                     // GC Cleanup
                     canvas.width = 0;
                     canvas.height = 0;
+                    link.href = '';
+                    link = null;
+                    imgData = null;
                     root.unmount();
                     document.body.removeChild(offscreenContainer);
                     progressCallback(100);
+
+                    // Telemetry
+                    const elapsed = Math.round(performance.now() - startTimer);
+                    const endMem = (window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0;
+                    const spike = Math.max(0, Math.round((endMem - startMem) / 1024 / 1024));
+                    diagnosticsStore.logRenderTiming(`${template.name} (PNG)`, elapsed, spike);
+                    if (failedAssets.length > 0) {
+                        diagnosticsStore.logExportFailure(template.name, 'تم التحميل بنجاح مع شعار/أختام مفقودة', failedAssets);
+                    }
                     return true;
                 }
 
                 // PDF multi-page appending
-                const imgData = canvas.toDataURL('image/png', 1.0);
+                let imgData = canvas.toDataURL('image/png', 1.0);
                 if (i > 0) pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, 0, 297, 210, '', 'FAST');
 
                 // GC Cleanup
+                imgData = null;
                 canvas.width = 0;
                 canvas.height = 0;
             }
@@ -131,6 +161,16 @@ export class ExportEngine {
             root.unmount();
             document.body.removeChild(offscreenContainer);
             progressCallback(100);
+
+            // Telemetry
+            const elapsed = Math.round(performance.now() - startTimer);
+            const endMem = (window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0;
+            const spike = Math.max(0, Math.round((endMem - startMem) / 1024 / 1024));
+            diagnosticsStore.logRenderTiming(template.name, elapsed, spike);
+            if (failedAssets.length > 0) {
+                diagnosticsStore.logExportFailure(template.name, 'تم التصدير بنجاح مع أصول متعطلة', failedAssets);
+            }
+
             return true;
         } catch (err) {
             // Ensure DOM cleanup and React unmount even on crash to prevent memory leaks
@@ -144,6 +184,8 @@ export class ExportEngine {
             if (document.body.contains(offscreenContainer)) {
                 document.body.removeChild(offscreenContainer);
             }
+            // Telemetry
+            diagnosticsStore.logExportFailure(template.name, err, failedAssets);
             throw err;
         }
     }

@@ -1,9 +1,5 @@
-@import "tailwindcss";
-
-/* ═══════════════════════════════════════════════════════════════════
-   📐 GOOGLE FONTS — Cairo + IBM Plex Sans Arabic + Tajawal
-═══════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700;800&display=swap');
+@import "tailwindcss";
 
 @theme {
   --font-sans: 'Cairo', 'IBM Plex Sans Arabic', 'Tajawal', sans-serif;

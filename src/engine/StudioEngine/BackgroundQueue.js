@@ -1,7 +1,5 @@
-/**
- * ⏳ BackgroundQueue.js
- * Asynchronous Background Task Queue with progress metrics, concurrency locks, cancellations, and retries.
- */
+import { diagnosticsStore } from '../../utils/diagnosticsStore';
+
 class BackgroundQueue {
     constructor() {
         this.tasks = [];
@@ -17,6 +15,9 @@ class BackgroundQueue {
 
     notify() {
         this.subscribers.forEach(cb => cb([...this.tasks]));
+        // Telemetry update
+        const stalled = this.tasks.filter(t => t.status === 'failed').length;
+        diagnosticsStore.updateQueueState(this.activeCount, stalled);
     }
 
     enqueue(taskId, label, executeFn) {
@@ -58,6 +59,7 @@ class BackgroundQueue {
             task.progress = 0;
             task.error = null;
             task.retryCount += 1;
+            diagnosticsStore.logQueueRetry(taskId, task.retryCount);
             this.notify();
             this.processNext();
         }
