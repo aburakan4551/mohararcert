@@ -20,13 +20,46 @@ const DEFAULT_SETTINGS = {
     ...CERTIFICATE_SCREENSHOT_PRESET_SETTINGS,
     orgName: 'وزارة الصحة',
     orgSubName: 'فرع الوزارة بالحدود الشمالية',
-    directorName: 'مدير فرع وزارة الصحة بالحدود الشمالية',
-    directorTitle: 'مدير فرع وزارة الصحة بالحدود الشمالية',
-    visaLabel: 'مساعد المدير العام للتخطيط',
-    visaName: 'مساعد المدير العام للتخطيط',
+
+    // ─── Official Certificate Texts ───────────────────────────────────────
+    certificate_header_text: 'يتقدم فرع وزارة الصحة بمنطقة الحدود الشمالية بخالص الشكر والتقدير',
+    certificate_closing_text: 'متمنين له/ـها دوام التوفيق والنجاح',
+
+    // ─── General Manager (المدير العام) ──────────────────────────────────
+    general_manager_name: 'أ. منصور بن سالم الرشيدي',
+    general_manager_title: 'مدير عام فرع وزارة الصحة بمنطقة الحدود الشمالية',
+    general_manager_signature: null,
+
+    // ─── Legacy aliases (backward compat) ────────────────────────────────
+    directorName: 'أ. منصور بن سالم الرشيدي',
+    directorTitle: 'مدير عام فرع وزارة الصحة بمنطقة الحدود الشمالية',
+    directorSignature: null,
+
+    // ─── Assistant Director General for Planning & Transformation ────────
+    assistant_planning_name: 'أ. أحمد بن محمد السويلم',
+    assistant_planning_title: 'مساعد المدير العام للتخطيط والتحول',
+    assistant_planning_signature: null,
+    assistant_planning_enabled: true,
+
+    // ─── Legacy visa aliases (backward compat) ────────────────────────────
+    visaLabel: 'مساعد المدير العام للتخطيط والتحول',
+    visaName: 'أ. أحمد بن محمد السويلم',
+    visaSignature: null,
+
+    // ─── Official Seal ───────────────────────────────────────────────────
+    official_seal: null,
+    stamp: null,
     stampOpacity: 0.85,
     stampSize: 125,
     stampRotation: -8,
+
+    // ─── Official Signature (general-purpose) ────────────────────────────
+    official_signature: null,
+
+    // ─── Official Titles (Prefixes) ──────────────────────────────────────
+    official_titles: ['الأستاذ', 'الأستاذة', 'الدكتور', 'الدكتورة', 'المهندس', 'المهندسة', 'الزميل', 'الزميلة'],
+    prefixes: ['الأستاذ', 'الأستاذة', 'الدكتور', 'الدكتورة', 'المهندس', 'المهندسة', 'الزميل', 'الزميلة'],
+
     rbacSettings: {
         CREATOR: ['CREATE_CERTIFICATE', 'EDIT_DRAFT', 'VIEW_MY_CERTIFICATES', 'EXPORT_PREVIEW'],
         ASSISTANT_MANAGER: ['VIEW_PENDING', 'APPROVE_VISA', 'REJECT_VISA', 'RETURN_VISA'],

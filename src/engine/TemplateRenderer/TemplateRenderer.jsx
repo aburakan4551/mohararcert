@@ -91,12 +91,22 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                 // Dynamic Identity Resolution
                 let value = dataContext?.[field.fieldId];
                 
-                // Fallbacks to System Settings for official fields
-                if (field.fieldId === 'manager_name') value = value || settings?.directorName;
-                if (field.fieldId === 'assistant_name') value = value || settings?.visaName;
-                if (field.fieldId === 'manager_signature') value = value || settings?.directorSignature;
-                if (field.fieldId === 'assistant_signature') value = value || settings?.visaSignature;
-                if (field.fieldId === 'official_stamp') value = value || settings?.stamp;
+                // ── Fallbacks to System Settings for official fields ──────────────
+                if (field.fieldId === 'manager_name')              value = value || settings?.general_manager_name || settings?.directorName;
+                if (field.fieldId === 'general_manager_name')      value = value || settings?.general_manager_name || settings?.directorName;
+                if (field.fieldId === 'general_manager_title')     value = value || settings?.general_manager_title || settings?.directorTitle;
+                if (field.fieldId === 'general_manager_signature') value = value || settings?.general_manager_signature || settings?.directorSignature;
+                if (field.fieldId === 'assistant_name')            value = value || settings?.assistant_planning_name || settings?.visaName;
+                if (field.fieldId === 'assistant_planning_name')   value = value || settings?.assistant_planning_name || settings?.visaName;
+                if (field.fieldId === 'assistant_planning_title')  value = value || settings?.assistant_planning_title || settings?.visaLabel;
+                if (field.fieldId === 'assistant_planning_signature') value = value || settings?.assistant_planning_signature || settings?.visaSignature;
+                if (field.fieldId === 'manager_signature')         value = value || settings?.general_manager_signature || settings?.directorSignature;
+                if (field.fieldId === 'assistant_signature')       value = value || settings?.assistant_planning_signature || settings?.visaSignature;
+                if (field.fieldId === 'official_stamp')            value = value || settings?.official_seal || settings?.stamp;
+                if (field.fieldId === 'official_seal')             value = value || settings?.official_seal || settings?.stamp;
+                if (field.fieldId === 'official_signature')        value = value || settings?.official_signature;
+                if (field.fieldId === 'certificate_header_text')   value = value || field.textContent || settings?.certificate_header_text;
+                if (field.fieldId === 'certificate_closing_text')  value = value || field.textContent || settings?.certificate_closing_text;
 
                 // Since field.x and field.y are percentages
                 const baseStyle = {
