@@ -281,22 +281,26 @@ export default function TemplateMapper() {
                     setTemplate(found);
                     
                     console.log("[TRACING 💧] hydration started: mapping fields structure");
-                    const loadedPages = found.pages || [{ pageNum: 1, fields: found.fields || [], backgroundUrl: found.backgroundUrl }];
-                    const activePageFields = loadedPages[currentPageIndex]?.fields || [];
+                    const loadedPages = found?.pages ?? [{ pageNum: 1, fields: found?.fields ?? [], backgroundUrl: found?.backgroundUrl ?? '' }];
+                    const activePageFields = loadedPages[currentPageIndex]?.fields ?? [];
                     console.log(`[TRACING 📜] template pages count: ${loadedPages.length}, current page index: ${currentPageIndex}`);
                     
-                    const mappedFields = (activePageFields || []).filter(Boolean).map(f => ({
-                        ...f,
-                        _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
-                        hidden: f.hidden || false,
-                        locked: f.locked || false,
-                        lineHeight: f.lineHeight || 1.6,
-                        letterSpacing: f.letterSpacing || 0,
-                        aspectRatioLocked: f.aspectRatioLocked || false
-                    }));
+                    const mappedFields = (activePageFields ?? []).filter(Boolean).map(f => {
+                        if (!f) return null;
+                        return {
+                            ...f,
+                            _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
+                            hidden: f.hidden || false,
+                            locked: f.locked || false,
+                            lineHeight: f.lineHeight || 1.6,
+                            letterSpacing: f.letterSpacing || 0,
+                            aspectRatioLocked: f.aspectRatioLocked || false
+                        };
+                    }).filter(Boolean);
                     
-                    setFields(mappedFields);
-                    historyEngine.initialize(mappedFields);
+                    const finalFields = mappedFields ?? [];
+                    setFields(finalFields);
+                    historyEngine.initialize(finalFields);
                     setHasUnsavedChanges(false);
                     setSaveStatus('saved');
                     templateLoaded = true;
@@ -407,20 +411,24 @@ export default function TemplateMapper() {
                 console.log(`[TRACING 🧬] template resolved: ${found.name}`);
                 setTemplate(found);
                 
-                const loadedPages = found.pages || [{ pageNum: 1, fields: found.fields || [], backgroundUrl: found.backgroundUrl }];
-                const activePageFields = loadedPages[currentPageIndex]?.fields || [];
-                const mappedFields = (activePageFields || []).filter(Boolean).map(f => ({
-                    ...f,
-                    _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
-                    hidden: f.hidden || false,
-                    locked: f.locked || false,
-                    lineHeight: f.lineHeight || 1.6,
-                    letterSpacing: f.letterSpacing || 0,
-                    aspectRatioLocked: f.aspectRatioLocked || false
-                }));
+                const loadedPages = found?.pages ?? [{ pageNum: 1, fields: found?.fields ?? [], backgroundUrl: found?.backgroundUrl ?? '' }];
+                const activePageFields = loadedPages[currentPageIndex]?.fields ?? [];
+                const mappedFields = (activePageFields ?? []).filter(Boolean).map(f => {
+                    if (!f) return null;
+                    return {
+                        ...f,
+                        _uid: f._uid || `uid_${Math.random().toString(36).substr(2, 9)}`,
+                        hidden: f.hidden || false,
+                        locked: f.locked || false,
+                        lineHeight: f.lineHeight || 1.6,
+                        letterSpacing: f.letterSpacing || 0,
+                        aspectRatioLocked: f.aspectRatioLocked || false
+                    };
+                }).filter(Boolean);
                 
-                setFields(mappedFields);
-                historyEngine.initialize(mappedFields);
+                const finalFields = mappedFields ?? [];
+                setFields(finalFields);
+                historyEngine.initialize(finalFields);
                 setHasUnsavedChanges(false);
                 setSaveStatus('saved');
             }
@@ -457,7 +465,7 @@ export default function TemplateMapper() {
     };
 
     const handleSave = async (showToast = true, changelogDesc = 'تحديث تلقائي للاستوديو') => {
-        if (isSaving) return;
+        if (isSaving || !template) return;
 
         const startTimer = performance.now();
         setIsSaving(true);
@@ -467,24 +475,24 @@ export default function TemplateMapper() {
             await new Promise((resolve) => setTimeout(resolve, 800));
 
             // Sync current active page fields back into template pages array
-            const pages = template.pages || [{ pageNum: 1, fields: [], backgroundUrl: template.backgroundUrl }];
+            const pages = template?.pages || [{ pageNum: 1, fields: [], backgroundUrl: template?.backgroundUrl || '' }];
             pages[currentPageIndex] = {
                 pageNum: currentPageIndex + 1,
                 fields: deepClone(fields),
-                backgroundUrl: template.backgroundUrl
+                backgroundUrl: template?.backgroundUrl || ''
             };
 
             const payload = {
                 ...template,
                 fields: deepClone(fields), // legacy fallback
-                backgroundUrl: template.backgroundUrl,
+                backgroundUrl: template?.backgroundUrl || '',
                 pages: pages,
                 changelog: changelogDesc
             };
 
             // Cross-tab conflict protection:
             const latestTemplate = await templateService.getById(id);
-            if (latestTemplate && latestTemplate.version > template.version) {
+            if (latestTemplate && latestTemplate.version > template?.version) {
                 const overwrite = window.confirm(
                     `⚠️ تنبيه تعارض الحفظ المتقاطع:\n\n` +
                     `قام تبويب آخر (أو مستخدم آخر) بحفظ نسخة أحدث (v${latestTemplate.version}) من هذا القالب في الخلفية.\n` +
@@ -685,11 +693,12 @@ export default function TemplateMapper() {
 
     // Multi-page layout navigations
     const addNewPage = () => {
-        const pages = template.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template.backgroundUrl }];
+        if (!template) return;
+        const pages = template?.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template?.backgroundUrl || '' }];
         const newPage = {
             pageNum: pages.length + 1,
             fields: [],
-            backgroundUrl: template.backgroundUrl
+            backgroundUrl: template?.backgroundUrl || ''
         };
         const updated = [...pages, newPage];
         setTemplate(p => ({ ...p, pages: updated }));
@@ -700,11 +709,12 @@ export default function TemplateMapper() {
     };
 
     const duplicateCurrentPage = () => {
-        const pages = template.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template.backgroundUrl }];
+        if (!template) return;
+        const pages = template?.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template?.backgroundUrl || '' }];
         const newPage = {
             pageNum: pages.length + 1,
             fields: deepClone(fields),
-            backgroundUrl: template.backgroundUrl
+            backgroundUrl: template?.backgroundUrl || ''
         };
         const updated = [...pages, newPage];
         setTemplate(p => ({ ...p, pages: updated }));
@@ -714,7 +724,8 @@ export default function TemplateMapper() {
     };
 
     const deleteCurrentPage = () => {
-        const pages = template.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template.backgroundUrl }];
+        if (!template) return;
+        const pages = template?.pages || [{ pageNum: 1, fields: deepClone(fields), backgroundUrl: template?.backgroundUrl || '' }];
         if (pages.length <= 1) return alert('يجب أن يحتوي القالب على صفحة واحدة على الأقل');
         if (!confirm('هل أنت متأكد من حذف الصفحة الحالية بالكامل؟')) return;
 
@@ -1217,6 +1228,38 @@ export default function TemplateMapper() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [hasUnsavedChanges]);
 
+    // Touch dragging & gesture scroll conflict preventions on mobile/tablets
+    useEffect(() => {
+        if (!template) return;
+        const preventCanvasScroll = (e) => {
+            if (isDragging || isResizing || selectedIdsRef.current.length > 0) {
+                if (e.cancelable) e.preventDefault();
+            }
+        };
+        const preventGestureZoom = (e) => {
+            if (e.cancelable) e.preventDefault();
+        };
+        const canvasEl = canvasRef.current;
+        if (!canvasEl) return;
+
+        canvasEl.addEventListener('touchstart', preventCanvasScroll, { passive: false });
+        canvasEl.addEventListener('touchmove', preventCanvasScroll, { passive: false });
+        canvasEl.addEventListener('gesturestart', preventGestureZoom, { passive: false });
+
+        return () => {
+            canvasEl.removeEventListener('touchstart', preventCanvasScroll);
+            canvasEl.removeEventListener('touchmove', preventCanvasScroll);
+            canvasEl.removeEventListener('gesturestart', preventGestureZoom);
+        };
+    }, [isDragging, isResizing, template]);
+
+    // Regression Protection Debugging Logging
+    console.debug('[HOOK-CHECK]', {
+        templateLoaded: !!template,
+        pagesCount: template?.pages?.length ?? (template ? 1 : 0),
+        fieldsCount: fields?.length ?? 0
+    });
+
     if (initStatus === 'loading') {
         return (
             <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'Cairo' }}>
@@ -1268,36 +1311,9 @@ export default function TemplateMapper() {
 
     if (!template) return <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
 
-    // Touch dragging & gesture scroll conflict preventions on mobile/tablets
-    useEffect(() => {
-        const preventCanvasScroll = (e) => {
-            if (isDragging || isResizing || selectedIdsRef.current.length > 0) {
-                if (e.cancelable) e.preventDefault();
-            }
-        };
-        const preventGestureZoom = (e) => {
-            if (e.cancelable) e.preventDefault();
-        };
-        const canvasEl = canvasRef.current;
-        if (canvasEl) {
-            canvasEl.addEventListener('touchstart', preventCanvasScroll, { passive: false });
-            canvasEl.addEventListener('touchmove', preventCanvasScroll, { passive: false });
-            canvasEl.addEventListener('gesturestart', preventGestureZoom, { passive: false });
-        }
-        return () => {
-            if (canvasEl) {
-                canvasEl.removeEventListener('touchstart', preventCanvasScroll);
-                canvasEl.removeEventListener('touchmove', preventCanvasScroll);
-                canvasEl.removeEventListener('gesturestart', preventGestureZoom);
-            }
-        };
-    }, [isDragging, isResizing]);
-
-    if (!template) return <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
-
     const activeField = fields.find(f => selectedIds.includes(f._uid));
     const unifiedBox = SelectionEngine.getUnifiedBoundingBox(fields, selectedIds);
-    const pagesList = template.pages || [{ pageNum: 1, fields: fields, backgroundUrl: template.backgroundUrl }];
+    const pagesList = template?.pages || [{ pageNum: 1, fields: fields, backgroundUrl: template?.backgroundUrl || '' }];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
@@ -1431,14 +1447,12 @@ export default function TemplateMapper() {
                     <div style={{ padding: '12px 14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}><Columns size={12} /> محرر صفحات الوثيقة (Multi-page)</span>
                         <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
-                            <select value={currentPageIndex} onChange={e => { setCurrentPageIndex(Number(e.target.value)); loadTemplate(); }} style={{ background: '#1c1c1f', border: '1px solid #222225', color: '#fff', padding: '6px', fontSize: '11px', borderRadius: '4px', width: '55%' }}>
-                                {pagesList.map((p, i) => <option key={i} value={i}>صفحة {p.pageNum}</option>)}
+                            <select value={currentPageIndex} onChange={e => { setCurrentPageIndex(Number(e.target.value)); setSelectedIds([]); }} style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', color: '#fff', borderRadius: '8px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                                {(pagesList ?? []).map((p, i) => <option key={i} value={i}>صفحة {p.pageNum}</option>)}
                             </select>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                                <button onClick={addNewPage} style={{ padding: '6px', background: '#222226', border: '1px solid #222225', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }} title="إضافة صفحة">+</button>
-                                <button onClick={duplicateCurrentPage} style={{ padding: '6px', background: '#222226', border: '1px solid #222225', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }} title="تكرار الصفحة">تكرار</button>
-                                <button onClick={deleteCurrentPage} style={{ padding: '6px', background: '#ef4444', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', color: '#fff' }} title="حذف الصفحة">حذف</button>
-                            </div>
+                            <button onClick={addNewPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="إضافة صفحة"><Plus size={14}/></button>
+                            <button onClick={duplicateCurrentPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="تكرار الصفحة الحالية"><Copy size={14}/></button>
+                            <button onClick={deleteCurrentPage} style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: '#ef4444', borderRadius: '8px', cursor: 'pointer' }} title="حذف الصفحة الحالية"><Trash2 size={14}/></button>
                         </div>
                     </div>
 
@@ -1948,7 +1962,7 @@ export default function TemplateMapper() {
                             {/* Assets list */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>سجل الأصول النشطة المعتمدة في النظام:</span>
-                                {assets.map(asset => (
+                                {(assets ?? []).map(asset => (
                                     <div key={asset.id} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <img src={asset.url} alt={asset.name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px', padding: '2px' }} />
@@ -1964,7 +1978,10 @@ export default function TemplateMapper() {
                                                     if (asset.category === 'STAMPS') {
                                                         alert("تم استيراد الختم كختم رسمي نشط بالنظام!");
                                                     } else {
-                                                        setTemplate(p => ({ ...p, backgroundUrl: asset.url }));
+                                                        setTemplate(p => {
+                                                            if (!p) return null;
+                                                            return { ...p, backgroundUrl: asset.url };
+                                                        });
                                                         setHasUnsavedChanges(true);
                                                         setSaveStatus('unsaved');
                                                         alert("تم تطبيق الشعار كخلفية رسمية للـ Canvas!");
@@ -1993,7 +2010,7 @@ export default function TemplateMapper() {
                         </div>
 
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {template.versionHistory && template.versionHistory.map((snap, idx) => (
+                            {(template?.versionHistory ?? []).map((snap, idx) => (
                                 <div key={idx} style={{ padding: '12px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '8px', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
                                     <div>
                                         <div style={{ fontSize: '12px', fontWeight: 900, color: '#f3f4f6' }}>الإصدار التاريخي v{snap.version}</div>
@@ -2019,7 +2036,7 @@ export default function TemplateMapper() {
                                     </div>
                                 </div>
                             ))}
-                            {(!template.versionHistory || template.versionHistory.length === 0) && <span style={{ fontSize: '11px', color: '#71717a', textAlign: 'center' }}>لا توجد إصدارات منشورة سابقة لهذا القالب.</span>}
+                            {(!template?.versionHistory || template.versionHistory.length === 0) && <span style={{ fontSize: '11px', color: '#71717a', textAlign: 'center' }}>لا توجد إصدارات منشورة سابقة لهذا القالب.</span>}
                         </div>
                     </div>
                 </div>
@@ -2039,7 +2056,7 @@ export default function TemplateMapper() {
                             <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 900, color: '#0ea5e9', display: 'block', marginBottom: '10px' }}>مقارنة الحقول النصية ومواقعها (Textual Diff View):</span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {(compareTarget.fields || []).map(oldF => {
+                                    {(compareTarget?.fields ?? []).map(oldF => {
                                         const curF = fields.find(x => x.fieldId === oldF.fieldId);
                                         const oldMeta = getFieldMeta(oldF.fieldId);
                                         
@@ -2098,11 +2115,11 @@ export default function TemplateMapper() {
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>📥 طابور النشر والتصدير الخلفي ({queueTasks.filter(t => t.status === 'running' || t.status === 'pending').length})</span>
+                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>📥 طابور النشر والتصدير الخلفي ({(queueTasks ?? []).filter(t => t.status === 'running' || t.status === 'pending').length})</span>
                     </div>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
-                        {queueTasks.map(task => (
+                        {(queueTasks ?? []).map(task => (
                             <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#1c1c1f', padding: '8px', borderRadius: '6px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
                                     <span style={{ fontSize: '10px', fontWeight: 800, color: '#f3f4f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{task.label}</span>
