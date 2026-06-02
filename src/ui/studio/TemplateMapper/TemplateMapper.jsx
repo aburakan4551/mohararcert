@@ -12,10 +12,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-    Save, ArrowLeft, Image as ImageIcon, Type, Plus, Layers, 
-    MousePointer2, Move, ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Lock, Unlock, 
-    Trash2, Copy, AlertTriangle, CheckCircle, Undo2, Redo2, AlignLeft, 
+import {
+    Save, ArrowLeft, Image as ImageIcon, Type, Plus, Layers,
+    MousePointer2, Move, ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Lock, Unlock,
+    Trash2, Copy, AlertTriangle, CheckCircle, Undo2, Redo2, AlignLeft,
     AlignCenter, AlignRight, Sparkles, Grid, Settings, Clipboard, List, Check, X, RefreshCw, Eye as ViewIcon, ShieldAlert, History, Columns, Play, Ban, RefreshCcw
 } from 'lucide-react';
 import { SUPPORTED_FIELDS, getFieldMeta } from '../../../engine/FieldEngine/FieldEngine';
@@ -75,7 +75,7 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'يتقدم فرع وزارة الصحة بمنطقة الرياض بخالص الشكر والتقدير والامتنان لجهودكم المتميزة في إنجاح العمل الصحي.'
+                textContent: 'يتقدم فرع وزارة الصحة بمنطقة الحدود الشمالية بخالص الشكر والتقدير'
             },
             {
                 fieldId: 'wishes_text',
@@ -126,7 +126,7 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'مدير عام فرع الوزارة'
+                textContent: 'مدير عام فرع وزارة'
             }
         ]
     },
@@ -155,13 +155,13 @@ export default function TemplateMapper() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, settings } = useAuth();
-    
+
     const workspaceRef = useRef(null);
     const canvasRef = useRef(null);
 
     const [template, setTemplate] = useState(null);
     const [fields, setFields] = useState([]);
-    
+
     // Page Navigator States (Multi-page document structure)
     const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
@@ -204,7 +204,7 @@ export default function TemplateMapper() {
 
     // Pointer Drag Coordinates
     const [isDragging, setIsDragging] = useState(false);
-    
+
     // Performance Hardening: Refs to prevent render storms and event listener churn
     const fieldsRef = useRef(fields);
     const zoomRef = useRef(zoom);
@@ -250,44 +250,44 @@ export default function TemplateMapper() {
     useEffect(() => {
         let active = true;
         const currentId = id;
-        
+
         console.log(`[TRACING 🚀] route enter with id: ${currentId}`);
         setInitStatus('loading');
         setInitErrorMsg('');
-        
+
         const initPipeline = async () => {
             console.log(`[TRACING ⚙️] starting initialization pipeline for template ID: ${currentId}`);
-            
+
             let templateLoaded = false;
             let presetsLoaded = false;
             let assetsLoaded = false;
-            
+
             // 1. Critical Phase: Load Template Design & Hydrate Fields
             try {
                 if (!currentId) {
                     throw new Error("معرف القالب غير محدد بالرابط (Missing Route Param 'id')");
                 }
-                
+
                 console.log(`[TRACING ⏳] phase 1: loading template [ID: ${currentId}]`);
                 const found = await templateService.getById(currentId);
-                
+
                 if (!active) {
                     console.log(`[TRACING 🛑] template resolved but aborted because route or page index changed.`);
                     return;
                 }
-                
+
                 if (found) {
                     if (!found.orientation) {
                         found.orientation = 'portrait';
                     }
                     console.log(`[TRACING 🧬] template resolved successfully: "${found.name}" [version: v${found.version || 1}]`);
                     setTemplate(found);
-                    
+
                     console.log("[TRACING 💧] hydration started: mapping fields structure");
                     const loadedPages = found?.pages ?? [{ pageNum: 1, fields: found?.fields ?? [], backgroundUrl: found?.backgroundUrl ?? '' }];
                     const activePageFields = loadedPages[currentPageIndex]?.fields ?? [];
                     console.log(`[TRACING 📜] template pages count: ${loadedPages.length}, current page index: ${currentPageIndex}`);
-                    
+
                     const mappedFields = (activePageFields ?? []).filter(Boolean).map(f => {
                         if (!f) return null;
                         return {
@@ -300,7 +300,7 @@ export default function TemplateMapper() {
                             aspectRatioLocked: f.aspectRatioLocked || false
                         };
                     }).filter(Boolean);
-                    
+
                     const finalFields = mappedFields ?? [];
                     setFields(finalFields);
                     historyEngine.initialize(finalFields);
@@ -322,7 +322,7 @@ export default function TemplateMapper() {
                 setInitStatus('failed');
                 return;
             }
-            
+
             // 2. Non-Critical Phase: Load Custom Presets
             try {
                 console.log(`[TRACING ⏳] phase 2: loading custom presets`);
@@ -337,7 +337,7 @@ export default function TemplateMapper() {
                 diagnosticsStore.logInitializationError("LOAD_PRESETS_FAILED", err, `ID: ${currentId}`);
                 // Proceed since it is non-critical
             }
-            
+
             // 3. Non-Critical Phase: Load Shared Assets
             try {
                 console.log(`[TRACING ⏳] phase 3: loading shared department assets`);
@@ -357,7 +357,7 @@ export default function TemplateMapper() {
                 diagnosticsStore.logInitializationError("LOAD_ASSETS_FAILED", err, `ID: ${currentId}`);
                 // Proceed since it is non-critical
             }
-            
+
             // 4. Resolve final pipeline status cleanly and prevent silent freezes
             if (active) {
                 if (templateLoaded) {
@@ -377,9 +377,9 @@ export default function TemplateMapper() {
                 }
             }
         };
-        
+
         initPipeline();
-        
+
         return () => {
             console.log(`[TRACING 🛑] cleanup for route ID: ${currentId}`);
             active = false;
@@ -416,7 +416,7 @@ export default function TemplateMapper() {
                 }
                 console.log(`[TRACING 🧬] template resolved: ${found.name}`);
                 setTemplate(found);
-                
+
                 const loadedPages = found?.pages ?? [{ pageNum: 1, fields: found?.fields ?? [], backgroundUrl: found?.backgroundUrl ?? '' }];
                 const activePageFields = loadedPages[currentPageIndex]?.fields ?? [];
                 const mappedFields = (activePageFields ?? []).filter(Boolean).map(f => {
@@ -431,7 +431,7 @@ export default function TemplateMapper() {
                         aspectRatioLocked: f.aspectRatioLocked || false
                     };
                 }).filter(Boolean);
-                
+
                 const finalFields = mappedFields ?? [];
                 setFields(finalFields);
                 historyEngine.initialize(finalFields);
@@ -618,7 +618,7 @@ export default function TemplateMapper() {
             aspectRatioLocked: false,
             textContent: meta.defaultContent || ''
         };
-        
+
         const updated = [newField, ...fields];
         markDirty(updated);
         setSelectedIds([newField._uid]);
@@ -691,7 +691,7 @@ export default function TemplateMapper() {
 
     const handleSaveAsCustomPreset = async () => {
         if (selectedIds.length === 0) return alert('الرجاء اختيار عنصر واحد على الأقل لحفظه كمكون مخصص');
-        
+
         const label = window.prompt('الرجاء إدخال اسم المكون المخصص الجديد:');
         if (!label) return;
 
@@ -798,7 +798,7 @@ export default function TemplateMapper() {
             };
 
             await assetService.create(assetPayload);
-            alert(`تم ضغط ومعالجة الملف بنجاح (${Math.round(result.sizeBytes/1024)}KB) وحفظه بالأرشيف.`);
+            alert(`تم ضغط ومعالجة الملف بنجاح (${Math.round(result.sizeBytes / 1024)}KB) وحفظه بالأرشيف.`);
             setNewAssetName('');
             loadAssets();
         } catch (err) {
@@ -820,10 +820,10 @@ export default function TemplateMapper() {
 
         const taskId = `task_${Date.now()}`;
         const label = `تصدير وثيقة - ${template.name}`;
-        
+
         backgroundQueue.enqueue(taskId, label, async (updateProgress) => {
             updateProgress(15);
-            
+
             const dummyDataContext = {
                 recipient_name: 'ياسر بن سلمان المطيري',
                 certificate_title: 'شهادة شكر وتقدير',
@@ -894,7 +894,7 @@ export default function TemplateMapper() {
 
     const updateField = (uid, changes) => {
         const updated = fields.map(f => f._uid === uid ? { ...f, ...changes } : f);
-        markDirty(updated, true); 
+        markDirty(updated, true);
     };
 
     const removeField = (uid) => {
@@ -906,11 +906,11 @@ export default function TemplateMapper() {
     const duplicateField = (uid) => {
         const field = fields.find(f => f._uid === uid);
         if (!field) return;
-        const newField = { 
-            ...deepClone(field), 
-            _uid: `uid_${Math.random().toString(36).substr(2, 9)}`, 
-            x: Math.min(95, field.x + 3), 
-            y: Math.min(95, field.y + 3) 
+        const newField = {
+            ...deepClone(field),
+            _uid: `uid_${Math.random().toString(36).substr(2, 9)}`,
+            x: Math.min(95, field.x + 3),
+            y: Math.min(95, field.y + 3)
         };
         const updated = [newField, ...fields];
         markDirty(updated);
@@ -941,7 +941,7 @@ export default function TemplateMapper() {
 
     const moveUp = (uid) => {
         const index = fields.findIndex(f => f._uid === uid);
-        if (index <= 0) return; 
+        if (index <= 0) return;
         const updated = [...fields];
         const temp = updated[index];
         updated[index] = updated[index - 1];
@@ -1146,8 +1146,8 @@ export default function TemplateMapper() {
     // --- INTERACTION: Drag & Multi-drag --- //
     const handlePointerDown = (e, field) => {
         if (field.locked) return;
-        e.preventDefault(); 
-        
+        e.preventDefault();
+
         let currentSelection = [...selectedIdsRef.current];
         if (e.shiftKey) {
             if (currentSelection.includes(field._uid)) {
@@ -1202,7 +1202,7 @@ export default function TemplateMapper() {
     const handleResizeStart = (e, field, handle) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         resizeData.current = {
             active: true,
             fieldUid: field._uid,
@@ -1228,20 +1228,20 @@ export default function TemplateMapper() {
 
             const dx = e.clientX - data.startX;
             const dy = e.clientY - data.startY;
-            
+
             const dxCanvas = dx / zoom;
             const dyCanvas = dy / zoom;
-            
+
             const canvasW = data.canvasRect.width / zoom;
             const canvasH = data.canvasRect.height / zoom;
-            
+
             let newWidth = data.initialWidth;
             let newHeight = data.initialHeight;
             let newX = data.initialX;
             let newY = data.initialY;
-            
+
             const handle = data.handle;
-            
+
             if (handle.includes('r')) {
                 newWidth = Math.max(20, data.initialWidth + dxCanvas);
                 newX = data.initialX + (((newWidth - data.initialWidth) / 2) / canvasW) * 100;
@@ -1249,7 +1249,7 @@ export default function TemplateMapper() {
                 newWidth = Math.max(20, data.initialWidth - dxCanvas);
                 newX = data.initialX - (((newWidth - data.initialWidth) / 2) / canvasW) * 100;
             }
-            
+
             if (handle.includes('b')) {
                 newHeight = Math.max(10, data.initialHeight + dyCanvas);
                 newY = data.initialY + (((newHeight - data.initialHeight) / 2) / canvasH) * 100;
@@ -1266,12 +1266,12 @@ export default function TemplateMapper() {
                     newWidth = Math.round(newHeight * initialRatio);
                 }
             }
-            
+
             newWidth = Math.round(newWidth);
             newHeight = Math.round(newHeight);
             newX = Math.round(newX * 10) / 10;
             newY = Math.round(newY * 10) / 10;
-            
+
             updateField(data.fieldUid, {
                 width: newWidth,
                 height: newHeight,
@@ -1321,7 +1321,7 @@ export default function TemplateMapper() {
 
             let guideX = null;
             let guideY = null;
-            const snapThreshold = 1.0; 
+            const snapThreshold = 1.0;
 
             // Center Snapping
             if (Math.abs(newX - 50) < snapThreshold) { newX = 50; guideX = 50; }
@@ -1440,7 +1440,7 @@ export default function TemplateMapper() {
                         <ShieldAlert size={28} />
                         <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0 }}>فشل تهيئة استوديو التصميم</h2>
                     </div>
-                    
+
                     <p style={{ fontSize: '13px', color: '#e4e4e7', lineHeight: 1.6, margin: 0 }}>
                         {initErrorMsg || 'حدث خطأ غير متوقع أثناء تحميل القالب أو أصول الهوية.'}
                     </p>
@@ -1491,13 +1491,13 @@ export default function TemplateMapper() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <AlertTriangle size={14} />
                         <span>
-                            {initStatus === 'recovered' 
-                                ? '⚠️ وضع الاسترداد النشط: تم تجاوز بعض أخطاء تحميل الأصول الفرعية بنجاح لحفظ استقرار منصة التصميم.' 
+                            {initStatus === 'recovered'
+                                ? '⚠️ وضع الاسترداد النشط: تم تجاوز بعض أخطاء تحميل الأصول الفرعية بنجاح لحفظ استقرار منصة التصميم.'
                                 : '⚠️ وضع التشغيل الاحتياطي: فشل الاتصال بخوادم المكونات الإضافية وتثبيت المسودات بالكامل. تم تحميل القالب الرئيسي فقط لتفادي التعطل.'}
                         </span>
                     </div>
-                    <button 
-                        onClick={() => setInitStatus('ready')} 
+                    <button
+                        onClick={() => setInitStatus('ready')}
                         style={{
                             background: 'rgba(255, 255, 255, 0.08)',
                             border: '1px solid rgba(245, 158, 11, 0.2)',
@@ -1513,25 +1513,25 @@ export default function TemplateMapper() {
                     </button>
                 </div>
             )}
-            
+
             {/* ─── 🏛️ TOP ACTION BAR ─── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', background: '#141416', padding: '10px 24px', borderBottom: '1px solid #222225', zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <button onClick={handleBack} style={{ background: '#1f1f23', border: 'none', cursor: 'pointer', color: '#e4e4e7', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '11px' }}>
                         <ArrowLeft size={16} /> العودة للرئيسية
                     </button>
-                    
+
                     <div style={{ height: '20px', width: '1px', background: '#222225' }} />
-                    
+
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 style={{ fontSize: '14px', fontWeight: 900, color: '#f3f4f6', lineHeight: 1 }}>{template.name}</h2>
                             <span style={{ fontSize: '10px', color: '#a1a1aa' }}>(الإصدار v{template.version || 1})</span>
-                            
+
                             {/* State indicators */}
                             {saveStatus === 'saved' && (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '20px' }}>
-                                    <CheckCircle size={10}/> محفوظ وآمن
+                                    <CheckCircle size={10} /> محفوظ وآمن
                                 </span>
                             )}
                             {saveStatus === 'saving' && (
@@ -1546,7 +1546,7 @@ export default function TemplateMapper() {
                             )}
                             {saveStatus === 'error' && (
                                 <span onClick={() => handleSave(true)} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '20px', cursor: 'pointer', border: '1px solid rgba(239,68,68,0.2)' }}>
-                                    <AlertTriangle size={10}/> خطأ! انقر للمحاولة
+                                    <AlertTriangle size={10} /> خطأ! انقر للمحاولة
                                 </span>
                             )}
                         </div>
@@ -1556,21 +1556,21 @@ export default function TemplateMapper() {
 
                 {/* Toolbar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button 
+                    <button
                         onClick={() => setShowHistoryPanel(true)}
                         style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                         <History size={14} /> الإصدارات التاريخية ({template.versionHistory?.length || 0})
                     </button>
-                    
-                    <button 
+
+                    <button
                         onClick={() => setShowAssetManager(true)}
                         style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                         <Settings size={14} /> سجل وحوكمة الأصول الرسمية
                     </button>
 
-                    <button 
+                    <button
                         onClick={triggerBackgroundExport}
                         style={{ padding: '8px 12px', background: 'rgba(16, 185, 129, 0.15)', border: 'none', cursor: 'pointer', color: '#10b981', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
@@ -1578,8 +1578,8 @@ export default function TemplateMapper() {
                     </button>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#1c1c1f', padding: '2px', borderRadius: '8px' }}>
-                        <button onClick={handleUndo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Undo2 size={14}/></button>
-                        <button onClick={handleRedo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Redo2 size={14}/></button>
+                        <button onClick={handleUndo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Undo2 size={14} /></button>
+                        <button onClick={handleRedo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Redo2 size={14} /></button>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: '#1c1c1f', padding: '2px', borderRadius: '8px' }}>
@@ -1596,10 +1596,10 @@ export default function TemplateMapper() {
 
             {/* ─── WORKSPACE PANELS ─── */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                
+
                 {/* 👈 LEFT BAR: PRESETS & STANDARD FIELDS */}
                 <div style={{ width: '310px', background: '#141416', borderLeft: '1px solid #222225', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-                    
+
                     {/* Collapsible layout controls */}
                     <div style={{ padding: '12px 14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}><Columns size={12} /> محرر صفحات الوثيقة (Multi-page)</span>
@@ -1607,9 +1607,9 @@ export default function TemplateMapper() {
                             <select value={currentPageIndex} onChange={e => { setCurrentPageIndex(Number(e.target.value)); setSelectedIds([]); }} style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', color: '#fff', borderRadius: '8px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
                                 {(pagesList ?? []).map((p, i) => <option key={i} value={i}>صفحة {p.pageNum}</option>)}
                             </select>
-                            <button onClick={addNewPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="إضافة صفحة"><Plus size={14}/></button>
-                            <button onClick={duplicateCurrentPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="تكرار الصفحة الحالية"><Copy size={14}/></button>
-                            <button onClick={deleteCurrentPage} style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: '#ef4444', borderRadius: '8px', cursor: 'pointer' }} title="حذف الصفحة الحالية"><Trash2 size={14}/></button>
+                            <button onClick={addNewPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="إضافة صفحة"><Plus size={14} /></button>
+                            <button onClick={duplicateCurrentPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="تكرار الصفحة الحالية"><Copy size={14} /></button>
+                            <button onClick={deleteCurrentPage} style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: '#ef4444', borderRadius: '8px', cursor: 'pointer' }} title="حذف الصفحة الحالية"><Trash2 size={14} /></button>
                         </div>
                     </div>
 
@@ -1656,15 +1656,15 @@ export default function TemplateMapper() {
                         <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <ImageIcon size={14} /> خلفية قالب النشر
                         </h3>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {(template?.background || template?.backgroundUrl) ? (
                                 <>
                                     <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #222225', background: '#1c1c1f' }}>
-                                        <img 
-                                            src={template.background || template.backgroundUrl} 
-                                            alt="Bg Preview" 
-                                            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                                        <img
+                                            src={template.background || template.backgroundUrl}
+                                            alt="Bg Preview"
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                         />
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -1672,14 +1672,14 @@ export default function TemplateMapper() {
                                             استبدال
                                             <input type="file" accept=".png,.jpg,.jpeg,.svg" onChange={handleBackgroundUpload} style={{ display: 'none' }} />
                                         </label>
-                                        <button 
-                                            onClick={handleRemoveBackground} 
+                                        <button
+                                            onClick={handleRemoveBackground}
                                             style={{ flex: 1, padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: '#ef4444' }}
                                         >
                                             إزالة
                                         </button>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={handleToggleBackgroundLock}
                                         style={{
                                             width: '100%',
@@ -1733,8 +1733,8 @@ export default function TemplateMapper() {
                                 const isRenaming = renamingFieldUid === f._uid;
 
                                 return (
-                                    <div 
-                                        key={f._uid} 
+                                    <div
+                                        key={f._uid}
                                         onClick={(e) => {
                                             if (e.shiftKey) {
                                                 setSelectedIds(prev => prev.includes(f._uid) ? prev.filter(x => x !== f._uid) : [...prev, f._uid]);
@@ -1743,23 +1743,23 @@ export default function TemplateMapper() {
                                             }
                                         }}
                                         onDoubleClick={() => startRenaming(f)}
-                                        style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            padding: '8px 12px', 
-                                            background: isSelected ? 'rgba(16, 185, 129, 0.15)' : '#1c1c1f', 
-                                            color: isSelected ? '#10b981' : '#f3f4f6', 
-                                            borderRadius: '6px', 
-                                            cursor: 'pointer', 
-                                            gap: '8px', 
-                                            border: isSelected ? '1px solid #10b981' : '1px solid #222225' 
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 12px',
+                                            background: isSelected ? 'rgba(16, 185, 129, 0.15)' : '#1c1c1f',
+                                            color: isSelected ? '#10b981' : '#f3f4f6',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            gap: '8px',
+                                            border: isSelected ? '1px solid #10b981' : '1px solid #222225'
                                         }}
                                     >
                                         <div style={{ flex: 1, fontSize: '11px', fontWeight: 800 }}>
                                             {isRenaming ? (
-                                                <input 
-                                                    value={renameValue} 
-                                                    onChange={e => setRenameValue(e.target.value)} 
+                                                <input
+                                                    value={renameValue}
+                                                    onChange={e => setRenameValue(e.target.value)}
                                                     onBlur={() => saveRename(f._uid)}
                                                     onKeyDown={e => { if (e.key === 'Enter') saveRename(f._uid) }}
                                                     autoFocus
@@ -1781,9 +1781,9 @@ export default function TemplateMapper() {
                 </div>
 
                 {/* 🎛️ CENTER BOARD: VIRTUAL RENDER CANVAS */}
-                <div 
-                    ref={workspaceRef} 
-                    style={{ flex: 1, background: '#0a0a0c', overflowX: 'auto', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }} 
+                <div
+                    ref={workspaceRef}
+                    style={{ flex: 1, background: '#0a0a0c', overflowX: 'auto', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
                     onClick={(e) => { if (e.target === workspaceRef.current || e.target.parentElement === workspaceRef.current) setSelectedIds([]) }}
                 >
                     {/* A4 Metric Rulers */}
@@ -1798,10 +1798,10 @@ export default function TemplateMapper() {
                         </>
                     )}
 
-                    <div 
+                    <div
                         ref={canvasRef}
                         style={{
-                            width: template?.orientation === 'portrait' ? '793.7px' : '1122.5px', 
+                            width: template?.orientation === 'portrait' ? '793.7px' : '1122.5px',
                             height: template?.orientation === 'portrait' ? '1122.5px' : '793.7px',
                             backgroundColor: '#ffffff',
                             position: 'relative',
@@ -1867,7 +1867,7 @@ export default function TemplateMapper() {
                             const meta = getFieldMeta(f.fieldId);
                             const isSelected = selectedIds.includes(f._uid);
                             const zIndex = 10 + reverseIdx;
-                            
+
                             return (
                                 <div
                                     key={f._uid}
@@ -1925,25 +1925,25 @@ export default function TemplateMapper() {
                                                     transform: 'translate(-50%, -50%)',
                                                     pointerEvents: 'auto'
                                                 };
-                                                
+
                                                 if (handle.includes('t')) style.top = '0%';
                                                 if (handle.includes('b')) style.top = '100%';
                                                 if (handle.includes('c') || handle.includes('m')) style.top = '50%';
-                                                
+
                                                 if (handle.includes('l')) style.left = '0%';
                                                 if (handle.includes('r')) style.left = '100%';
                                                 if (handle.includes('c') || handle.includes('m')) style.left = '50%';
-                                                
+
                                                 let cursor = 'default';
                                                 if (handle === 'tl' || handle === 'br') cursor = 'nwse-resize';
                                                 if (handle === 'tr' || handle === 'bl') cursor = 'nesw-resize';
                                                 if (handle === 'tc' || handle === 'bc') cursor = 'ns-resize';
                                                 if (handle === 'ml' || handle === 'mr') cursor = 'ew-resize';
-                                                
+
                                                 style.cursor = cursor;
-                                                
+
                                                 return (
-                                                    <div 
+                                                    <div
                                                         key={handle}
                                                         style={style}
                                                         onPointerDown={(e) => handleResizeStart(e, f, handle)}
@@ -1967,7 +1967,7 @@ export default function TemplateMapper() {
                     <div style={{ flex: 1, overflowY: 'auto' }}>
                         {selectedIds.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-                                
+
                                 {/* Spacing distributions */}
                                 {selectedIds.length > 2 && (
                                     <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
@@ -2002,8 +2002,8 @@ export default function TemplateMapper() {
                                     <>
                                         <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#f3f4f6', cursor: 'pointer' }}>
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     checked={activeField.aspectRatioLocked || false}
                                                     onChange={e => updateField(activeField._uid, { aspectRatioLocked: e.target.checked })}
                                                     style={{ cursor: 'pointer' }}
@@ -2034,7 +2034,7 @@ export default function TemplateMapper() {
                                             <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
                                                 <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#a1a1aa', marginBottom: '10px' }}>النصوص والمحتوى (Typography)</h4>
                                                 <textarea value={activeField.textContent || ''} onChange={e => { updateField(activeField._uid, { textContent: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, textContent: e.target.value } : f)); }} placeholder={`نص افتراضي...`} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', minHeight: '60px', resize: 'vertical' }} disabled={activeField.locked} />
-                                                
+
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
                                                     <label style={{ fontSize: '10px', color: '#a1a1aa' }}>حجم الخط
                                                         <input type="number" value={activeField.fontSize} onChange={e => { updateField(activeField._uid, { fontSize: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontSize: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
@@ -2076,7 +2076,7 @@ export default function TemplateMapper() {
 
             {/* ─── Custom Floating Glassmorphic Context Menu ─── */}
             {contextMenu.visible && (
-                <div 
+                <div
                     style={{
                         position: 'fixed',
                         top: contextMenu.y,
@@ -2094,11 +2094,11 @@ export default function TemplateMapper() {
                         gap: '2px'
                     }}
                 >
-                    <button 
+                    <button
                         onClick={() => {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { locked: !f.locked });
-                        }} 
+                        }}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -2106,11 +2106,11 @@ export default function TemplateMapper() {
                         <span>تأمين القفل</span>
                         <Lock size={12} style={{ opacity: 0.5 }} />
                     </button>
-                    <button 
+                    <button
                         onClick={() => {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { hidden: !f.hidden });
-                        }} 
+                        }}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -2118,11 +2118,11 @@ export default function TemplateMapper() {
                         <span>إخفاء الطبقة</span>
                         <EyeOff size={12} style={{ opacity: 0.5 }} />
                     </button>
-                    <button 
+                    <button
                         onClick={() => {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { aspectRatioLocked: !f.aspectRatioLocked });
-                        }} 
+                        }}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -2131,16 +2131,16 @@ export default function TemplateMapper() {
                         <Maximize size={12} style={{ opacity: 0.5 }} />
                     </button>
                     <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-                    <button 
-                        onClick={() => bringToFront(contextMenu.fieldUid)} 
+                    <button
+                        onClick={() => bringToFront(contextMenu.fieldUid)}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
                         جلب للمقدمة
                     </button>
-                    <button 
-                        onClick={() => sendToBack(contextMenu.fieldUid)} 
+                    <button
+                        onClick={() => sendToBack(contextMenu.fieldUid)}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -2148,8 +2148,8 @@ export default function TemplateMapper() {
                         إرسال للخلف
                     </button>
                     <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-                    <button 
-                        onClick={() => removeField(contextMenu.fieldUid)} 
+                    <button
+                        onClick={() => removeField(contextMenu.fieldUid)}
                         style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 900, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -2165,19 +2165,19 @@ export default function TemplateMapper() {
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
                     <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '700px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' }}>
                         <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                            <h3 style={{ fontSize: '15px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}><Settings size={18}/> حوكمة وإدارة أصول الجهات الرسمية</h3>
+                            <h3 style={{ fontSize: '15px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}><Settings size={18} /> حوكمة وإدارة أصول الجهات الرسمية</h3>
                             <button onClick={() => setShowAssetManager(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
-                        
+
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Upload New Asset Form */}
                             <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>+ إضافة وتسجيل أصل رسمي جديد معتمد</span>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                                    <input 
-                                        type="text" 
-                                        value={newAssetName} 
-                                        onChange={e => setNewAssetName(e.target.value)} 
+                                    <input
+                                        type="text"
+                                        value={newAssetName}
+                                        onChange={e => setNewAssetName(e.target.value)}
                                         placeholder="اسم الأصل (مثال: ختم التحول الرقمي الدائري)"
                                         style={{ background: '#0e0e10', border: '1px solid #222225', color: '#fff', padding: '8px', fontSize: '11px', borderRadius: '6px' }}
                                     />
@@ -2215,7 +2215,7 @@ export default function TemplateMapper() {
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px' }}>
-                                            <button 
+                                            <button
                                                 onClick={async () => {
                                                     // Apply as template background or replace settings stamp
                                                     if (asset.category === 'STAMPS') {
@@ -2248,8 +2248,8 @@ export default function TemplateMapper() {
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                     <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}><History size={16}/> سجل تغييرات وإصدارات قالب النشر</h3>
-                            <button onClick={() => setShowHistoryPanel(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16}/></button>
+                            <h3 style={{ fontSize: '14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}><History size={16} /> سجل تغييرات وإصدارات قالب النشر</h3>
+                            <button onClick={() => setShowHistoryPanel(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16} /></button>
                         </div>
 
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2261,7 +2261,7 @@ export default function TemplateMapper() {
                                         <div style={{ fontSize: '10px', color: '#f59e0b', marginTop: '4px' }}>ملاحظات: {snap.changelog}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setCompareTarget(snap);
                                                 setShowCompareDialog(true);
@@ -2270,7 +2270,7 @@ export default function TemplateMapper() {
                                         >
                                             قارن الفروق
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleRollback(snap.version)}
                                             style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.15)', border: 'none', color: '#10b981', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 900 }}
                                         >
@@ -2291,9 +2291,9 @@ export default function TemplateMapper() {
                     <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '800px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
                             <h3 style={{ fontSize: '14px', fontWeight: 900, color: '#0ea5e9' }}>مقارنة فروق التصميم: الإصدار v{compareTarget.version} مقابل الإصدار الحالي v{template.version}</h3>
-                            <button onClick={() => setShowCompareDialog(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16}/></button>
+                            <button onClick={() => setShowCompareDialog(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16} /></button>
                         </div>
-                        
+
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Textual Differences Compare */}
                             <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
@@ -2302,7 +2302,7 @@ export default function TemplateMapper() {
                                     {(compareTarget?.fields ?? []).map(oldF => {
                                         const curF = fields.find(x => x.fieldId === oldF.fieldId);
                                         const oldMeta = getFieldMeta(oldF.fieldId);
-                                        
+
                                         if (!curF) {
                                             return (
                                                 <div key={oldF._uid} style={{ fontSize: '11px', color: '#ef4444', background: 'rgba(239,68,68,0.06)', padding: '6px', borderRadius: '4px' }}>
@@ -2339,7 +2339,7 @@ export default function TemplateMapper() {
 
             {/* ─── Floating Background Tasks Queue Drawer ─── */}
             {queueTasks.length > 0 && (
-                <div 
+                <div
                     style={{
                         position: 'fixed',
                         bottom: '24px',
@@ -2360,19 +2360,19 @@ export default function TemplateMapper() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>📥 طابور النشر والتصدير الخلفي ({(queueTasks ?? []).filter(t => t.status === 'running' || t.status === 'pending').length})</span>
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
                         {(queueTasks ?? []).map(task => (
                             <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#1c1c1f', padding: '8px', borderRadius: '6px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
                                     <span style={{ fontSize: '10px', fontWeight: 800, color: '#f3f4f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{task.label}</span>
-                                    
+
                                     <div style={{ display: 'flex', gap: '4px' }}>
                                         {task.status === 'running' && (
-                                            <button onClick={() => backgroundQueue.cancel(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="إلغاء"><Ban size={10}/></button>
+                                            <button onClick={() => backgroundQueue.cancel(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="إلغاء"><Ban size={10} /></button>
                                         )}
                                         {(task.status === 'failed' || task.status === 'cancelled') && (
-                                            <button onClick={() => backgroundQueue.retry(task.id)} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }} title="إعادة تشغيل"><RefreshCcw size={10}/></button>
+                                            <button onClick={() => backgroundQueue.retry(task.id)} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }} title="إعادة تشغيل"><RefreshCcw size={10} /></button>
                                         )}
                                     </div>
                                 </div>
