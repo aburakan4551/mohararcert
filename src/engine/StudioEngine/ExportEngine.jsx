@@ -31,13 +31,21 @@ export class ExportEngine {
         const startMem = (window.performance && window.performance.memory) ? window.performance.memory.usedJSHeapSize : 0;
         const failedAssets = [];
 
+        // Orientation-aware dimensions
+        const orientation = template.orientation || 'portrait';
+        const isPortrait = orientation === 'portrait';
+        const canvasW = isPortrait ? 793.7 : 1122.5;
+        const canvasH = isPortrait ? 1122.5 : 793.7;
+        const pdfW_mm = isPortrait ? 210 : 297;
+        const pdfH_mm = isPortrait ? 297 : 210;
+
         // 1. Create a detached off-screen DOM container
         const offscreenContainer = document.createElement('div');
         offscreenContainer.style.position = 'absolute';
         offscreenContainer.style.left = '-9999px';
         offscreenContainer.style.top = '-9999px';
-        offscreenContainer.style.width = '1122.5px'; // Base landscape A4
-        offscreenContainer.style.height = '793.7px';
+        offscreenContainer.style.width = `${canvasW}px`;
+        offscreenContainer.style.height = `${canvasH}px`;
         offscreenContainer.style.background = '#ffffff';
         document.body.appendChild(offscreenContainer);
 
@@ -47,11 +55,11 @@ export class ExportEngine {
         try {
             // 2. Programmatically mount TemplateRenderer in virtual DOM
             root = createRoot(offscreenContainer);
-            
+
             // Support multi-page templates schema if present
             const pages = template.pages || [{ pageNum: 1, ...template }];
             const pdf = format === 'pdf' ? new jsPDF({
-                orientation: 'landscape',
+                orientation: isPortrait ? 'portrait' : 'landscape',
                 unit: 'mm',
                 format: 'a4'
             }) : null;
@@ -59,6 +67,7 @@ export class ExportEngine {
             for (let i = 0; i < pages.length; i++) {
                 const pageTpl = {
                     ...template,
+                    orientation: orientation,
                     backgroundUrl: pages[i].backgroundUrl || template.backgroundUrl,
                     fields: pages[i].fields || template.fields || []
                 };
@@ -68,10 +77,10 @@ export class ExportEngine {
                 // Mount offscreen
                 await new Promise((resolve) => {
                     root.render(
-                        <TemplateRenderer 
-                            template={pageTpl} 
-                            dataContext={dataContext} 
-                            width={1122.5} 
+                        <TemplateRenderer
+                            template={pageTpl}
+                            dataContext={dataContext}
+                            width={canvasW}
                             settings={settings}
                         />
                     );
@@ -146,7 +155,7 @@ export class ExportEngine {
                 // PDF multi-page appending
                 let imgData = canvas.toDataURL('image/png', 1.0);
                 if (i > 0) pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, 0, 297, 210, '', 'FAST');
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfW_mm, pdfH_mm, '', 'FAST');
 
                 // GC Cleanup
                 imgData = null;

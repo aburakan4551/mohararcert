@@ -277,6 +277,9 @@ export default function TemplateMapper() {
                 }
                 
                 if (found) {
+                    if (!found.orientation) {
+                        found.orientation = 'portrait';
+                    }
                     console.log(`[TRACING 🧬] template resolved successfully: "${found.name}" [version: v${found.version || 1}]`);
                     setTemplate(found);
                     
@@ -408,6 +411,9 @@ export default function TemplateMapper() {
         try {
             const found = await templateService.getById(id);
             if (found) {
+                if (!found.orientation) {
+                    found.orientation = 'portrait';
+                }
                 console.log(`[TRACING 🧬] template resolved: ${found.name}`);
                 setTemplate(found);
                 
@@ -618,6 +624,155 @@ export default function TemplateMapper() {
         setSelectedIds([newField._uid]);
     };
 
+    const addPresetBlock = (blockId) => {
+        const block = OFFICIAL_PRESET_BLOCKS.find(b => b.id === blockId);
+        if (!block) return;
+
+        const newFields = block.fields.map(f => {
+            const meta = getFieldMeta(f.fieldId);
+            return {
+                _uid: `uid_${Math.random().toString(36).substr(2, 9)}`,
+                fieldId: f.fieldId,
+                x: f.x ?? 50,
+                y: f.y ?? 50,
+                fontSize: f.fontSize ?? (meta?.defaultFontSize || 24),
+                color: f.color ?? (meta?.defaultColor || '#000000'),
+                fontFamily: f.fontFamily ?? (meta?.defaultFontFamily || 'Cairo'),
+                align: f.align ?? 'center',
+                width: f.width ?? (meta?.defaultWidth || 200),
+                height: f.height ?? (meta?.defaultHeight || 60),
+                opacity: f.opacity ?? 1,
+                rotation: f.rotation ?? 0,
+                lineHeight: f.lineHeight ?? 1.6,
+                letterSpacing: f.letterSpacing ?? 0,
+                hidden: f.hidden ?? false,
+                locked: f.locked ?? false,
+                aspectRatioLocked: f.aspectRatioLocked ?? false,
+                textContent: f.textContent ?? (meta?.defaultContent || '')
+            };
+        });
+
+        const updated = [...newFields, ...fields];
+        markDirty(updated);
+        setSelectedIds(newFields.map(n => n._uid));
+    };
+
+    const addCustomPresetBlock = (preset) => {
+        if (!preset || !preset.fields) return;
+
+        const newFields = preset.fields.map(f => {
+            const meta = getFieldMeta(f.fieldId);
+            return {
+                _uid: `uid_${Math.random().toString(36).substr(2, 9)}`,
+                fieldId: f.fieldId,
+                x: f.x ?? 50,
+                y: f.y ?? 50,
+                fontSize: f.fontSize ?? (meta?.defaultFontSize || 24),
+                color: f.color ?? (meta?.defaultColor || '#000000'),
+                fontFamily: f.fontFamily ?? (meta?.defaultFontFamily || 'Cairo'),
+                align: f.align ?? 'center',
+                width: f.width ?? (meta?.defaultWidth || 200),
+                height: f.height ?? (meta?.defaultHeight || 60),
+                opacity: f.opacity ?? 1,
+                rotation: f.rotation ?? 0,
+                lineHeight: f.lineHeight ?? 1.6,
+                letterSpacing: f.letterSpacing ?? 0,
+                hidden: f.hidden ?? false,
+                locked: f.locked ?? false,
+                aspectRatioLocked: f.aspectRatioLocked ?? false,
+                textContent: f.textContent ?? (meta?.defaultContent || '')
+            };
+        });
+
+        const updated = [...newFields, ...fields];
+        markDirty(updated);
+        setSelectedIds(newFields.map(n => n._uid));
+    };
+
+    const handleSaveAsCustomPreset = async () => {
+        if (selectedIds.length === 0) return alert('الرجاء اختيار عنصر واحد على الأقل لحفظه كمكون مخصص');
+        
+        const label = window.prompt('الرجاء إدخال اسم المكون المخصص الجديد:');
+        if (!label) return;
+
+        try {
+            const selectedFields = fields.filter(f => selectedIds.includes(f._uid));
+            const newPreset = {
+                id: `preset_${Date.now()}`,
+                label: label,
+                description: `مكون مخصص يحتوي على عدد ${selectedFields.length} من الحقول المصممة`,
+                fields: deepClone(selectedFields)
+            };
+
+            await presetStorage.savePreset(newPreset);
+            alert('تم حفظ المكون المخصص بنجاح في أرشيف الاستوديو!');
+            loadCustomPresets();
+        } catch (e) {
+            alert('فشل حفظ المكون المخصص: ' + e.message);
+        }
+    };
+
+    const handleDeleteCustomPreset = async (e, presetId) => {
+        e.stopPropagation();
+        if (!window.confirm('هل أنت متأكد من حذف هذا المكون المخصص؟')) return;
+        try {
+            await presetStorage.deletePreset(presetId);
+            alert('تم حذف المكون المخصص بنجاح.');
+            loadCustomPresets();
+        } catch (err) {
+            alert('فشل حذف المكون المخصص: ' + err.message);
+        }
+    };
+
+    const handleBackgroundUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64Data = reader.result;
+            setTemplate(p => {
+                if (!p) return null;
+                return {
+                    ...p,
+                    background: base64Data,
+                    backgroundUrl: base64Data
+                };
+            });
+            setHasUnsavedChanges(true);
+            setSaveStatus('unsaved');
+            alert('تم تحميل الخلفية بنجاح! سيتم حفظ التعديلات.');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemoveBackground = () => {
+        if (!window.confirm('هل أنت متأكد من إزالة صورة الخلفية؟')) return;
+        setTemplate(p => {
+            if (!p) return null;
+            return {
+                ...p,
+                background: '',
+                backgroundUrl: ''
+            };
+        });
+        setHasUnsavedChanges(true);
+        setSaveStatus('unsaved');
+    };
+
+    const handleToggleBackgroundLock = () => {
+        setTemplate(p => {
+            if (!p) return null;
+            const currentLock = p.backgroundLocked !== false;
+            return {
+                ...p,
+                backgroundLocked: !currentLock
+            };
+        });
+        setHasUnsavedChanges(true);
+        setSaveStatus('unsaved');
+    };
+
     // Asset governance upload manager with Canvas Compression & Cropper
     const handleAssetUpload = async (e) => {
         const file = e.target.files[0];
@@ -808,8 +963,8 @@ export default function TemplateMapper() {
         const field = fields.find(f => f._uid === uid);
         if (!field) return;
 
-        const canvasW = 1122.5;
-        const canvasH = 793.7;
+        const canvasW = template?.orientation === 'portrait' ? 793.7 : 1122.5;
+        const canvasH = template?.orientation === 'portrait' ? 1122.5 : 793.7;
         const wPct = ((field.width || 200) / canvasW) * 100;
         const hPct = ((field.height || 60) / canvasH) * 100;
 
@@ -1232,7 +1387,7 @@ export default function TemplateMapper() {
     useEffect(() => {
         if (!template) return;
         const preventCanvasScroll = (e) => {
-            if (isDragging || isResizing || selectedIdsRef.current.length > 0) {
+            if (isDragging || isResizing) {
                 if (e.cancelable) e.preventDefault();
             }
         };
@@ -1244,11 +1399,13 @@ export default function TemplateMapper() {
 
         canvasEl.addEventListener('touchstart', preventCanvasScroll, { passive: false });
         canvasEl.addEventListener('touchmove', preventCanvasScroll, { passive: false });
+        canvasEl.addEventListener('wheel', preventCanvasScroll, { passive: false });
         canvasEl.addEventListener('gesturestart', preventGestureZoom, { passive: false });
 
         return () => {
             canvasEl.removeEventListener('touchstart', preventCanvasScroll);
             canvasEl.removeEventListener('touchmove', preventCanvasScroll);
+            canvasEl.removeEventListener('wheel', preventCanvasScroll);
             canvasEl.removeEventListener('gesturestart', preventGestureZoom);
         };
     }, [isDragging, isResizing, template]);
@@ -1494,6 +1651,76 @@ export default function TemplateMapper() {
                         </div>
                     </div>
 
+                    {/* 🖼️ Template Background Management Section */}
+                    <div style={{ padding: '14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <ImageIcon size={14} /> خلفية قالب النشر
+                        </h3>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(template?.background || template?.backgroundUrl) ? (
+                                <>
+                                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #222225', background: '#1c1c1f' }}>
+                                        <img 
+                                            src={template.background || template.backgroundUrl} 
+                                            alt="Bg Preview" 
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                                        />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: '#fff', textAlign: 'center' }}>
+                                            استبدال
+                                            <input type="file" accept=".png,.jpg,.jpeg,.svg" onChange={handleBackgroundUpload} style={{ display: 'none' }} />
+                                        </label>
+                                        <button 
+                                            onClick={handleRemoveBackground} 
+                                            style={{ flex: 1, padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: '#ef4444' }}
+                                        >
+                                            إزالة
+                                        </button>
+                                    </div>
+                                    <button 
+                                        onClick={handleToggleBackgroundLock}
+                                        style={{
+                                            width: '100%',
+                                            padding: '6px 10px',
+                                            background: template.backgroundLocked !== false ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            fontSize: '10px',
+                                            fontWeight: 800,
+                                            color: template.backgroundLocked !== false ? '#10b981' : '#f59e0b',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px'
+                                        }}
+                                    >
+                                        {template.backgroundLocked !== false ? (
+                                            <>
+                                                <Lock size={12} /> خلفية مقفلة (Pointer-events: none)
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Unlock size={12} /> خلفية غير مقفلة
+                                            </>
+                                        )}
+                                    </button>
+                                </>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <span style={{ fontSize: '10px', color: '#71717a', textAlign: 'right' }}>لا توجد صورة خلفية نشطة حالياً.</span>
+                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#1c1c1f', border: '1px dashed #3f3f46', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>
+                                        <Plus size={14} /> رفع صورة الخلفية
+                                        <input type="file" accept=".png,.jpg,.jpeg,.svg" onChange={handleBackgroundUpload} style={{ display: 'none' }} />
+                                    </label>
+                                    <span style={{ fontSize: '8px', color: '#71717a', textAlign: 'right' }}>صيغ الدعم: PNG, JPG, JPEG, SVG</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Layers listing */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '10px 14px', borderBottom: '1px solid #222225' }}>
@@ -1556,17 +1783,17 @@ export default function TemplateMapper() {
                 {/* 🎛️ CENTER BOARD: VIRTUAL RENDER CANVAS */}
                 <div 
                     ref={workspaceRef} 
-                    style={{ flex: 1, background: '#0a0a0c', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }} 
+                    style={{ flex: 1, background: '#0a0a0c', overflowX: 'auto', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }} 
                     onClick={(e) => { if (e.target === workspaceRef.current || e.target.parentElement === workspaceRef.current) setSelectedIds([]) }}
                 >
                     {/* A4 Metric Rulers */}
                     {showRulers && (
                         <>
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '18px', background: '#141416', borderBottom: '1px solid #222225', zIndex: 9, pointerEvents: 'none', display: 'flex', alignItems: 'center', padding: '0 20px', fontSize: '9px', color: '#71717a' }}>
-                                <span>0mm ─────────────────── 100mm ─────────────────── 200mm ─────────────────── 297mm</span>
+                                <span>{template?.orientation === 'portrait' ? '0mm ─────────────── 100mm ─────────────── 210mm' : '0mm ─────────────────── 100mm ─────────────────── 200mm ─────────────────── 297mm'}</span>
                             </div>
                             <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '18px', background: '#141416', borderRight: '1px solid #222225', zIndex: 9, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', fontSize: '9px', color: '#71717a' }}>
-                                <span style={{ writingMode: 'vertical-rl' }}>0mm ────── 100mm ────── 210mm</span>
+                                <span style={{ writingMode: 'vertical-rl' }}>{template?.orientation === 'portrait' ? '0mm ─────────────────── 100mm ─────────────────── 200mm ─────────────────── 297mm' : '0mm ────── 100mm ────── 210mm'}</span>
                             </div>
                         </>
                     )}
@@ -1574,9 +1801,8 @@ export default function TemplateMapper() {
                     <div 
                         ref={canvasRef}
                         style={{
-                            width: '1122.5px', 
-                            height: '793.7px',
-                            background: template.backgroundUrl ? `url(${template.backgroundUrl}) center/contain no-repeat` : '#ffffff',
+                            width: template?.orientation === 'portrait' ? '793.7px' : '1122.5px', 
+                            height: template?.orientation === 'portrait' ? '1122.5px' : '793.7px',
                             backgroundColor: '#ffffff',
                             position: 'relative',
                             boxShadow: '0 30px 70px -20px rgba(0,0,0,0.9)',
@@ -1589,6 +1815,23 @@ export default function TemplateMapper() {
                             touchAction: 'none'
                         }}
                     >
+                        {/* Background Layer (locked) */}
+                        {(template?.background || template?.backgroundUrl) && (
+                            <img
+                                src={template.background || template.backgroundUrl}
+                                alt="Template Background"
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'contain',
+                                    zIndex: 0,
+                                    pointerEvents: 'none'
+                                }}
+                            />
+                        )}
                         {/* Printable Area Safe limits */}
                         {showGuides && (
                             <>

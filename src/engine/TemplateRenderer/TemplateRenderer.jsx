@@ -9,13 +9,16 @@ import { QRCodeSVG } from 'qrcode.react';
 import { getFieldMeta } from '../FieldEngine/FieldEngine';
 import { useAuth } from '../../context/AuthContext';
 
-/* A4 Paper Ratio (Landscape) */
-const A4_ASPECT = 297 / 210;
+/* A4 Paper Dimensions at 96dpi */
+const A4_LANDSCAPE_W = 1122.5; // 297mm at 96dpi
+const A4_LANDSCAPE_H = 793.7;  // 210mm at 96dpi
+const A4_PORTRAIT_W  = 793.7;  // 210mm at 96dpi
+const A4_PORTRAIT_H  = 1122.5; // 297mm at 96dpi
 
 const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, settings: customSettings }, ref) => {
     const containerRef = useRef(null);
     const [scale, setScale] = useState(1);
-    
+
     let authSettings = null;
     try {
         const auth = useAuth();
@@ -24,14 +27,17 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
         // Safe fallback in headless off-screen exports
     }
     const settings = customSettings || authSettings || {};
-    
-    const height = width / A4_ASPECT;
+
+    // Orientation-aware sizing
+    const orientation = template?.orientation || 'portrait';
+    const isPortrait = orientation === 'portrait';
+    const BASE_WIDTH = isPortrait ? A4_PORTRAIT_W : A4_LANDSCAPE_W;
+    const aspectRatio = isPortrait ? (A4_PORTRAIT_W / A4_PORTRAIT_H) : (A4_LANDSCAPE_W / A4_LANDSCAPE_H);
+    const height = width / aspectRatio;
 
     useEffect(() => {
-        // Base width assumption: The fields were mapped on a canvas of width 1122.5px (A4 at 96dpi)
-        const BASE_WIDTH = 1122.5;
         setScale(width / BASE_WIDTH);
-    }, [width]);
+    }, [width, BASE_WIDTH]);
 
     if (!template) {
         return (
@@ -49,6 +55,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                 else if (ref) ref.current = node;
             }}
             id="certificate-print-wrapper"
+            data-orientation={orientation}
             style={{
                 width: `${width}px`,
                 height: `${height}px`,
@@ -60,16 +67,16 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                 userSelect: 'none'
             }}
         >
-            {/* Background Image */}
-            {template.backgroundUrl && (
+            {/* Background Image — supports both background (base64) and backgroundUrl */}
+            {(template.background || template.backgroundUrl) && (
                 <img
-                    src={template.backgroundUrl}
+                    src={template.background || template.backgroundUrl}
                     alt="Template Background"
                     style={{
                         position: 'absolute',
                         top: 0, left: 0,
                         width: '100%', height: '100%',
-                        objectFit: 'contain',
+                        objectFit: 'fill',
                         zIndex: 0,
                         pointerEvents: 'none'
                     }}

@@ -60,11 +60,10 @@ export default function CreateCertificate() {
     const { getNextSerial, consumeSerial, consumeMultiple } = useSerial();
     
     const previewContainerRef = useRef(null);
-    const renderWidth = useScaleFactor(previewContainerRef, 297/210);
 
     const [templates, setTemplates] = useState([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
-    
+
     const [mode, setMode] = useState('single'); // 'single' | 'bulk'
 
     // Form State (Single & Common Bulk Fields)
@@ -86,6 +85,13 @@ export default function CreateCertificate() {
     const [bulkNames, setBulkNames] = useState([]);
     const [bulkPreviewIndex, setBulkPreviewIndex] = useState(0);
     const [bulkProgress, setBulkProgress] = useState(0);
+
+    // Compute orientation-aware aspect ratio for the preview container
+    const activeTemplate = templates.find(t => t.id === selectedTemplateId) || null;
+    const templateOrientation = activeTemplate?.orientation || 'portrait';
+    // Landscape: 297/210 ≈ 1.414, Portrait: 210/297 ≈ 0.707
+    const a4Aspect = templateOrientation === 'landscape' ? (297 / 210) : (210 / 297);
+    const renderWidth = useScaleFactor(previewContainerRef, a4Aspect);
 
     // Load templates from unified database provider
     useEffect(() => {
@@ -126,7 +132,6 @@ export default function CreateCertificate() {
         }
     }, [editId]);
 
-    const activeTemplate = templates.find(t => t.id === selectedTemplateId) || null;
 
     const handleSaveSingle = async (submitForApproval = false) => {
         if (!formData.recipientName || !formData.event || !formData.reason) {

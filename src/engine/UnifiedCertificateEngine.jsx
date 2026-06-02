@@ -10,9 +10,11 @@ import React, { forwardRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import EditorCanvas from '../components/EditorCanvas'
 
-/* ── A4 landscape reference (96 dpi) ── */
-const A4_WIDTH_PX = 297 * (96 / 25.4)  // ≈ 1122.5 px
-const A4_HEIGHT_PX = 210 * (96 / 25.4)  // ≈ 793.7  px
+/* ── A4 reference dimensions at 96 dpi ── */
+const A4_LANDSCAPE_W_PX = 297 * (96 / 25.4)  // ≈ 1122.5 px
+const A4_LANDSCAPE_H_PX = 210 * (96 / 25.4)  // ≈ 793.7  px
+const A4_PORTRAIT_W_PX  = 210 * (96 / 25.4)  // ≈ 793.7  px
+const A4_PORTRAIT_H_PX  = 297 * (96 / 25.4)  // ≈ 1122.5 px
 
 const DEFAULT_LABELS = {
     'name': 'اسم المستفيد',
@@ -24,12 +26,15 @@ const DEFAULT_LABELS = {
     'visa-name': 'اسم صاحب التأشيرة',
 }
 
-function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth }) {
+function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth, orientation }) {
     if (!layer.visible) return null
 
     const s = layer.style || {}
-    const canvasHeight = canvasWidth * (A4_HEIGHT_PX / A4_WIDTH_PX)
-    const scale = A4_WIDTH_PX / canvasWidth
+    const isPortrait = (orientation || 'portrait') === 'portrait'
+    const refW = isPortrait ? A4_PORTRAIT_W_PX : A4_LANDSCAPE_W_PX
+    const refH = isPortrait ? A4_PORTRAIT_H_PX : A4_LANDSCAPE_H_PX
+    const canvasHeight = canvasWidth * (refH / refW)
+    const scale = refW / canvasWidth
 
     const widthPct = (layer.width / canvasWidth) * 100
     const heightPct = (layer.height / canvasHeight) * 100
@@ -157,6 +162,11 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
         managerSnapshot = null
     } = data || {}
 
+    const orientation = template?.orientation || 'portrait';
+    const isPortrait = orientation === 'portrait';
+    const mmW = isPortrait ? '210mm' : '297mm';
+    const mmH = isPortrait ? '297mm' : '210mm';
+
     // Use versioned snapshot values if they exist on the certificate (prevents retroactive modifications)
     const activeVisaName = assistantSnapshot?.visaName || visaName || visaLabel;
     const activeVisaLabel = assistantSnapshot?.visaLabel || visaLabel || 'مساعد المدير العام للتخطيط';
@@ -196,10 +206,11 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
             ref={certRef}
             className="certificate-a4 certificate-wrapper select-none"
             id="certificate-print-wrapper"
+            data-orientation={orientation}
             style={{
                 position: 'relative',
-                width: '297mm',
-                height: '210mm',
+                width: mmW,
+                height: mmH,
                 overflow: 'hidden',
                 background: '#fff',
                 fontFamily: "'Cairo', 'Amiri', serif",
@@ -255,6 +266,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                     imageMap={imageMap}
                     showQR={showQR}
                     canvasWidth={canvasWidth}
+                    orientation={orientation}
                 />
             ))}
 

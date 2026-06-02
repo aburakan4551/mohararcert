@@ -17,6 +17,9 @@ export default function TemplateStudio() {
     const navigate = useNavigate();
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState('');
+    const [newTemplateOrientation, setNewTemplateOrientation] = useState('landscape');
 
     useEffect(() => {
         if (user.role !== 'SUPER_ADMIN') {
@@ -48,20 +51,27 @@ export default function TemplateStudio() {
         }
     };
 
-    const handleCreateNew = async () => {
-        const name = prompt("أدخل اسم القالب الجديد:");
-        if (!name) return;
+    const handleCreateNew = () => {
+        setNewTemplateName('');
+        setNewTemplateOrientation('landscape');
+        setShowCreateModal(true);
+    };
+
+    const handleConfirmCreate = async () => {
+        if (!newTemplateName.trim()) return alert('الرجاء إدخال اسم القالب');
         
         try {
             const newTpl = {
-                name: name,
+                name: newTemplateName,
                 backgroundUrl: '',
+                background: '',
+                orientation: newTemplateOrientation,
                 status: 'DRAFT',
                 fields: []
             };
             const created = await templateService.create(newTpl);
             if (created) {
-                // Navigate directly to the studio mapper
+                setShowCreateModal(false);
                 navigate(`/studio/mapper/${created.id}`);
             }
         } catch (e) {
@@ -123,6 +133,86 @@ export default function TemplateStudio() {
                     </Card>
                 ))}
             </div>
+
+            {/* ─── CREATE NEW TEMPLATE MODAL ─── */}
+            {showCreateModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
+                    <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#f3f4f6', textAlign: 'right' }}>إنشاء قالب جديد</h2>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'right' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 800, color: '#a1a1aa' }}>اسم القالب:</label>
+                            <input 
+                                type="text"
+                                value={newTemplateName} 
+                                onChange={e => setNewTemplateName(e.target.value)} 
+                                placeholder="مثال: شهادة شكر وتقدير الموظفين"
+                                style={{ background: '#0c0c0e', border: '1px solid #222225', borderRadius: '8px', color: '#fff', padding: '10px', fontSize: '13px', direction: 'rtl' }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'right' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 800, color: '#a1a1aa' }}>اتجاه الصفحة (A4 Dimensions):</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div 
+                                    onClick={() => setNewTemplateOrientation('landscape')}
+                                    style={{
+                                        border: newTemplateOrientation === 'landscape' ? '2px solid #10b981' : '1px solid #222225',
+                                        background: newTemplateOrientation === 'landscape' ? 'rgba(16, 185, 129, 0.05)' : '#1c1c1f',
+                                        borderRadius: '10px',
+                                        padding: '16px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ width: '40px', height: '28px', border: '2px solid #71717a', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'landscape' ? '#10b981' : '#f3f4f6' }}>أفقي (Landscape)</span>
+                                    <span style={{ fontSize: '9px', color: '#71717a' }}>297mm x 210mm</span>
+                                </div>
+
+                                <div 
+                                    onClick={() => setNewTemplateOrientation('portrait')}
+                                    style={{
+                                        border: newTemplateOrientation === 'portrait' ? '2px solid #10b981' : '1px solid #222225',
+                                        background: newTemplateOrientation === 'portrait' ? 'rgba(16, 185, 129, 0.05)' : '#1c1c1f',
+                                        borderRadius: '10px',
+                                        padding: '16px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ width: '28px', height: '40px', border: '2px solid #71717a', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'portrait' ? '#10b981' : '#f3f4f6' }}>عمودي (Portrait)</span>
+                                    <span style={{ fontSize: '9px', color: '#71717a' }}>210mm x 297mm</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button 
+                                onClick={handleConfirmCreate} 
+                                style={{ flex: 1, padding: '10px', background: '#10b981', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                            >
+                                إنشاء وتصميم
+                            </button>
+                            <button 
+                                onClick={() => setShowCreateModal(false)} 
+                                style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
+                            >
+                                إلغاء الأمر
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

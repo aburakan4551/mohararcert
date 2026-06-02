@@ -14,8 +14,21 @@
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
-const A4_WIDTH_MM = 297
-const A4_HEIGHT_MM = 210
+const A4_PORTRAIT_W_MM  = 210
+const A4_PORTRAIT_H_MM  = 297
+const A4_LANDSCAPE_W_MM = 297
+const A4_LANDSCAPE_H_MM = 210
+
+/**
+ * Resolves orientation from element's data-orientation attribute or its child.
+ * Defaults to 'portrait' for backward compatibility with old templates.
+ */
+function resolveOrientation(element) {
+    const attr = element.dataset?.orientation
+        || element.querySelector('[data-orientation]')?.dataset?.orientation
+        || 'portrait'
+    return attr === 'landscape' ? 'landscape' : 'portrait'
+}
 
 /**
  * captureCleanCanvas
@@ -27,13 +40,18 @@ const A4_HEIGHT_MM = 210
  * @returns {Promise<HTMLCanvasElement>}
  */
 async function captureCleanCanvas(originalElement) {
+    const orientation = resolveOrientation(originalElement)
+    const isPortrait = orientation === 'portrait'
+    const cssW = isPortrait ? '210mm' : '297mm'
+    const cssH = isPortrait ? '297mm' : '210mm'
+
     const wrapper = document.createElement('div')
     wrapper.style.cssText = [
         'position:fixed',
         'top:-9999px',
         'left:-9999px',
-        'width:297mm',
-        'height:210mm',
+        `width:${cssW}`,
+        `height:${cssH}`,
         'background:#fff',
         'overflow:hidden',
         'direction:rtl',
@@ -44,8 +62,8 @@ async function captureCleanCanvas(originalElement) {
     // Remove any scale/transform that the preview wrapper may have added
     clone.style.transform = 'none'
     clone.style.margin = '0'
-    clone.style.width = '297mm'
-    clone.style.height = '210mm'
+    clone.style.width = cssW
+    clone.style.height = cssH
 
     wrapper.appendChild(clone)
     document.body.appendChild(wrapper)
@@ -64,10 +82,13 @@ async function captureCleanCanvas(originalElement) {
 }
 
 /** Build a jsPDF from a canvas and save */
-function canvasToPDF(canvas, filename) {
+function canvasToPDF(canvas, filename, orientation = 'portrait') {
+    const isPortrait = orientation === 'portrait'
+    const w = isPortrait ? A4_PORTRAIT_W_MM : A4_LANDSCAPE_W_MM
+    const h = isPortrait ? A4_PORTRAIT_H_MM : A4_LANDSCAPE_H_MM
     const imgData = canvas.toDataURL('image/jpeg', 0.98)
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-    pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM)
+    const pdf = new jsPDF({ orientation: isPortrait ? 'portrait' : 'landscape', unit: 'mm', format: 'a4' })
+    pdf.addImage(imgData, 'JPEG', 0, 0, w, h)
     pdf.save(filename)
 }
 
@@ -79,8 +100,9 @@ function canvasToPDF(canvas, filename) {
  * @param {string}      filename
  */
 export async function exportSinglePDF(element, filename = 'شهادة.pdf') {
+    const orientation = resolveOrientation(element)
     const canvas = await captureCleanCanvas(element)
-    canvasToPDF(canvas, filename)
+    canvasToPDF(canvas, filename, orientation)
 }
 
 /**
@@ -90,7 +112,14 @@ export async function exportSinglePDF(element, filename = 'شهادة.pdf') {
  * @param {Function}      onProgress  – (done, total) => void
  */
 export async function exportMergedPDF(elements, filename = 'شهادات.pdf', onProgress) {
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    // Use orientation from the first valid element
+    const firstEl = elements.find(Boolean)
+    const orientation = firstEl ? resolveOrientation(firstEl) : 'portrait'
+    const isPortrait = orientation === 'portrait'
+    const w = isPortrait ? A4_PORTRAIT_W_MM : A4_LANDSCAPE_W_MM
+    const h = isPortrait ? A4_PORTRAIT_H_MM : A4_LANDSCAPE_H_MM
+
+    const pdf = new jsPDF({ orientation: isPortrait ? 'portrait' : 'landscape', unit: 'mm', format: 'a4' })
 
     for (let i = 0; i < elements.length; i++) {
         const el = elements[i]
@@ -98,7 +127,7 @@ export async function exportMergedPDF(elements, filename = 'شهادات.pdf', o
         const canvas = await captureCleanCanvas(el)
         const imgData = canvas.toDataURL('image/jpeg', 0.95)
         if (i > 0) pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM)
+        pdf.addImage(imgData, 'JPEG', 0, 0, w, h)
         onProgress?.(i + 1, elements.length)
     }
     pdf.save(filename)
@@ -113,8 +142,9 @@ export async function exportSeparatePDFs(items, onProgress) {
     for (let i = 0; i < items.length; i++) {
         const { element, name, serial } = items[i]
         if (!element) continue
+        const orientation = resolveOrientation(element)
         const canvas = await captureCleanCanvas(element)
-        canvasToPDF(canvas, `شهادة-${name || serial || i + 1}.pdf`)
+        canvasToPDF(canvas, `شهادة-${name || serial || i + 1}.pdf`, orientation)
         onProgress?.(i + 1, items.length)
         // Brief pause to avoid overwhelming the browser
         await new Promise(r => setTimeout(r, 300))
@@ -129,6 +159,14 @@ export async function exportSeparatePDFs(items, onProgress) {
  * @param {string}        title
  */
 export function printElements(elements, title = 'طباعة الشهادة') {
+    // Determine orientation from first valid element
+    const firstEl = elements.find(Boolean)
+    const orientation = firstEl ? resolveOrientation(firstEl) : 'portrait'
+    const isPortrait = orientation === 'portrait'
+    const pageSize = isPortrait ? 'A4 portrait' : 'A4 landscape'
+    const cssW = isPortrait ? '210mm' : '297mm'
+    const cssH = isPortrait ? '297mm' : '210mm'
+
     const printContent = elements
         .filter(Boolean)
         .map(el => el.outerHTML)
@@ -143,7 +181,7 @@ export function printElements(elements, title = 'طباعة الشهادة') {
           <title>${title}</title>
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 landscape; margin: 0; }
+            @page { size: ${pageSize}; margin: 0; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
               font-family: 'Cairo', sans-serif;
@@ -154,8 +192,8 @@ export function printElements(elements, title = 'طباعة الشهادة') {
             }
             .certificate-a4,
             .certificate-wrapper {
-              width: 297mm !important;
-              height: 210mm !important;
+              width: ${cssW} !important;
+              height: ${cssH} !important;
               position: relative !important;
               overflow: hidden !important;
               transform: none !important;
