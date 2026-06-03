@@ -11,13 +11,13 @@ import { logger } from '../utils/debug';
 export default function Login() {
     const { user, login } = useAuth();
     const navigate = useNavigate();
-    const [email,        setEmail]        = useState('');
-    const [password,     setPassword]     = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error,        setError]        = useState('');
-    const [submitting,   setSubmitting]   = useState(false);
-    const [shake,        setShake]        = useState(false);
-    const [rememberMe,   setRememberMe]   = useState(false);
+    const [error, setError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [shake, setShake] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -35,8 +35,8 @@ export default function Login() {
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         setError('');
-        if (!email)    { triggerError('يرجى إدخال البريد الإلكتروني'); return; }
-        if (!password) { triggerError('يرجى إدخال كلمة المرور');        return; }
+        if (!email) { triggerError('يرجى إدخال البريد الإلكتروني'); return; }
+        if (!password) { triggerError('يرجى إدخال كلمة المرور'); return; }
 
         setSubmitting(true);
         logger.auth(`محاولة دخول: ${email}`);
@@ -53,17 +53,17 @@ export default function Login() {
     };
 
     const demoAccounts = [
-        { role: 'منشئ المعاملات',   email: 'creator@moh.gov.sa',   icon: '✍️', color: 'var(--color-primary-600)' },
-        { role: 'مساعد المدير',     email: 'assistant@moh.gov.sa', icon: '🔏', color: 'var(--color-accent-500)' },
-        { role: 'المدير العام',     email: 'manager@moh.gov.sa',   icon: '👑', color: '#F59E0B' },
-        { role: 'المشرف العام',     email: 'admin@moh.gov.sa',     icon: '🛡️', color: '#8B5CF6' },
+        { role: 'منشئ المعاملات', email: 'creator@moh.gov.sa', icon: '✍️', color: 'var(--color-primary-600)' },
+        { role: 'مساعد المدير', email: 'assistant@moh.gov.sa', icon: '🔏', color: 'var(--color-accent-500)' },
+        { role: 'المدير العام', email: 'manager@moh.gov.sa', icon: '👑', color: '#F59E0B' },
+        { role: 'المشرف العام', email: 'admin@moh.gov.sa', icon: '🛡️', color: '#8B5CF6' },
     ];
 
     const kpis = [
-        { label: 'إجمالي المعاملات',  value: '1,240+', icon: FileCheck,   color: 'var(--color-primary-600)', bg: 'rgba(15,169,88,0.10)' },
-        { label: 'مستخدم نشط',        value: '48',      icon: Users,       color: 'var(--color-accent-500)',  bg: 'rgba(30,136,229,0.10)' },
-        { label: 'معدل الاعتماد',     value: '98.3%',   icon: TrendingUp,  color: '#F59E0B',                  bg: 'rgba(245,158,11,0.10)' },
-        { label: 'شهادة معتمدة',      value: '830+',    icon: CheckCircle2,color: '#10B981',                  bg: 'rgba(16,185,129,0.10)' },
+        { label: 'إجمالي المعاملات', value: '0', icon: FileCheck, color: 'var(--color-primary-600)', bg: 'rgba(15,169,88,0.10)' },
+        { label: 'مستخدم نشط', value: '0', icon: Users, color: 'var(--color-accent-500)', bg: 'rgba(30,136,229,0.10)' },
+        { label: 'معدل الاعتماد', value: '0%', icon: TrendingUp, color: '#F59E0B', bg: 'rgba(245,158,11,0.10)' },
+        { label: 'شهادة معتمدة', value: '0', icon: CheckCircle2, color: '#10B981', bg: 'rgba(16,185,129,0.10)' },
     ];
 
     return (
@@ -480,7 +480,7 @@ export default function Login() {
                                         boxShadow: submitting ? 'none' : '0 8px 24px rgba(15,169,88,0.30)',
                                         fontFamily: 'var(--font-sans)',
                                     }}
-                                    onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(15,169,88,0.40)'; }}}
+                                    onMouseEnter={e => { if (!submitting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(15,169,88,0.40)'; } }}
                                     onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = submitting ? 'none' : '0 8px 24px rgba(15,169,88,0.30)'; }}
                                 >
                                     {submitting ? (
@@ -559,7 +559,7 @@ export default function Login() {
                         fontWeight: 500,
                         marginTop: '20px',
                     }}>
-                        منصة إدارة التميز المؤسسي · وزارة الصحة السعودية © {new Date().getFullYear()}
+                        منصة إدارة التميز المؤسسي · فرع وزارة الصحة بمنطقة الحدود الشمالية © {new Date().getFullYear()}
                     </p>
                 </motion.div>
             </div>
