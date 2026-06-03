@@ -101,7 +101,7 @@ export default function Registry() {
         {
             key: 'recipientName',
             label: 'المستفيد',
-            render: v => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{v}</strong>,
+            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.prefix ? `${row.prefix} ${v}` : v}</strong>,
         },
         {
             key: 'event',

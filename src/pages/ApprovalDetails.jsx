@@ -97,17 +97,29 @@ export default function ApprovalDetails() {
         return false;
     };
 
+    const getRecipientDisplayName = (c) => {
+        if (!c) return '';
+        let name = c.recipientName || '';
+        if (c.prefix) {
+            if (name.startsWith(`${c.prefix}/ `)) return name.replace(/\/\s+/g, ' ');
+            if (name.startsWith(`${c.prefix} `)) return name;
+            return `${c.prefix} ${name}`;
+        }
+        return name.replace(/\/\s+/g, ' ');
+    };
+
     const handleApprove = async () => {
         setProcessing(true);
         try {
+            const dispName = getRecipientDisplayName(cert);
             if (user.role === 'ASSISTANT_MANAGER' || (user.role === 'SUPER_ADMIN' && cert.status === 'PENDING_APPROVAL')) {
                 await dbService.approveByAssistant(cert.id, user, comments || 'تم الاعتماد والتأشير بالقبول.');
                 await auditService.log('APPROVE_CERTIFICATE', user, `تأشير المعاملة: ${cert.serial}`, cert.id);
-                await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${cert.recipientName}`, type: 'approve' });
+                await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${dispName}`, type: 'approve' });
             } else {
                 await dbService.approveFinal(cert.id, user, comments || 'تم الاعتماد النهائي والمصادقة الرسمية.');
                 await auditService.log('APPROVE_CERTIFICATE', user, `اعتماد نهائي: ${cert.serial}`, cert.id);
-                await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${cert.recipientName}`, type: 'approve' });
+                await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${dispName}`, type: 'approve' });
             }
             setComments('');
             await loadCertDetails();
@@ -141,7 +153,7 @@ export default function ApprovalDetails() {
         try {
             await dbService.reject(cert.id, user, comments);
             await auditService.log('REJECT_CERTIFICATE', user, `رفض: ${cert.serial}`, cert.id);
-            await notificationService.create({ userId: cert.createdBy, message: `تم رفض طلب اعتماد شهادة: ${cert.recipientName}`, type: 'reject' });
+            await notificationService.create({ userId: cert.createdBy, message: `تم رفض طلب اعتماد شهادة: ${getRecipientDisplayName(cert)}`, type: 'reject' });
             setComments('');
             await loadCertDetails();
         } catch (e) {
@@ -172,7 +184,7 @@ export default function ApprovalDetails() {
         try {
             await auditService.log('EXPORT_PDF', user, `تصدير PDF عبر محرك التصدير الافتراضي: ${cert.serial}`, cert.id);
             
-            const previewName = cert.prefix ? `${cert.prefix}/ ${cert.recipientName}` : cert.recipientName;
+            const previewName = getRecipientDisplayName(cert);
             const dataContext = {
                 recipient_name: previewName,
                 certificate_title: 'شهادة شكر وتقدير',
@@ -187,7 +199,7 @@ export default function ApprovalDetails() {
                 dataContext,
                 getApprovedSettings(),
                 {
-                    filename: `شهادة-${cert.recipientName}.pdf`,
+                    filename: `شهادة-${previewName}.pdf`,
                     format: 'pdf'
                 }
             );
@@ -200,7 +212,7 @@ export default function ApprovalDetails() {
 
     const handlePrint = () => {
         auditService.log('PRINT_CERTIFICATE', user, `طباعة: ${cert.serial}`, cert.id);
-        printElements([certRef.current], `شهادة - ${cert.recipientName}`);
+        printElements([certRef.current], `شهادة - ${getRecipientDisplayName(cert)}`);
     };
 
     /* ── Loading Skeleton ── */
@@ -221,7 +233,7 @@ export default function ApprovalDetails() {
     }
 
     const certData = {
-        recipientName: cert.recipientName,
+        recipientName: getRecipientDisplayName(cert),
         event: cert.event,
         date: cert.date,
         serial: cert.serial,
@@ -384,7 +396,7 @@ export default function ApprovalDetails() {
                         <CardContent>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 {[
-                                    { label: 'اسم صاحب الطلب', value: cert.recipientName },
+                                    { label: 'اسم صاحب الطلب', value: getRecipientDisplayName(cert) },
                                     { label: 'المناسبة / الموضوع', value: cert.event },
                                     { label: 'التاريخ المطبوع', value: cert.date, mono: true },
                                     { label: 'منشئ المعاملة', value: cert.creatorName || 'مستخدم النظام' },

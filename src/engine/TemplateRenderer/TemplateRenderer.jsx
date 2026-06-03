@@ -2,11 +2,16 @@
  * 🖼️ TemplateRenderer.jsx
  * The core engine that renders a Smart Template using predefined fields and runtime data.
  * Does NOT allow moving or editing. It simply displays the result.
+ *
+ * Dynamic Binding System:
+ *   All field values are resolved via resolveFieldValue() from FieldEngine.
+ *   Fields with a bindingKey read their value from system-settings at render time.
+ *   This means: changing identity settings in SystemSettings instantly updates ALL templates.
  */
 
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getFieldMeta } from '../FieldEngine/FieldEngine';
+import { getFieldMeta, resolveFieldValue } from '../FieldEngine/FieldEngine';
 import { useAuth } from '../../context/AuthContext';
 
 /* A4 Paper Dimensions at 96dpi */
@@ -47,6 +52,15 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
         );
     }
 
+    // ── Resolve fields for the current page ───────────────────────────────
+    const activeFields = (() => {
+        if (template.pages && template.pages.length > 0) {
+            // Multi-page: flatten all pages (for single-page preview just use page 0)
+            return template.pages[0]?.fields || template.fields || [];
+        }
+        return template.fields || [];
+    })();
+
     return (
         <div
             ref={(node) => {
@@ -84,44 +98,29 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
             )}
 
             {/* Dynamic Fields */}
-            {(template.fields || []).map((field, idx) => {
+            {activeFields.map((field, idx) => {
                 const meta = getFieldMeta(field.fieldId);
                 if (!meta) return null;
+                if (field.hidden) return null;
 
-                // Dynamic Identity Resolution
-                let value = dataContext?.[field.fieldId];
-                
-                // ── Fallbacks to System Settings for official fields ──────────────
-                if (field.fieldId === 'manager_name')              value = value || settings?.general_manager_name || settings?.directorName;
-                if (field.fieldId === 'general_manager_name')      value = value || settings?.general_manager_name || settings?.directorName;
-                if (field.fieldId === 'general_manager_title')     value = value || settings?.general_manager_title || settings?.directorTitle;
-                if (field.fieldId === 'general_manager_signature') value = value || settings?.general_manager_signature || settings?.directorSignature;
-                if (field.fieldId === 'assistant_name')            value = value || settings?.assistant_planning_name || settings?.visaName;
-                if (field.fieldId === 'assistant_planning_name')   value = value || settings?.assistant_planning_name || settings?.visaName;
-                if (field.fieldId === 'assistant_planning_title')  value = value || settings?.assistant_planning_title || settings?.visaLabel;
-                if (field.fieldId === 'assistant_planning_signature') value = value || settings?.assistant_planning_signature || settings?.visaSignature;
-                if (field.fieldId === 'manager_signature')         value = value || settings?.general_manager_signature || settings?.directorSignature;
-                if (field.fieldId === 'assistant_signature')       value = value || settings?.assistant_planning_signature || settings?.visaSignature;
-                if (field.fieldId === 'official_stamp')            value = value || settings?.official_seal || settings?.stamp;
-                if (field.fieldId === 'official_seal')             value = value || settings?.official_seal || settings?.stamp;
-                if (field.fieldId === 'official_signature')        value = value || settings?.official_signature;
-                if (field.fieldId === 'certificate_header_text')   value = value || field.textContent || settings?.certificate_header_text;
-                if (field.fieldId === 'certificate_closing_text')  value = value || field.textContent || settings?.certificate_closing_text;
+                // ── Unified value resolution via FieldEngine ──────────────
+                const value = resolveFieldValue(field, meta, dataContext, settings);
 
-                // Since field.x and field.y are percentages
+                // Base positioning style
                 const baseStyle = {
                     position: 'absolute',
                     top: `${field.y}%`,
                     left: `${field.x}%`,
                     transform: `translate(-50%, -50%) rotate(${field.rotation || 0}deg)`,
                     opacity: field.opacity || 1,
-                    zIndex: 10 + ((template.fields || []).length - 1 - idx),
+                    zIndex: 10 + (activeFields.length - 1 - idx),
                 };
 
-                // Render Text or Textarea
+                // ── Render Text or Textarea ───────────────────────────────
                 if (meta.type === 'text' || meta.type === 'textarea') {
                     const fontSize = (field.fontSize || meta.defaultFontSize) * scale;
                     const letterSpacing = field.letterSpacing ? `${field.letterSpacing * scale}px` : 'normal';
+                    const displayValue = value || `[${meta.label}]`;
                     return (
                         <div key={field._uid || idx} style={{
                             ...baseStyle,
@@ -135,21 +134,21 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                             lineHeight: field.lineHeight || 1.6,
                             letterSpacing: letterSpacing
                         }}>
-                            {value || field.textContent || `[${meta.label}]`}
+                            {displayValue}
                         </div>
                     );
                 }
 
-                // Render Image (Signature/Stamp)
+                // ── Render Image (Signature/Stamp/Seal) ───────────────────
                 if (meta.type === 'image') {
-                    const imgWidth = (field.width || meta.defaultWidth) * scale;
+                    const imgWidth  = (field.width  || meta.defaultWidth)  * scale;
                     const imgHeight = (field.height || meta.defaultHeight) * scale;
-                    
-                    if (!value) return null; // Don't show anything if no signature/stamp is provided
+
+                    if (!value) return null; // Don't render empty image zones
 
                     return (
                         <img
-                            key={field.id || idx}
+                            key={field._uid || idx}
                             src={value}
                             alt={meta.label}
                             style={{
@@ -162,12 +161,12 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                     );
                 }
 
-                // Render QR Code
+                // ── Render QR Code ────────────────────────────────────────
                 if (meta.type === 'qr') {
                     const qrSize = (field.width || meta.defaultWidth) * scale;
-                    if (!value) return null; // Wait for real value
+                    if (!value) return null;
                     return (
-                        <div key={field.id || idx} style={{ ...baseStyle, background: '#fff', padding: '4px', borderRadius: '8px' }}>
+                        <div key={field._uid || idx} style={{ ...baseStyle, background: '#fff', padding: '4px', borderRadius: '8px' }}>
                             <QRCodeSVG value={value} size={qrSize} />
                         </div>
                     );

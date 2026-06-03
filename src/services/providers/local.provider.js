@@ -78,7 +78,158 @@ const SEED_TEMPLATES = [
         status: 'OFFICIAL', // OFFICIAL, DRAFT, REVIEW, ARCHIVED
         createdAt: new Date().toISOString(),
         createdBy: 'usr-4',
-        fields: [],
+        fields: [
+            {
+                _uid: 'uid_title_1',
+                fieldId: 'certificate_title',
+                x: 50, y: 22,
+                fontSize: 34,
+                color: '#0d1f3c',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 700,
+                height: 45,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.6,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                textContent: 'شهادة شكر وتقدير'
+            },
+            {
+                _uid: 'uid_header_1',
+                fieldId: 'certificate_header_text',
+                x: 50, y: 34,
+                fontSize: 22,
+                color: '#333333',
+                fontFamily: 'Amiri',
+                align: 'center',
+                width: 850,
+                height: 80,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.8,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'certificate_header_text'
+            },
+            {
+                _uid: 'uid_recipient_1',
+                fieldId: 'recipient_name',
+                x: 50, y: 44,
+                fontSize: 38,
+                color: '#000000',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 700,
+                height: 50,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.6,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                fontWeight: 'bold'
+            },
+            {
+                _uid: 'uid_reason_1',
+                fieldId: 'reason',
+                x: 50, y: 54,
+                fontSize: 24,
+                color: '#333333',
+                fontFamily: 'Amiri',
+                align: 'center',
+                width: 800,
+                height: 80,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.8,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false
+            },
+            {
+                _uid: 'uid_closing_1',
+                fieldId: 'certificate_closing_text',
+                x: 50, y: 64,
+                fontSize: 18,
+                color: '#555555',
+                fontFamily: 'Amiri',
+                align: 'center',
+                width: 600,
+                height: 40,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.6,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'certificate_closing_text'
+            },
+            {
+                _uid: 'uid_sig_1',
+                fieldId: 'general_manager_signature',
+                x: 80, y: 76,
+                width: 160,
+                height: 90,
+                opacity: 1,
+                rotation: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'general_manager_signature'
+            },
+            {
+                _uid: 'uid_mgrname_1',
+                fieldId: 'general_manager_name',
+                x: 80, y: 84,
+                fontSize: 18,
+                color: '#000000',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 250,
+                height: 35,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.4,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                fontWeight: 'bold',
+                bindingKey: 'general_manager_name'
+            },
+            {
+                _uid: 'uid_mgrtitle_1',
+                fieldId: 'general_manager_title',
+                x: 80, y: 89,
+                fontSize: 13,
+                color: '#444444',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 280,
+                height: 30,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.4,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'general_manager_title'
+            },
+            {
+                _uid: 'uid_seal_1',
+                fieldId: 'official_seal',
+                x: 50, y: 80,
+                width: 120,
+                height: 120,
+                opacity: 1,
+                rotation: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'official_seal'
+            }
+        ],
         versionHistory: []
     }
 ];
@@ -130,8 +281,21 @@ class LocalDatabase {
             if (!localStorage.getItem(this.prefix + 'settings')) {
                 localStorage.setItem(this.prefix + 'settings', JSON.stringify(DEFAULT_SETTINGS));
             }
-            if (!localStorage.getItem(this.prefix + 'templates')) {
-                localStorage.setItem(this.prefix + 'templates', JSON.stringify(SEED_TEMPLATES));
+            const templatesKey = this.prefix + 'templates';
+            let templates = null;
+            try {
+                templates = JSON.parse(localStorage.getItem(templatesKey));
+            } catch (e) {}
+
+            if (!templates || templates.length === 0) {
+                localStorage.setItem(templatesKey, JSON.stringify(SEED_TEMPLATES));
+            } else {
+                // Migration: If tpl-1 exists and has no fields or is missing fields, update it.
+                const tplIndex = templates.findIndex(t => t.id === 'tpl-1');
+                if (tplIndex !== -1 && (!templates[tplIndex].fields || templates[tplIndex].fields.length === 0)) {
+                    templates[tplIndex].fields = SEED_TEMPLATES[0].fields;
+                    localStorage.setItem(templatesKey, JSON.stringify(templates));
+                }
             }
             if (!localStorage.getItem(this.prefix + 'certificates')) {
                 localStorage.setItem(this.prefix + 'certificates', JSON.stringify(SEED_CERTIFICATES));
@@ -480,7 +644,14 @@ export const localProvider = {
     // ⚙️ SYSTEM SETTINGS
     settings: {
         async get() {
-            return JSON.parse(localStorage.getItem(db.prefix + 'settings')) || DEFAULT_SETTINGS;
+            try {
+                const stored = JSON.parse(localStorage.getItem(db.prefix + 'settings'));
+                if (!stored) return DEFAULT_SETTINGS;
+                // ── Migration: merge with DEFAULT_SETTINGS so new keys are always present ──
+                return { ...DEFAULT_SETTINGS, ...stored };
+            } catch (e) {
+                return DEFAULT_SETTINGS;
+            }
         },
         async update(newSettings) {
             const current = await this.get();

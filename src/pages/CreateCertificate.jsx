@@ -41,19 +41,14 @@ function useScaleFactor(containerRef, aspect) {
     return width;
 }
 
-const SMART_PREFIXES = [
-    { id: '', label: 'بدون' },
-    { id: 'الأستاذ', label: 'الأستاذ' },
-    { id: 'الأستاذة', label: 'الأستاذة' },
-    { id: 'الدكتور', label: 'الدكتور' },
-    { id: 'الدكتورة', label: 'الدكتورة' },
-    { id: 'المهندس', label: 'المهندس' },
-    { id: 'الزميل', label: 'الزميل' },
-    { id: 'الزميلة', label: 'الزميلة' }
-];
 
 export default function CreateCertificate() {
     const { user, settings } = useAuth();
+
+    // ── Official Titles: read from system-settings (Single Source of Truth) ──
+    // Reads settings.official_titles (new key) or settings.prefixes (legacy alias)
+    const officialTitles = settings?.official_titles || settings?.prefixes || [];
+    console.log('[CreateCertificate] officialTitles from settings:', officialTitles);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('id');
@@ -115,10 +110,19 @@ export default function CreateCertificate() {
         if (editId) {
             dbService.getById(editId).then(cert => {
                 if (cert) {
+                    const getRawName = (c) => {
+                        if (c.rawName) return c.rawName;
+                        let name = c.recipientName || '';
+                        if (c.prefix) {
+                            if (name.startsWith(`${c.prefix}/ `)) return name.substring(c.prefix.length + 2);
+                            if (name.startsWith(`${c.prefix} `)) return name.substring(c.prefix.length + 1);
+                        }
+                        return name;
+                    };
                     setFormData({
                         internalTitle: cert.internalTitle || '',
                         prefix: cert.prefix || '',
-                        recipientName: cert.recipientName || '',
+                        recipientName: getRawName(cert),
                         event: cert.event || '',
                         date: cert.date || '',
                         reason: cert.reasonText || cert.reason || cert.event || '',
@@ -141,11 +145,11 @@ export default function CreateCertificate() {
         setLoading(true);
         try {
             const finalSerial = serialInput.trim() || consumeSerial();
-            const fullName = formData.prefix ? `${formData.prefix}/ ${formData.recipientName}` : formData.recipientName;
+            const fullName = formData.prefix ? `${formData.prefix} ${formData.recipientName}` : formData.recipientName;
             
             const payload = {
                 internalTitle: formData.internalTitle,
-                recipientName: fullName, // Final printed name
+                recipientName: formData.recipientName, // Stored without prefix as requested
                 event: formData.event,
                 reasonText: formData.reason,
                 date: formData.date,
@@ -198,11 +202,11 @@ export default function CreateCertificate() {
                 const row = bulkNames[i];
                 // Assume row can have prefix column, else use global prefix, or no prefix
                 const rowPrefix = row.prefix || formData.prefix;
-                const finalName = rowPrefix ? `${rowPrefix}/ ${row.name}` : row.name;
+                const finalName = rowPrefix ? `${rowPrefix} ${row.name}` : row.name;
 
                 const payload = {
                     internalTitle: formData.internalTitle ? `${formData.internalTitle} - ${i+1}` : '',
-                    recipientName: finalName,
+                    recipientName: row.name, // Stored without prefix as requested
                     event: formData.event,
                     reasonText: formData.reason,
                     date: formData.date,
@@ -238,8 +242,8 @@ export default function CreateCertificate() {
 
     // Resolve context for live preview
     const previewName = mode === 'single' 
-        ? (formData.prefix ? `${formData.prefix}/ ${formData.recipientName}` : formData.recipientName)
-        : (bulkNames.length > 0 ? (bulkNames[bulkPreviewIndex].prefix || formData.prefix ? `${bulkNames[bulkPreviewIndex].prefix || formData.prefix}/ ${bulkNames[bulkPreviewIndex].name}` : bulkNames[bulkPreviewIndex].name) : '[الاسم]');
+        ? (formData.prefix ? `${formData.prefix} ${formData.recipientName}` : formData.recipientName)
+        : (bulkNames.length > 0 ? (bulkNames[bulkPreviewIndex].prefix || formData.prefix ? `${bulkNames[bulkPreviewIndex].prefix || formData.prefix} ${bulkNames[bulkPreviewIndex].name}` : bulkNames[bulkPreviewIndex].name) : '[الاسم]');
 
     const dataContext = {
         recipient_name: previewName,
@@ -325,9 +329,15 @@ export default function CreateCertificate() {
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <div style={{ width: '100px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700 }}>اللقب</label>
-                                        <select value={formData.prefix} onChange={e => setFormData(p => ({ ...p, prefix: e.target.value }))} style={{ padding: '8px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+                                        <select
+                                            value={formData.prefix}
+                                            onChange={e => setFormData(p => ({ ...p, prefix: e.target.value }))}
+                                            style={{ padding: '8px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}
+                                        >
                                             <option value="">بدون</option>
-                                            {(settings?.prefixes || []).map(p => <option key={p} value={p}>{p}</option>)}
+                                            {officialTitles.map(title => (
+                                                <option key={title} value={title}>{title}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>

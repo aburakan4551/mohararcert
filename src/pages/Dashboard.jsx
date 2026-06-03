@@ -151,9 +151,9 @@ export default function Dashboard() {
         {
             key: 'recipientName',
             label: 'اسم صاحب المعاملة',
-            render: v => (
+            render: (v, row) => (
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 'var(--text-body-sm)' }}>
-                    {v}
+                    {row.prefix ? `${row.prefix} ${v}` : v}
                 </span>
             ),
         },

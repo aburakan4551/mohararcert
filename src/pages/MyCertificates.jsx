@@ -152,7 +152,7 @@ export default function MyCertificates() {
                                             </div>
                                             
                                             <h4 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                {c.recipientName}
+                                                {c.prefix ? `${c.prefix} ${c.recipientName}` : c.recipientName}
                                             </h4>
                                             
                                             <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

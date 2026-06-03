@@ -74,14 +74,15 @@ export default function PendingApprovals() {
         try {
             for (const id of selectedIds) {
                 const cert = certs.find(x => x.id === id);
+                const dispName = cert.prefix ? `${cert.prefix} ${cert.recipientName}` : cert.recipientName;
                 if (user.role === 'ASSISTANT_MANAGER' || (user.role === 'SUPER_ADMIN' && cert.status === 'PENDING_APPROVAL')) {
                     await dbService.approveByAssistant(id, user, decisionNotes || 'اعتماد جماعي — تأشيرة المساعد');
                     await auditService.log('APPROVE_CERTIFICATE', user, `تأشيرة جماعية: ${cert.serial}`, id);
-                    await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${cert.recipientName}`, type: 'approve' });
+                    await notificationService.create({ userId: 'usr-3', message: `تأشيرة جديدة بانتظار اعتمادك: ${dispName}`, type: 'approve' });
                 } else {
                     await dbService.approveFinal(id, user, decisionNotes || 'اعتماد نهائي جماعي — المدير العام');
                     await auditService.log('APPROVE_CERTIFICATE', user, `اعتماد نهائي جماعي: ${cert.serial}`, id);
-                    await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${cert.recipientName}`, type: 'approve' });
+                    await notificationService.create({ userId: cert.createdBy, message: `تمت المصادقة النهائية لشهادة: ${dispName}`, type: 'approve' });
                 }
             }
             setSelectedIds([]);
@@ -137,7 +138,7 @@ export default function PendingApprovals() {
         {
             key: 'recipientName',
             label: 'صاحب المعاملة',
-            render: v => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{v}</strong>,
+            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.prefix ? `${row.prefix} ${v}` : v}</strong>,
         },
         {
             key: 'event',

@@ -37,15 +37,21 @@ import { diagnosticsStore } from '../../../utils/diagnosticsStore';
 
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
+/**
+ * OFFICIAL_PRESET_BLOCKS — Dynamic Binding System
+ * Fields use bindingKey instead of hardcoded textContent.
+ * At render time, the value is resolved from system-settings[bindingKey].
+ * NO text is frozen inside the template — all identity fields are live.
+ */
 const OFFICIAL_PRESET_BLOCKS = [
     {
         id: 'appreciation_block',
         label: 'نص الشكر والتقدير الرسمي',
-        description: 'عنوان الشهادة + نص التكريم + النص الختامي الموحد',
+        description: 'عنوان الشهادة + نص التكريم + النص الختامي — ديناميكي من الإعدادات',
         fields: [
             {
                 fieldId: 'certificate_title',
-                x: 50, y: 32,
+                x: 50, y: 22,
                 fontSize: 34,
                 color: '#0d1f3c',
                 fontFamily: 'Cairo',
@@ -58,11 +64,11 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'شهادة شكر وتقدير'
+                textContent: 'شهادة شكر وتقدير' // user-defined per template — not bound
             },
             {
-                fieldId: 'reason',
-                x: 50, y: 46,
+                fieldId: 'certificate_header_text',
+                x: 50, y: 34,
                 fontSize: 22,
                 color: '#333333',
                 fontFamily: 'Amiri',
@@ -75,11 +81,44 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'يتقدم فرع وزارة الصحة بمنطقة الحدود الشمالية بخالص الشكر والتقدير'
+                bindingKey: 'certificate_header_text' // ← reads from system-settings
             },
             {
-                fieldId: 'wishes_text',
-                x: 50, y: 58,
+                fieldId: 'recipient_name',
+                x: 50, y: 44,
+                fontSize: 38,
+                color: '#000000',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 700,
+                height: 50,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.6,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                fontWeight: 'bold'
+            },
+            {
+                fieldId: 'reason',
+                x: 50, y: 54,
+                fontSize: 24,
+                color: '#333333',
+                fontFamily: 'Amiri',
+                align: 'center',
+                width: 800,
+                height: 80,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.8,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false
+            },
+            {
+                fieldId: 'certificate_closing_text',
+                x: 50, y: 64,
                 fontSize: 18,
                 color: '#555555',
                 fontFamily: 'Amiri',
@@ -92,27 +131,28 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'سائلين الله له/ـها دوام التوفيق والنجاح والسداد'
+                bindingKey: 'certificate_closing_text' // ← reads from system-settings
             }
         ]
     },
     {
         id: 'signature_block',
         label: 'بلوك التوقيع الرسمي المعتمد',
-        description: 'توقيع المدير العام ديناميكياً مع الاسم واللقب الوظيفي',
+        description: 'توقيع المدير العام ديناميكياً مع الاسم واللقب الوظيفي — من الإعدادات',
         fields: [
             {
-                fieldId: 'manager_signature',
+                fieldId: 'general_manager_signature',
                 x: 80, y: 68,
                 width: 160,
                 height: 90,
                 opacity: 1,
                 rotation: 0,
                 hidden: false,
-                locked: false
+                locked: false,
+                bindingKey: 'general_manager_signature'
             },
             {
-                fieldId: 'manager_name',
+                fieldId: 'general_manager_name',
                 x: 80, y: 76,
                 fontSize: 18,
                 color: '#000000',
@@ -126,24 +166,94 @@ const OFFICIAL_PRESET_BLOCKS = [
                 letterSpacing: 0,
                 hidden: false,
                 locked: false,
-                textContent: 'مدير عام فرع وزارة'
+                bindingKey: 'general_manager_name'
+            },
+            {
+                fieldId: 'general_manager_title',
+                x: 80, y: 81,
+                fontSize: 13,
+                color: '#444444',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 280,
+                height: 30,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.4,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'general_manager_title'
             }
         ]
     },
     {
         id: 'stamp_block',
         label: 'بلوك الختم الرسمي للوزارة',
-        description: 'مساحة الختم الدائري الرسمي لوزارة الصحة',
+        description: 'الختم الرسمي من إعدادات الهوية مباشرة',
         fields: [
             {
-                fieldId: 'official_stamp',
+                fieldId: 'official_seal',
                 x: 50, y: 70,
                 width: 120,
                 height: 120,
                 opacity: 1,
                 rotation: 0,
                 hidden: false,
-                locked: false
+                locked: false,
+                bindingKey: 'official_seal'
+            }
+        ]
+    },
+    {
+        id: 'assistant_signature_block',
+        label: 'بلوك مساعد المدير العام (التخطيط)',
+        description: 'توقيع واسم ومسمى مساعد المدير العام للتخطيط والتحول — من الإعدادات',
+        fields: [
+            {
+                fieldId: 'assistant_planning_signature',
+                x: 20, y: 68,
+                width: 130,
+                height: 70,
+                opacity: 1,
+                rotation: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'assistant_planning_signature'
+            },
+            {
+                fieldId: 'assistant_planning_name',
+                x: 20, y: 76,
+                fontSize: 16,
+                color: '#000000',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 240,
+                height: 30,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.4,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'assistant_planning_name'
+            },
+            {
+                fieldId: 'assistant_planning_title',
+                x: 20, y: 81,
+                fontSize: 12,
+                color: '#444444',
+                fontFamily: 'Cairo',
+                align: 'center',
+                width: 260,
+                height: 28,
+                opacity: 1,
+                rotation: 0,
+                lineHeight: 1.4,
+                letterSpacing: 0,
+                hidden: false,
+                locked: false,
+                bindingKey: 'assistant_planning_title'
             }
         ]
     }
@@ -648,7 +758,13 @@ export default function TemplateMapper() {
                 hidden: f.hidden ?? false,
                 locked: f.locked ?? false,
                 aspectRatioLocked: f.aspectRatioLocked ?? false,
-                textContent: f.textContent ?? (meta?.defaultContent || '')
+                // ── Dynamic Binding: preserve bindingKey from preset definition ──
+                // bindingKey causes the field to read live from system-settings at render time.
+                // Only set textContent if no bindingKey exists (user-defined fields).
+                ...(f.bindingKey
+                    ? { bindingKey: f.bindingKey }
+                    : { textContent: f.textContent ?? (meta?.defaultContent || '') }
+                )
             };
         });
 
@@ -678,6 +794,8 @@ export default function TemplateMapper() {
                 lineHeight: f.lineHeight ?? 1.6,
                 letterSpacing: f.letterSpacing ?? 0,
                 hidden: f.hidden ?? false,
+                // Preserve bindingKey from saved custom presets
+                ...(f.bindingKey ? { bindingKey: f.bindingKey } : {}),
                 locked: f.locked ?? false,
                 aspectRatioLocked: f.aspectRatioLocked ?? false,
                 textContent: f.textContent ?? (meta?.defaultContent || '')
@@ -1473,7 +1591,7 @@ export default function TemplateMapper() {
     const pagesList = template?.pages || [{ pageNum: 1, fields: fields, backgroundUrl: template?.backgroundUrl || '' }];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }} ref={(el) => { if (el) { const ws = el.querySelector('[data-canvas-workspace]'); if (ws) { const { scrollHeight, clientHeight } = ws; const oy = getComputedStyle(ws).overflowY; console.log('[ScrollDiag]', { scrollHeight, clientHeight, overflowY: oy, canScroll: scrollHeight > clientHeight }); } } }}>
             {(initStatus === 'recovered' || initStatus === 'fallback-loaded') && (
                 <div style={{
                     background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
@@ -1595,7 +1713,7 @@ export default function TemplateMapper() {
             </div>
 
             {/* ─── WORKSPACE PANELS ─── */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
                 {/* 👈 LEFT BAR: PRESETS & STANDARD FIELDS */}
                 <div style={{ width: '310px', background: '#141416', borderLeft: '1px solid #222225', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
@@ -1783,7 +1901,20 @@ export default function TemplateMapper() {
                 {/* 🎛️ CENTER BOARD: VIRTUAL RENDER CANVAS */}
                 <div
                     ref={workspaceRef}
-                    style={{ flex: 1, background: '#0a0a0c', overflowX: 'auto', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+                    data-canvas-workspace="true"
+                    style={{
+                        flex: 1,
+                        background: '#0a0a0c',
+                        overflowX: 'auto',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        minHeight: 0,
+                        paddingTop: showRulers ? '18px' : '40px',
+                        paddingBottom: '80px',
+                    }}
                     onClick={(e) => { if (e.target === workspaceRef.current || e.target.parentElement === workspaceRef.current) setSelectedIds([]) }}
                 >
                     {/* A4 Metric Rulers */}
@@ -1807,10 +1938,10 @@ export default function TemplateMapper() {
                             position: 'relative',
                             boxShadow: '0 30px 70px -20px rgba(0,0,0,0.9)',
                             transform: `scale(${zoom})`,
-                            transformOrigin: 'center center',
+                            transformOrigin: 'top center',
                             transition: (isDragging || isResizing) ? 'none' : 'transform 0.12s ease',
                             overflow: 'hidden',
-                            marginTop: showRulers ? '18px' : '0',
+                            flexShrink: 0,
                             marginLeft: showRulers ? '18px' : '0',
                             touchAction: 'none'
                         }}
@@ -1901,12 +2032,24 @@ export default function TemplateMapper() {
                                     }}
                                 >
                                     {meta?.type === 'text' || meta?.type === 'textarea' ? (
-                                        <span style={{ fontWeight: f.fontWeight || meta.defaultWeight || 'bold' }}>
-                                            {f.textContent || `[${meta?.label}]`}
+                                        <span style={{
+                                            fontWeight: f.fontWeight || meta?.defaultWeight || 400,
+                                            display: 'block',
+                                            width: '100%',
+                                        }}>
+                                            {/* resolveFieldValue: live binding from system-settings when bindingKey is set */}
+                                            {(() => {
+                                                const resolved = resolveFieldValue(f, meta, {}, settings);
+                                                if (resolved) return resolved;
+                                                return f.bindingKey
+                                                    ? <span style={{ color: '#f59e0b', fontStyle: 'italic', fontSize: '11px' }}>🔗 {`{{${f.bindingKey}}}`}</span>
+                                                    : `[${meta?.label}]`;
+                                            })()}
                                         </span>
                                     ) : (
-                                        <div style={{ width: '100%', height: `${f.height}px`, background: 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '11px', border: '1px dashed rgba(0,0,0,0.12)' }}>
-                                            {meta?.label} (Zone)
+                                        <div style={{ width: '100%', height: `${f.height}px`, background: 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '11px', border: '1px dashed rgba(0,0,0,0.12)', flexDirection: 'column', gap: '4px' }}>
+                                            <span>{meta?.label}</span>
+                                            {f.bindingKey && <span style={{ fontSize: '9px', color: '#10b981' }}>🔗 {f.bindingKey}</span>}
                                         </div>
                                     )}
 
@@ -2046,12 +2189,53 @@ export default function TemplateMapper() {
 
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '8px' }}>
                                                     <label style={{ fontSize: '10px', color: '#a1a1aa' }}>الخط المعتمد
-                                                        <select value={activeField.fontFamily} onChange={e => { updateField(activeField._uid, { fontFamily: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontFamily: e.target.value } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked}>
+                                                        <select value={activeField.fontFamily || 'Cairo'} onChange={e => { updateField(activeField._uid, { fontFamily: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontFamily: e.target.value } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked}>
                                                             <option value="Cairo">Cairo (رسمي عصري)</option>
                                                             <option value="Amiri">Amiri (رسمي كلاسيكي)</option>
                                                             <option value="Tajawal">Tajawal</option>
                                                         </select>
                                                     </label>
+                                                </div>
+
+                                                {/* ── Font Weight Selector ── */}
+                                                <div style={{ marginTop: '8px' }}>
+                                                    <label style={{ fontSize: '10px', color: '#a1a1aa', display: 'block', marginBottom: '6px' }}>وزن الخط (Font Weight)</label>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+                                                        {[
+                                                            { label: 'عادي', value: '400' },
+                                                            { label: 'متوسط', value: '500' },
+                                                            { label: 'شبه عريض', value: '600' },
+                                                            { label: 'عريض', value: '700' },
+                                                            { label: 'ثقيل', value: '800' },
+                                                        ].map(({ label, value }) => {
+                                                            const isActive = String(activeField.fontWeight || '400') === value;
+                                                            return (
+                                                                <button
+                                                                    key={value}
+                                                                    disabled={activeField.locked}
+                                                                    onClick={() => {
+                                                                        updateField(activeField._uid, { fontWeight: value });
+                                                                        historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontWeight: value } : f));
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '5px 3px',
+                                                                        background: isActive ? '#10b981' : '#1c1c1f',
+                                                                        border: isActive ? '1px solid #10b981' : '1px solid #333',
+                                                                        borderRadius: '4px',
+                                                                        color: isActive ? '#fff' : '#a1a1aa',
+                                                                        fontSize: '9px',
+                                                                        fontWeight: value,
+                                                                        cursor: activeField.locked ? 'default' : 'pointer',
+                                                                        textAlign: 'center',
+                                                                        transition: 'all 0.12s',
+                                                                        fontFamily: activeField.fontFamily || 'Cairo',
+                                                                    }}
+                                                                >
+                                                                    {label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}

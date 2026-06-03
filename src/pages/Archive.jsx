@@ -102,12 +102,13 @@ export default function ArchivePage() {
 
     const handlePrint = () => {
         if (!activeCert) return;
+        const dispName = activeCert.prefix ? `${activeCert.prefix} ${activeCert.recipientName}` : activeCert.recipientName;
         auditService.log('PRINT_CERTIFICATE', user, `طباعة أرشيف: ${activeCert.serial}`, activeCert.id);
-        printElements([certRef.current], `شهادة — ${activeCert.recipientName}`);
+        printElements([certRef.current], `شهادة — ${dispName}`);
     };
 
     const certData = activeCert ? {
-        recipientName: activeCert.recipientName,
+        recipientName: activeCert.prefix ? `${activeCert.prefix} ${activeCert.recipientName}` : activeCert.recipientName,
         event: activeCert.event,
         date: activeCert.date,
         serial: activeCert.serial,
@@ -141,7 +142,7 @@ export default function ArchivePage() {
                         {v?.charAt(0) || '؟'}
                     </div>
                     <div>
-                        <p style={{ fontSize: 'var(--text-body-sm)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>{v}</p>
+                        <p style={{ fontSize: 'var(--text-body-sm)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>{row.prefix ? `${row.prefix} ${v}` : v}</p>
                         <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 500 }}>{row.event}</p>
                     </div>
                 </div>

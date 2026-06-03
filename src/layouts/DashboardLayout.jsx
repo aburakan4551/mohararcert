@@ -50,6 +50,7 @@ export default function DashboardLayout({
 
     const location  = useLocation();
     const isEditor  = location.pathname === '/create' || location.pathname === '/settings';
+    const isStudio  = location.pathname.startsWith('/studio/mapper');
     const pageInfo  = PAGE_TITLES[location.pathname] ||
                       (location.pathname.startsWith('/approvals/')
                           ? { title: 'تفاصيل واعتماد المعاملة', subtitle: 'مراجعة واتخاذ قرار الاعتماد' }
@@ -75,6 +76,15 @@ export default function DashboardLayout({
     const unreadCount = notifications.filter(n => !n.read).length;
 
     const sidebarWidth = isCollapsed ? 72 : 268;
+
+    /* ── Studio Mode: fullscreen, no chrome, no padding ── */
+    if (isStudio) {
+        return (
+            <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', direction: 'rtl' }}>
+                {children}
+            </div>
+        );
+    }
 
     /* ── Editor Mode: no chrome ── */
     if (isEditor) {
