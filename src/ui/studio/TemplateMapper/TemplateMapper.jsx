@@ -18,7 +18,7 @@ import {
     Trash2, Copy, AlertTriangle, CheckCircle, Undo2, Redo2, AlignLeft,
     AlignCenter, AlignRight, Sparkles, Grid, Settings, Clipboard, List, Check, X, RefreshCw, Eye as ViewIcon, ShieldAlert, History, Columns, Play, Ban, RefreshCcw
 } from 'lucide-react';
-import { SUPPORTED_FIELDS, getFieldMeta } from '../../../engine/FieldEngine/FieldEngine';
+import { SUPPORTED_FIELDS, getFieldMeta, resolveFieldValue } from '../../../engine/FieldEngine/FieldEngine';
 import { Card, CardHeader, CardContent } from '../../cards/Card';
 import { Button } from '../../components/Button';
 import { templateService, assetService, auditService } from '../../../services/db';
