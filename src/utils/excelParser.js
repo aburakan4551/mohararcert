@@ -16,14 +16,20 @@ export async function parseExcelFile(file) {
                 const worksheet = workbook.Sheets[sheetName]
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
-                // Find name column (look for header row with 'اسم' or 'name')
+                // Find name and prefix columns (look for header row with 'اسم'/'name' and 'اللقب'/'prefix')
                 let nameColIndex = 0
+                let prefixColIndex = -1
                 if (jsonData.length > 0) {
-                    const header = jsonData[0].map(h => (h || '').toString().toLowerCase())
+                    const header = jsonData[0].map(h => (h || '').toString().toLowerCase().trim())
                     const nameIdx = header.findIndex(h =>
                         h.includes('اسم') || h.includes('name') || h.includes('الاسم')
                     )
                     if (nameIdx !== -1) nameColIndex = nameIdx
+
+                    const prefixIdx = header.findIndex(h =>
+                        h.includes('اللقب') || h.includes('لقب') || h.includes('prefix') || h.includes('title')
+                    )
+                    if (prefixIdx !== -1) prefixColIndex = prefixIdx
                 }
 
                 // Extract names (skip header row if detected)
@@ -37,8 +43,13 @@ export async function parseExcelFile(file) {
                     if (row && row[nameColIndex]) {
                         const name = row[nameColIndex].toString().trim()
                         if (name) {
+                            let prefix = ''
+                            if (prefixColIndex !== -1 && row[prefixColIndex]) {
+                                prefix = row[prefixColIndex].toString().trim()
+                            }
                             names.push({
                                 name,
+                                prefix,
                                 rowIndex: i,
                                 rawRow: row
                             })

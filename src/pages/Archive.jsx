@@ -9,6 +9,7 @@ import { dbService, templateService, auditService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     Archive, Search, FileText, Download, Printer,
     ShieldCheck, Eye, Calendar, User2, X,
@@ -45,7 +46,12 @@ export default function ArchivePage() {
             try {
                 const all  = await dbService.getAll();
                 const tpls = await templateService.getAll();
-                setCerts(all.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED'));
+                const filtered = all.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED');
+                const processed = filtered.map(c => ({
+                    ...c,
+                    fullDisplayName: getRecipientDisplayName(c)
+                }));
+                setCerts(processed);
                 setTemplates(tpls);
                 logger.api(`تحميل الأرشيف: ${all.length} معاملة معتمدة`);
             } catch (e) {
@@ -76,7 +82,7 @@ export default function ArchivePage() {
 
     const filteredCerts = useMemo(() =>
         certs.filter(c =>
-            c.recipientName?.toLowerCase().includes(search.toLowerCase()) ||
+            c.fullDisplayName?.toLowerCase().includes(search.toLowerCase()) ||
             c.event?.toLowerCase().includes(search.toLowerCase()) ||
             c.serial?.includes(search)
         ), [certs, search]);
@@ -91,8 +97,9 @@ export default function ArchivePage() {
         if (!activeCert) return;
         setExporting(true);
         try {
+            const dispName = getRecipientDisplayName(activeCert);
             await auditService.log('EXPORT_PDF', user, `تصدير أرشيف: ${activeCert.serial}`, activeCert.id);
-            await exportSinglePDF(certRef.current, `شهادة_معتمدة_${activeCert.recipientName}.pdf`);
+            await exportSinglePDF(certRef.current, `شهادة_معتمدة_${dispName}.pdf`);
         } catch (e) {
             alert('خطأ أثناء التصدير: ' + e.message);
         } finally {
@@ -102,13 +109,13 @@ export default function ArchivePage() {
 
     const handlePrint = () => {
         if (!activeCert) return;
-        const dispName = activeCert.prefix ? `${activeCert.prefix} ${activeCert.recipientName}` : activeCert.recipientName;
+        const dispName = getRecipientDisplayName(activeCert);
         auditService.log('PRINT_CERTIFICATE', user, `طباعة أرشيف: ${activeCert.serial}`, activeCert.id);
         printElements([certRef.current], `شهادة — ${dispName}`);
     };
 
     const certData = activeCert ? {
-        recipientName: activeCert.prefix ? `${activeCert.prefix} ${activeCert.recipientName}` : activeCert.recipientName,
+        recipientName: getRecipientDisplayName(activeCert),
         event: activeCert.event,
         date: activeCert.date,
         serial: activeCert.serial,
@@ -142,7 +149,7 @@ export default function ArchivePage() {
                         {v?.charAt(0) || '؟'}
                     </div>
                     <div>
-                        <p style={{ fontSize: 'var(--text-body-sm)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>{row.prefix ? `${row.prefix} ${v}` : v}</p>
+                        <p style={{ fontSize: 'var(--text-body-sm)', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>{row.fullDisplayName}</p>
                         <p style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 500 }}>{row.event}</p>
                     </div>
                 </div>

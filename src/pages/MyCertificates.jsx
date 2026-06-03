@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     FileText, ArrowLeft, Hourglass, CheckCircle,
     FileEdit, Trash2, MessageCircle, Eye, ShieldCheck,
@@ -29,8 +30,13 @@ export default function MyCertificates() {
         setLoading(true);
         try {
             const all = await dbService.getAll();
-            setMyCerts(all.filter(c => c.createdBy === user.id));
-            logger.api(`تحميل شهاداتي: ${all.filter(c => c.createdBy === user.id).length}`);
+            const filtered = all.filter(c => c.createdBy === user.id);
+            const processed = filtered.map(c => ({
+                ...c,
+                fullDisplayName: getRecipientDisplayName(c)
+            }));
+            setMyCerts(processed);
+            logger.api(`تحميل شهاداتي: ${processed.length}`);
         } catch (e) {
             logger.error('فشل تحميل شهاداتي', e);
         } finally {
@@ -152,7 +158,7 @@ export default function MyCertificates() {
                                             </div>
                                             
                                             <h4 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                {c.prefix ? `${c.prefix} ${c.recipientName}` : c.recipientName}
+                                                {c.fullDisplayName}
                                             </h4>
                                             
                                             <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

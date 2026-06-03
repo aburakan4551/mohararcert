@@ -11,6 +11,7 @@ import { dbService, auditService, notificationService, templateService } from '.
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Save, Send, LayoutTemplate, QrCode, FileSpreadsheet, UserPlus, Database, ChevronLeft, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
 import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
+import { getRecipientDisplayName, extractPrefixAndName } from '../engine/FieldEngine/FieldEngine';
 import ExcelImporter from '../components/ExcelImporter';
 import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
@@ -105,24 +106,15 @@ export default function CreateCertificate() {
         fetchTemplates();
     }, [editId]);
 
-    // Load edit data if single
     useEffect(() => {
         if (editId) {
             dbService.getById(editId).then(cert => {
                 if (cert) {
-                    const getRawName = (c) => {
-                        if (c.rawName) return c.rawName;
-                        let name = c.recipientName || '';
-                        if (c.prefix) {
-                            if (name.startsWith(`${c.prefix}/ `)) return name.substring(c.prefix.length + 2);
-                            if (name.startsWith(`${c.prefix} `)) return name.substring(c.prefix.length + 1);
-                        }
-                        return name;
-                    };
+                    const resolved = extractPrefixAndName(cert.recipientName, cert.prefix, officialTitles);
                     setFormData({
                         internalTitle: cert.internalTitle || '',
-                        prefix: cert.prefix || '',
-                        recipientName: getRawName(cert),
+                        prefix: resolved.prefix,
+                        recipientName: resolved.rawName,
                         event: cert.event || '',
                         date: cert.date || '',
                         reason: cert.reasonText || cert.reason || cert.event || '',
@@ -134,7 +126,7 @@ export default function CreateCertificate() {
                 setInitialLoading(false);
             }).catch(() => setInitialLoading(false));
         }
-    }, [editId]);
+    }, [editId, officialTitles]);
 
 
     const handleSaveSingle = async (submitForApproval = false) => {
@@ -145,11 +137,14 @@ export default function CreateCertificate() {
         setLoading(true);
         try {
             const finalSerial = serialInput.trim() || consumeSerial();
-            const fullName = formData.prefix ? `${formData.prefix} ${formData.recipientName}` : formData.recipientName;
+            const resolved = extractPrefixAndName(formData.recipientName, formData.prefix, officialTitles);
+            const finalPrefix = resolved.prefix;
+            const finalName = resolved.rawName;
+            const fullName = finalPrefix ? `${finalPrefix} ${finalName}` : finalName;
             
             const payload = {
                 internalTitle: formData.internalTitle,
-                recipientName: formData.recipientName, // Stored without prefix as requested
+                recipientName: finalName, // Stored without prefix as requested
                 event: formData.event,
                 reasonText: formData.reason,
                 date: formData.date,
@@ -159,8 +154,8 @@ export default function CreateCertificate() {
                 status: 'DRAFT',
                 createdBy: user.id,
                 creatorName: user.name,
-                prefix: formData.prefix,
-                rawName: formData.recipientName
+                prefix: finalPrefix,
+                rawName: finalName
             };
 
             let certId = editId;
@@ -200,13 +195,14 @@ export default function CreateCertificate() {
 
             for (let i = 0; i < bulkNames.length; i++) {
                 const row = bulkNames[i];
-                // Assume row can have prefix column, else use global prefix, or no prefix
-                const rowPrefix = row.prefix || formData.prefix;
-                const finalName = rowPrefix ? `${rowPrefix} ${row.name}` : row.name;
+                // Resolve prefix and name using extractPrefixAndName to prevent duplicate prefixes
+                const resolved = extractPrefixAndName(row.name, row.prefix || formData.prefix, officialTitles);
+                const finalPrefix = resolved.prefix;
+                const finalName = resolved.rawName;
 
                 const payload = {
                     internalTitle: formData.internalTitle ? `${formData.internalTitle} - ${i+1}` : '',
-                    recipientName: row.name, // Stored without prefix as requested
+                    recipientName: finalName, // Stored without prefix as requested
                     event: formData.event,
                     reasonText: formData.reason,
                     date: formData.date,
@@ -216,8 +212,8 @@ export default function CreateCertificate() {
                     status: targetStatus,
                     createdBy: user.id,
                     creatorName: user.name,
-                    prefix: rowPrefix,
-                    rawName: row.name
+                    prefix: finalPrefix,
+                    rawName: finalName
                 };
 
                 const newCert = await dbService.create(payload);
@@ -241,9 +237,20 @@ export default function CreateCertificate() {
     if (initialLoading) return <div>جارٍ التحميل...</div>;
 
     // Resolve context for live preview
-    const previewName = mode === 'single' 
-        ? (formData.prefix ? `${formData.prefix} ${formData.recipientName}` : formData.recipientName)
-        : (bulkNames.length > 0 ? (bulkNames[bulkPreviewIndex].prefix || formData.prefix ? `${bulkNames[bulkPreviewIndex].prefix || formData.prefix} ${bulkNames[bulkPreviewIndex].name}` : bulkNames[bulkPreviewIndex].name) : '[الاسم]');
+    let previewName = '[الاسم]';
+    if (mode === 'single') {
+        previewName = getRecipientDisplayName({
+            recipientName: formData.recipientName,
+            prefix: formData.prefix
+        });
+    } else if (bulkNames.length > 0) {
+        const row = bulkNames[bulkPreviewIndex];
+        const resolved = extractPrefixAndName(row.name, row.prefix || formData.prefix, officialTitles);
+        previewName = getRecipientDisplayName({
+            recipientName: resolved.rawName,
+            prefix: resolved.prefix
+        });
+    }
 
     const dataContext = {
         recipient_name: previewName,

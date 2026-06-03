@@ -1591,7 +1591,7 @@ export default function TemplateMapper() {
     const pagesList = template?.pages || [{ pageNum: 1, fields: fields, backgroundUrl: template?.backgroundUrl || '' }];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }} ref={(el) => { if (el) { const ws = el.querySelector('[data-canvas-workspace]'); if (ws) { const { scrollHeight, clientHeight } = ws; const oy = getComputedStyle(ws).overflowY; console.log('[ScrollDiag]', { scrollHeight, clientHeight, overflowY: oy, canScroll: scrollHeight > clientHeight }); } } }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
             {(initStatus === 'recovered' || initStatus === 'fallback-loaded') && (
                 <div style={{
                     background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',

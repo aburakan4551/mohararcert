@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { Link, useNavigate } from 'react-router-dom';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     Award, FileText, Hourglass, CheckCircle2, AlertTriangle,
     Search, Eye, Filter, FilePlus, Inbox, Archive,
@@ -88,7 +89,11 @@ export default function Dashboard() {
         setLoading(true);
         try {
             const list = await dbService.getAll();
-            setCerts(list);
+            const processed = (list || []).map(c => ({
+                ...c,
+                fullDisplayName: getRecipientDisplayName(c)
+            }));
+            setCerts(processed);
             logger.api(`تحميل ${list.length} معاملة`);
         } catch (e) {
             logger.error('فشل تحميل البيانات', e);
@@ -101,7 +106,7 @@ export default function Dashboard() {
 
     /* ── Computed ── */
     const filteredCerts = useMemo(() => certs.filter(c => {
-        const matchSearch = (c.recipientName || '').toLowerCase().includes(search.toLowerCase()) ||
+        const matchSearch = (c.fullDisplayName || '').toLowerCase().includes(search.toLowerCase()) ||
                             (c.event || '').toLowerCase().includes(search.toLowerCase()) ||
                             (c.serial || '').includes(search);
         const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
@@ -153,7 +158,7 @@ export default function Dashboard() {
             label: 'اسم صاحب المعاملة',
             render: (v, row) => (
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 'var(--text-body-sm)' }}>
-                    {row.prefix ? `${row.prefix} ${v}` : v}
+                    {row.fullDisplayName}
                 </span>
             ),
         },

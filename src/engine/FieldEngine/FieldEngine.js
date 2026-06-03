@@ -131,3 +131,79 @@ export const injectData = (fieldId, dataContext) => {
     if (!dataContext) return '';
     return dataContext[fieldId] || '';
 };
+
+/**
+ * Dynamic Sanitizer / Formatter for recipient name.
+ * Prevents duplicate/double prefixes, preserves prefix/title on old records,
+ * and formats using a single space separator.
+ * 
+ * @param {object} cert - The certificate object containing recipientName and prefix
+ * @returns {string} - Clean display name
+ */
+export const getRecipientDisplayName = (cert) => {
+    if (!cert) return '';
+    let name = (cert.recipientName || '').trim();
+    let prefix = (cert.prefix || '').trim();
+
+    // Clean up slashes in name if any (e.g. "الدكتور/ أحمد" -> "الدكتور أحمد")
+    name = name.replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (prefix) {
+        // Prevent double prefix
+        if (name.startsWith(prefix + ' ') || name === prefix) {
+            return name;
+        }
+        return `${prefix} ${name}`;
+    }
+
+    return name;
+};
+
+/**
+ * Extracts and cleans prefix and raw name from typed/imported input names.
+ * Ensures the prefix is isolated, the name is saved raw, and duplicate prefixing is prevented.
+ * 
+ * @param {string} inputName - The typed or imported beneficiary name (might contain prefix)
+ * @param {string} selectedPrefix - The selected prefix from the UI
+ * @param {string[]} officialTitles - Supported official prefixes from settings
+ * @returns {{prefix: string, rawName: string}} - Extracted prefix and raw name
+ */
+export const extractPrefixAndName = (inputName, selectedPrefix = '', officialTitles = []) => {
+    let name = (inputName || '').trim();
+    // Normalize slashes and spacing
+    name = name.replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
+
+    let prefix = (selectedPrefix || '').trim();
+
+    // Standard list of titles to check if officialTitles is empty
+    const titlesToCheck = officialTitles.length > 0 
+        ? officialTitles 
+        : ['الدكتور', 'الدكتورة', 'الأستاذ', 'الأستاذة', 'المهندس', 'الشيخ', 'الدكتورة', 'أ.', 'د.'];
+
+    // Sort titles by length descending to match longest first
+    const sortedTitles = [...new Set(titlesToCheck)].filter(Boolean).sort((a, b) => b.length - a.length);
+
+    // Check if the name starts with any known prefix
+    let detectedPrefix = '';
+    for (const title of sortedTitles) {
+        if (name.startsWith(title + ' ')) {
+            detectedPrefix = title;
+            name = name.substring(title.length + 1).trim();
+            break;
+        } else if (name === title) {
+            detectedPrefix = title;
+            name = '';
+            break;
+        }
+    }
+
+    // Resolve prefix: if a prefix was detected in the name text, use it.
+    // Otherwise, use the selectedPrefix from the UI.
+    const finalPrefix = detectedPrefix || prefix;
+
+    return {
+        prefix: finalPrefix,
+        rawName: name
+    };
+};
+

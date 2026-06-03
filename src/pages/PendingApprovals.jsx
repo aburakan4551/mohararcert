@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService, auditService, notificationService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     Hourglass, Eye, CheckSquare, Square, CheckCircle,
     MessageSquare, ThumbsUp, AlertCircle, Filter,
@@ -45,7 +46,11 @@ export default function PendingApprovals() {
         setLoading(true);
         try {
             const all = await dbService.getAll();
-            setCerts(all);
+            const processed = (all || []).map(c => ({
+                ...c,
+                fullDisplayName: getRecipientDisplayName(c)
+            }));
+            setCerts(processed);
             logger.api(`تحميل طابور المعلقة: ${all.length} معاملة`);
         } catch (e) {
             logger.error('فشل تحميل الطابور', e);
@@ -74,7 +79,7 @@ export default function PendingApprovals() {
         try {
             for (const id of selectedIds) {
                 const cert = certs.find(x => x.id === id);
-                const dispName = cert.prefix ? `${cert.prefix} ${cert.recipientName}` : cert.recipientName;
+                const dispName = getRecipientDisplayName(cert);
                 if (user.role === 'ASSISTANT_MANAGER' || (user.role === 'SUPER_ADMIN' && cert.status === 'PENDING_APPROVAL')) {
                     await dbService.approveByAssistant(id, user, decisionNotes || 'اعتماد جماعي — تأشيرة المساعد');
                     await auditService.log('APPROVE_CERTIFICATE', user, `تأشيرة جماعية: ${cert.serial}`, id);
@@ -138,7 +143,7 @@ export default function PendingApprovals() {
         {
             key: 'recipientName',
             label: 'صاحب المعاملة',
-            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.prefix ? `${row.prefix} ${v}` : v}</strong>,
+            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.fullDisplayName}</strong>,
         },
         {
             key: 'event',

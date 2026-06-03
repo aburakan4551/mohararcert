@@ -309,6 +309,60 @@ class LocalDatabase {
             if (!localStorage.getItem(this.prefix + 'notifications')) {
                 localStorage.setItem(this.prefix + 'notifications', JSON.stringify([]));
             }
+
+            // Naming & Prefix Migration
+            const certsKey = this.prefix + 'certificates';
+            let certs = null;
+            try {
+                certs = JSON.parse(localStorage.getItem(certsKey));
+            } catch (e) {}
+
+            if (certs && certs.length > 0) {
+                let correctedCount = 0;
+                const officialTitles = DEFAULT_SETTINGS.official_titles;
+                
+                const updatedCerts = certs.map(c => {
+                    let changed = false;
+                    let rawName = c.recipientName || '';
+                    let prefix = c.prefix || '';
+
+                    // 1. Clean up duplicate prefixes in rawName if any (e.g. "الدكتور الدكتور أحمد" -> "أحمد")
+                    let cleanName = rawName.replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
+                    
+                    const sortedTitles = [...new Set(officialTitles)].filter(Boolean).sort((a, b) => b.length - a.length);
+                    
+                    let detectedPrefix = '';
+                    for (const title of sortedTitles) {
+                        while (cleanName.startsWith(title + ' ')) {
+                            detectedPrefix = title;
+                            cleanName = cleanName.substring(title.length + 1).trim();
+                            changed = true;
+                        }
+                    }
+
+                    const finalPrefix = prefix || detectedPrefix;
+                    if (c.prefix !== finalPrefix) {
+                        c.prefix = finalPrefix;
+                        changed = true;
+                    }
+                    if (c.recipientName !== cleanName) {
+                        c.recipientName = cleanName;
+                        c.rawName = cleanName;
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        correctedCount++;
+                    }
+                    return c;
+                });
+
+                if (correctedCount > 0) {
+                    localStorage.setItem(certsKey, JSON.stringify(updatedCerts));
+                    console.log(`[Database Migration] Checked and corrected ${correctedCount} certificates for duplicate prefixes.`);
+                    window.migratedCertificatesCount = (window.migratedCertificatesCount || 0) + correctedCount;
+                }
+            }
         } catch (e) {
             console.error('Failed to initialize local database storage: ', e);
         }

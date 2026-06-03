@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     BookOpen, Search, Download, Calendar, ShieldCheck,
     Eye, Filter, Archive
@@ -40,7 +41,11 @@ export default function Registry() {
         setLoading(true);
         try {
             const all = await dbService.getAll();
-            setCerts(all);
+            const processed = (all || []).map(c => ({
+                ...c,
+                fullDisplayName: getRecipientDisplayName(c)
+            }));
+            setCerts(processed);
             logger.api(`تحميل السجل العام: ${all.length}`);
         } catch (e) {
             logger.error('فشل تحميل السجل العام', e);
@@ -53,7 +58,7 @@ export default function Registry() {
         return certs.filter(c => {
             const matchSearch = !search ||
                 c.serial?.includes(search) ||
-                c.recipientName?.toLowerCase().includes(search.toLowerCase()) ||
+                c.fullDisplayName?.toLowerCase().includes(search.toLowerCase()) ||
                 c.event?.toLowerCase().includes(search.toLowerCase());
             
             const matchDate = !dateFilter || 
@@ -101,7 +106,7 @@ export default function Registry() {
         {
             key: 'recipientName',
             label: 'المستفيد',
-            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.prefix ? `${row.prefix} ${v}` : v}</strong>,
+            render: (v, row) => <strong style={{ fontSize: 'var(--text-body-sm)', color: 'var(--text-primary)' }}>{row.fullDisplayName}</strong>,
         },
         {
             key: 'event',

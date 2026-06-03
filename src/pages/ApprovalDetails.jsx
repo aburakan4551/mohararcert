@@ -5,6 +5,7 @@ import { dbService, templateService, auditService, notificationService } from '.
 import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
 import { ExportEngine } from '../engine/StudioEngine/ExportEngine';
+import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     ArrowRight, CheckCircle, AlertTriangle, FileText, Clock,
     MessageSquare, ShieldAlert, Sparkles, Printer, Download,
@@ -95,17 +96,6 @@ export default function ApprovalDetails() {
         if (cert.status === 'PENDING_APPROVAL'      && (user.role === 'ASSISTANT_MANAGER' || user.role === 'SUPER_ADMIN')) return true;
         if (cert.status === 'APPROVED_BY_ASSISTANT' && (user.role === 'GENERAL_MANAGER'  || user.role === 'SUPER_ADMIN')) return true;
         return false;
-    };
-
-    const getRecipientDisplayName = (c) => {
-        if (!c) return '';
-        let name = c.recipientName || '';
-        if (c.prefix) {
-            if (name.startsWith(`${c.prefix}/ `)) return name.replace(/\/\s+/g, ' ');
-            if (name.startsWith(`${c.prefix} `)) return name;
-            return `${c.prefix} ${name}`;
-        }
-        return name.replace(/\/\s+/g, ' ');
     };
 
     const handleApprove = async () => {
