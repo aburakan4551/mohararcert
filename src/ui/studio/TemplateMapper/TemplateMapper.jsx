@@ -1713,10 +1713,10 @@ export default function TemplateMapper() {
             </div>
 
             {/* ─── WORKSPACE PANELS ─── */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+            <div style={{ display: 'flex', flex: 1, overflowX: 'hidden', minHeight: 0 }}>
 
                 {/* 👈 LEFT BAR: PRESETS & STANDARD FIELDS */}
-                <div style={{ width: '310px', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+                <div style={{ width: '310px', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10, height: 'calc(100vh - 80px)', overflowY: 'auto', overflowX: 'hidden', flexShrink: 0, minHeight: 0 }}>
 
                     {/* Collapsible layout controls */}
                     <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
@@ -1839,7 +1839,7 @@ export default function TemplateMapper() {
                     </div>
 
                     {/* Layers listing */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ minHeight: '200px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-default)' }}>
                             <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-tertiary)' }}>الطبقات (Layers)</span>
                         </div>
