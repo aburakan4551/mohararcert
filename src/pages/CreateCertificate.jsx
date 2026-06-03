@@ -49,8 +49,12 @@ export default function CreateCertificate() {
     // ── Official Titles: read from system-settings (Single Source of Truth) ──
     // Reads settings.official_titles (new key) or settings.prefixes (legacy alias)
     const officialTitles = settings?.official_titles || settings?.prefixes || [];
-    console.log('[CreateCertificate] officialTitles from settings:', officialTitles);
     const navigate = useNavigate();
+
+    const isApprovedTemplate = (template) => {
+        const status = String(template?.status || '').trim().toUpperCase();
+        return ['OFFICIAL', 'APPROVED', 'PUBLISHED'].includes(status);
+    };
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('id');
     const { getNextSerial, consumeSerial, consumeMultiple } = useSerial();
@@ -94,13 +98,13 @@ export default function CreateCertificate() {
         const fetchTemplates = async () => {
             try {
                 const data = await templateService.getAll();
-                const officials = (data || []).filter(t => t.status === 'OFFICIAL');
-                setTemplates(officials);
-                if (officials.length > 0 && !editId) {
-                    setSelectedTemplateId(officials[0].id);
+                const approvedTemplates = (data || []).filter(isApprovedTemplate);
+                setTemplates(approvedTemplates);
+                if (approvedTemplates.length > 0 && !editId) {
+                    setSelectedTemplateId(approvedTemplates[0].id);
                 }
             } catch (e) {
-                console.error("Failed to load official templates:", e);
+                console.error("Failed to load approved templates:", e);
             }
         };
         fetchTemplates();
