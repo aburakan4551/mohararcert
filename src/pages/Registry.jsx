@@ -167,7 +167,7 @@ export default function Registry() {
             />
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)' }}>إجمالي السجلات</span>
                     <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>{certs.length}</span>
@@ -177,8 +177,12 @@ export default function Registry() {
                     <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-primary-600)' }}>{filteredCerts.length}</span>
                 </div>
                 <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)' }}>المعاملات المعتمدة</span>
-                    <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-success)' }}>{certs.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED').length}</span>
+                    <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)' }}>معتمد نهائياً</span>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-success)' }}>{certs.filter(c => c.status === 'FINAL_APPROVED').length}</span>
+                </div>
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: 'var(--text-micro)', fontWeight: 700, color: 'var(--text-muted)' }}>مؤرشف</span>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-accent-500)' }}>{certs.filter(c => c.status === 'ARCHIVED').length}</span>
                 </div>
             </div>
 

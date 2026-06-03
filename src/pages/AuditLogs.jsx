@@ -84,10 +84,10 @@ export default function AuditLogs() {
             {/* Stats Summary */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                 {[
-                    { label: 'إجمالي الحركات', value: logs.length, color: 'var(--text-primary)' },
-                    { label: 'تسجيل الدخول', value: logs.filter(c => c.action === 'LOGIN').length, color: 'var(--color-success)' },
-                    { label: 'الاعتمادات', value: logs.filter(c => c.action === 'APPROVE_CERTIFICATE').length, color: 'var(--color-primary-600)' },
-                    { label: 'محاولات غير مصرحة', value: logs.filter(c => c.action === 'UNAUTHORIZED_ACCESS').length, color: 'var(--color-danger)' },
+                    { label: 'إجمالي الحركات', value: filteredLogs.length, color: 'var(--text-primary)' },
+                    { label: 'تسجيل الدخول', value: filteredLogs.filter(c => c.action === 'LOGIN').length, color: 'var(--color-success)' },
+                    { label: 'الاعتمادات', value: filteredLogs.filter(c => c.action === 'APPROVE_CERTIFICATE').length, color: 'var(--color-primary-600)' },
+                    { label: 'محاولات غير مصرحة', value: filteredLogs.filter(c => c.action === 'UNAUTHORIZED_ACCESS').length, color: 'var(--color-danger)' },
                 ].map(stat => (
                     <div key={stat.label} style={{
                         background: 'var(--bg-surface)', border: '1px solid var(--border-default)',

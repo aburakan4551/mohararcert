@@ -220,7 +220,7 @@ export default function ArchivePage() {
             {/* ── Page Header ── */}
             <PageHeader
                 title="الأرشيف الرسمي المقفل"
-                subtitle={`${filteredCerts.length} مستند معتمد ومؤرشف — غير قابل للتعديل`}
+                subtitle={`${certs.length} مستند معتمد ومؤرشف — غير قابل للتعديل${filteredCerts.length !== certs.length ? ` (نتائج البحث: ${filteredCerts.length})` : ''}`}
                 actions={
                     activeCert && (
                         <>

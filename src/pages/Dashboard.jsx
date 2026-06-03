@@ -124,15 +124,21 @@ export default function Dashboard() {
         };
     }, [certs, user]);
 
-    const chartData = useMemo(() => [
-        { name: 'الأحد',     issued: 4,  approved: 2  },
-        { name: 'الإثنين',   issued: 7,  approved: 5  },
-        { name: 'الثلاثاء',  issued: 5,  approved: 3  },
-        { name: 'الأربعاء',  issued: 9,  approved: 8  },
-        { name: 'الخميس',    issued: 6,  approved: 4  },
-        { name: 'الجمعة',    issued: 1,  approved: 1  },
-        { name: 'السبت',     issued: 2,  approved: 2  },
-    ], []);
+    const chartData = useMemo(() => {
+        const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const counts = days.map(name => ({ name, issued: 0, approved: 0 }));
+        const base = user.role === 'CREATOR' ? certs.filter(c => c.createdBy === user.id) : certs;
+        base.forEach(cert => {
+            const day = new Date(cert.createdAt).getDay();
+            if (day >= 0 && day <= 6) {
+                counts[day].issued++;
+                if (['FINAL_APPROVED', 'ARCHIVED'].includes(cert.status)) {
+                    counts[day].approved++;
+                }
+            }
+        });
+        return counts;
+    }, [certs, user]);
 
     /* ── Table Columns ── */
     const columns = [

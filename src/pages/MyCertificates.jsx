@@ -84,12 +84,13 @@ export default function MyCertificates() {
             />
 
             {/* Stats Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
                 {[
                     { label: 'إجمالي المعاملات', value: myCerts.length, color: 'var(--text-primary)' },
                     { label: 'مسودات محلية', value: myCerts.filter(c => c.status === 'DRAFT').length, color: 'var(--text-secondary)' },
                     { label: 'بانتظار الاعتماد', value: myCerts.filter(c => c.status === 'PENDING_APPROVAL' || c.status === 'APPROVED_BY_ASSISTANT').length, color: 'var(--color-warning)' },
                     { label: 'معتمد نهائياً', value: myCerts.filter(c => c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED').length, color: 'var(--color-success)' },
+                    { label: 'مُعاد / مرفوض', value: myCerts.filter(c => c.status === 'RETURNED_FOR_EDIT' || c.status === 'REJECTED').length, color: 'var(--color-danger)' },
                 ].map(stat => (
                     <div key={stat.label} style={{
                         background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
