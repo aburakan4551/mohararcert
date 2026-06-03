@@ -53,8 +53,17 @@ export default function CreateCertificate() {
 
     const isApprovedTemplate = (template) => {
         const status = String(template?.status || '').trim().toUpperCase();
-        return ['OFFICIAL', 'APPROVED', 'PUBLISHED'].includes(status);
+        return status === 'OFFICIAL';
     };
+
+    const sortOfficialDefaultFirst = (templatesList) => {
+        return [...templatesList].sort((a, b) => {
+            if (a.isOfficial && !b.isOfficial) return -1;
+            if (!a.isOfficial && b.isOfficial) return 1;
+            return 0;
+        });
+    };
+
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('id');
     const { getNextSerial, consumeSerial, consumeMultiple } = useSerial();
@@ -98,7 +107,7 @@ export default function CreateCertificate() {
         const fetchTemplates = async () => {
             try {
                 const data = await templateService.getAll();
-                const approvedTemplates = (data || []).filter(isApprovedTemplate);
+                const approvedTemplates = sortOfficialDefaultFirst((data || []).filter(isApprovedTemplate));
                 setTemplates(approvedTemplates);
                 if (approvedTemplates.length > 0 && !editId) {
                     setSelectedTemplateId(approvedTemplates[0].id);
@@ -293,7 +302,11 @@ export default function CreateCertificate() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 <label style={{ fontSize: 'var(--text-micro)', fontWeight: 700 }}>القالب المؤسسي المعتمد</label>
                                 <select value={selectedTemplateId} onChange={e => setSelectedTemplateId(e.target.value)} style={{ padding: '8px 12px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-label)', fontWeight: 600, background: 'var(--bg-surface)', outline: 'none' }}>
-                                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.isOfficial ? '⭐ ' : ''}{t.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

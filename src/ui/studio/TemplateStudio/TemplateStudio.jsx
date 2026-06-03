@@ -29,15 +29,36 @@ export default function TemplateStudio() {
         loadTemplates();
     }, [user, navigate]);
 
+    const sortOfficialDefaultFirst = (items) => {
+        return [...items].sort((a, b) => {
+            if (a.isOfficial && !b.isOfficial) return -1;
+            if (!a.isOfficial && b.isOfficial) return 1;
+            return 0;
+        });
+    };
+
     const loadTemplates = async () => {
         setLoading(true);
         try {
             const data = await templateService.getAll();
-            setTemplates(data || []);
+            setTemplates(sortOfficialDefaultFirst(data || []));
         } catch (e) {
             console.error("Failed to load templates from dbService:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSetOfficial = async (id, tpl) => {
+        if (tpl.status !== 'OFFICIAL') {
+            return alert('يمكن فقط تعيين قالب معتمد رسمي كقالب افتراضي. الرجاء اعتماد القالب أولاً.');
+        }
+
+        try {
+            await templateService.update(id, { isOfficial: true });
+            await loadTemplates();
+        } catch (e) {
+            alert('فشل تعيين القالب الرسمي: ' + e.message);
         }
     };
 
@@ -114,6 +135,11 @@ export default function TemplateStudio() {
                                     <ShieldCheck size={12} /> قالب معتمد رسمي
                                 </div>
                             )}
+                            {tpl.isOfficial && (
+                                <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(37, 99, 235, 0.95)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <ShieldCheck size={12} /> القالب الرسمي
+                                </div>
+                            )}
                         </div>
                         <CardContent style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -121,10 +147,22 @@ export default function TemplateStudio() {
                                 <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)' }}>{(tpl.fields || []).length} حقول معرفة (Mapped Fields)</span>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <Button size="sm" variant="outline" style={{ flex: 1 }} leftIcon={Settings2} onClick={() => navigate(`/studio/mapper/${tpl.id}`)}>
-                                    تعديل خصائص القالب
-                                </Button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <Button
+                                        size="sm"
+                                        variant={tpl.isOfficial ? 'secondary' : 'outline'}
+                                        style={{ flex: 1, color: tpl.isOfficial ? 'var(--color-success)' : undefined }}
+                                        leftIcon={ShieldCheck}
+                                        onClick={() => handleSetOfficial(tpl.id, tpl)}
+                                        disabled={tpl.isOfficial}
+                                    >
+                                        {tpl.isOfficial ? 'القالب الرسمي' : 'تعيين كقالب رسمي'}
+                                    </Button>
+                                    <Button size="sm" variant="outline" style={{ flex: 1 }} leftIcon={Settings2} onClick={() => navigate(`/studio/mapper/${tpl.id}`)}>
+                                        تعديل خصائص القالب
+                                    </Button>
+                                </div>
                                 <Button size="sm" variant="outline" style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDelete(tpl.id)}>
                                     <Trash2 size={16} />
                                 </Button>

@@ -556,9 +556,15 @@ export const localProvider = {
                 id: template.id || `tpl-${Date.now()}`,
                 version: 1,
                 status: 'DRAFT', // DRAFT, REVIEW, APPROVED, OFFICIAL, ARCHIVED
+                isOfficial: template?.isOfficial === true,
                 versionHistory: [],
                 createdAt: new Date().toISOString()
             };
+
+            if (newTpl.isOfficial) {
+                templates.forEach(t => { if (t.isOfficial) t.isOfficial = false; });
+            }
+
             templates.unshift(newTpl);
             db.setItem('templates', templates);
             return newTpl;
@@ -588,7 +594,24 @@ export const localProvider = {
                 versionHistory: [...history, oldSnapshot]
             };
 
+            if (updatedTpl.isOfficial) {
+                templates.forEach((t, index) => {
+                    if (t.id !== id && t.isOfficial) {
+                        templates[index] = { ...t, isOfficial: false };
+                    }
+                });
+            }
+
             templates[idx] = updatedTpl;
+
+            if (!templates.some(t => t.isOfficial)) {
+                const firstApproved = templates.find(t => String(t.status || '').trim().toUpperCase() === 'OFFICIAL');
+                if (firstApproved) {
+                    const fallbackIndex = templates.findIndex(t => t.id === firstApproved.id);
+                    templates[fallbackIndex] = { ...templates[fallbackIndex], isOfficial: true };
+                }
+            }
+
             db.setItem('templates', templates);
 
             // Audit
@@ -599,7 +622,16 @@ export const localProvider = {
         },
         async delete(id) {
             const templates = db.getItem('templates');
+            const isOfficialDeleted = templates.some(t => t.id === id && t.isOfficial);
             const filtered = templates.filter(t => t.id !== id);
+
+            if (isOfficialDeleted && filtered.length > 0 && !filtered.some(t => t.isOfficial)) {
+                const firstApproved = filtered.find(t => String(t.status || '').trim().toUpperCase() === 'OFFICIAL');
+                if (firstApproved) {
+                    filtered[filtered.findIndex(t => t.id === firstApproved.id)] = { ...firstApproved, isOfficial: true };
+                }
+            }
+
             db.setItem('templates', filtered);
             return true;
         },
