@@ -293,27 +293,27 @@ export default function ApprovalDetails() {
                         {/* Toolbar */}
                         <div style={{
                             padding: '12px 16px',
-                            background: '#0D1117',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            background: 'var(--bg-subtle)',
+                            borderBottom: '1px solid var(--border-default)',
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{
                                     width: 8, height: 8, borderRadius: '50%',
-                                    background: '#10B981',
+                                    background: 'var(--color-success)',
                                     animation: 'spin 2s linear infinite',
                                     animationName: 'pulse',
-                                    boxShadow: '0 0 6px rgba(16,185,129,0.6)',
+                                    boxShadow: '0 0 6px var(--color-success-border)',
                                 }} />
-                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.65)' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
                                     معاينة المستند المباشر
                                 </span>
                             </div>
                             <span style={{
                                 fontSize: '10px', fontWeight: 700,
-                                color: 'rgba(15,169,88,0.9)',
-                                background: 'rgba(15,169,88,0.12)',
-                                border: '1px solid rgba(15,169,88,0.20)',
+                                color: 'var(--color-primary-600)',
+                                background: 'var(--color-success-bg)',
+                                border: '1px solid var(--color-success-border)',
                                 padding: '2px 10px',
                                 borderRadius: '999px',
                                 letterSpacing: '0.05em',
@@ -326,7 +326,7 @@ export default function ApprovalDetails() {
                         <div
                             ref={previewContainerRef}
                             style={{
-                                background: '#1a1f2e',
+                                background: 'var(--bg-page)',
                                 minHeight: '360px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 overflow: 'hidden',
@@ -373,10 +373,10 @@ export default function ApprovalDetails() {
                                 <div style={{
                                     width: 32, height: 32,
                                     borderRadius: '10px',
-                                    background: 'rgba(15,169,88,0.10)',
+                                    background: 'var(--color-success-bg)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}>
-                                    <FileText size={15} color="#0FA958" />
+                                    <FileText size={15} style={{ color: 'var(--color-primary-500)' }} />
                                 </div>
                                 <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
                                     بيانات المعاملة
@@ -430,10 +430,10 @@ export default function ApprovalDetails() {
                                 <div style={{
                                     width: 32, height: 32,
                                     borderRadius: '10px',
-                                    background: 'rgba(245,158,11,0.10)',
+                                    background: 'var(--color-warning-bg)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}>
-                                    <Clock size={15} color="#F59E0B" />
+                                    <Clock size={15} style={{ color: 'var(--color-warning)' }} />
                                 </div>
                                 <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
                                     مسار الموافقات
@@ -470,7 +470,7 @@ export default function ApprovalDetails() {
                                                 <div style={{
                                                     width: 32, height: 32,
                                                     borderRadius: '50%',
-                                                    background: isLast ? 'rgba(15,169,88,0.10)' : 'var(--bg-muted)',
+                                                    background: isLast ? 'var(--color-success-bg)' : 'var(--bg-muted)',
                                                     border: `2px solid ${isLast ? 'var(--color-primary-500)' : 'var(--border-default)'}`,
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     flexShrink: 0,
@@ -532,20 +532,20 @@ export default function ApprovalDetails() {
                     {/* ── Decision Panel ── */}
                     {canTakeDecision() ? (
                         <div style={{
-                            background: 'linear-gradient(145deg, #0d1117, #161b22)',
+                            background: 'var(--bg-surface)',
                             borderRadius: '20px',
-                            border: '1px solid rgba(255,255,255,0.06)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+                            border: '1px solid var(--border-default)',
+                            boxShadow: 'var(--shadow-modal)',
                             overflow: 'hidden',
                         }}>
                             {/* Panel header */}
                             <div style={{
                                 padding: '14px 20px',
-                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                borderBottom: '1px solid var(--border-default)',
                                 display: 'flex', alignItems: 'center', gap: '8px',
                             }}>
-                                <Sparkles size={15} color="#F59E0B" />
-                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: '#F59E0B' }}>
+                                <Sparkles size={15} style={{ color: 'var(--color-warning)' }} />
+                                <span style={{ fontSize: 'var(--text-label)', fontWeight: 800, color: 'var(--color-warning)' }}>
                                     لوحة القرار الإداري
                                 </span>
                             </div>
@@ -555,7 +555,7 @@ export default function ApprovalDetails() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     <label style={{
                                         fontSize: 'var(--text-label)', fontWeight: 700,
-                                        color: 'rgba(255,255,255,0.55)',
+                                        color: 'var(--text-secondary)',
                                     }}>
                                         الملاحظات والمرئيات (تظهر في السجل):
                                     </label>
@@ -566,11 +566,11 @@ export default function ApprovalDetails() {
                                         placeholder="اكتب ملاحظاتك أو سبب الإعادة هنا..."
                                         style={{
                                             width: '100%',
-                                            background: 'rgba(255,255,255,0.05)',
-                                            border: '1.5px solid rgba(255,255,255,0.10)',
+                                            background: 'var(--bg-page)',
+                                            border: '1.5px solid var(--border-strong)',
                                             borderRadius: '12px',
                                             padding: '12px 14px',
-                                            color: 'rgba(255,255,255,0.85)',
+                                            color: 'var(--text-primary)',
                                             fontSize: 'var(--text-label)',
                                             fontFamily: 'var(--font-sans)',
                                             outline: 'none',
@@ -578,8 +578,8 @@ export default function ApprovalDetails() {
                                             lineHeight: 1.6,
                                             direction: 'rtl',
                                         }}
-                                        onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.12)'; }}
-                                        onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.10)'; e.target.style.boxShadow = 'none'; }}
+                                        onFocus={e => { e.target.style.borderColor = 'var(--color-primary-500)'; e.target.style.boxShadow = '0 0 0 3px var(--border-focus-ring)'; }}
+                                        onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                                     />
                                 </div>
 
@@ -591,17 +591,17 @@ export default function ApprovalDetails() {
                                         style={{
                                             padding: '10px',
                                             borderRadius: '10px',
-                                            border: '1.5px solid rgba(245,158,11,0.25)',
-                                            background: 'rgba(245,158,11,0.08)',
-                                            color: '#F59E0B',
+                                            border: '1.5px solid var(--color-warning-border)',
+                                            background: 'var(--color-warning-bg)',
+                                            color: 'var(--color-warning)',
                                             fontSize: 'var(--text-label)', fontWeight: 800,
                                             cursor: processing ? 'not-allowed' : 'pointer',
                                             fontFamily: 'var(--font-sans)',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                                             transition: 'all 0.15s',
                                         }}
-                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'rgba(245,158,11,0.14)'; }}}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.08)'; }}
+                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'var(--color-warning-border)'; }}}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-warning-bg)'; }}
                                     >
                                         <AlertTriangle size={13} />
                                         إعادة للتعديل
@@ -612,17 +612,17 @@ export default function ApprovalDetails() {
                                         style={{
                                             padding: '10px',
                                             borderRadius: '10px',
-                                            border: '1.5px solid rgba(239,68,68,0.25)',
-                                            background: 'rgba(239,68,68,0.08)',
-                                            color: '#EF4444',
+                                            border: '1.5px solid var(--color-danger-border)',
+                                            background: 'var(--color-danger-bg)',
+                                            color: 'var(--color-danger)',
                                             fontSize: 'var(--text-label)', fontWeight: 800,
                                             cursor: processing ? 'not-allowed' : 'pointer',
                                             fontFamily: 'var(--font-sans)',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                                             transition: 'all 0.15s',
                                         }}
-                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'rgba(239,68,68,0.14)'; }}}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+                                        onMouseEnter={e => { if (!processing) { e.currentTarget.style.background = 'var(--color-danger-border)'; }}}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-danger-bg)'; }}
                                     >
                                         <XCircle size={13} />
                                         رفض الطلب
@@ -636,19 +636,19 @@ export default function ApprovalDetails() {
                                     style={{
                                         width: '100%',
                                         padding: '14px',
-                                        background: processing ? 'rgba(15,169,88,0.5)' : 'linear-gradient(135deg, #0d7a3e, #0FA958)',
+                                        background: processing ? 'var(--color-primary-300)' : 'linear-gradient(135deg, var(--color-primary-700), var(--color-primary-500))',
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '12px',
                                         fontSize: 'var(--text-body-sm)', fontWeight: 900,
                                         cursor: processing ? 'not-allowed' : 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                        boxShadow: processing ? 'none' : '0 8px 20px rgba(15,169,88,0.30)',
+                                        boxShadow: processing ? 'none' : 'var(--shadow-brand)',
                                         transition: 'all 0.2s',
                                         fontFamily: 'var(--font-sans)',
                                     }}
-                                    onMouseEnter={e => { if (!processing) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(15,169,88,0.40)'; }}}
-                                    onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = processing ? 'none' : '0 8px 20px rgba(15,169,88,0.30)'; }}
+                                    onMouseEnter={e => { if (!processing) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-overlay)'; }}}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = processing ? 'none' : 'var(--shadow-brand)'; }}
                                 >
                                     {processing ? (
                                         <>

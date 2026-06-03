@@ -2,6 +2,7 @@ import React, { Suspense, lazy, Component, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { TemplateProvider } from './context/TemplateContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import DashboardLayout from './layouts/DashboardLayout'
 import Login from './pages/Login'
 import { diagnosticsStore } from './utils/diagnosticsStore'
@@ -37,8 +38,8 @@ class GlobalErrorBoundary extends Component {
             return (
                 <div style={{
                     minHeight: '100vh',
-                    background: '#0c0c0e',
-                    color: '#f3f4f6',
+                    background: 'var(--bg-page)',
+                    color: 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -47,7 +48,7 @@ class GlobalErrorBoundary extends Component {
                     direction: 'rtl'
                 }}>
                     <div style={{
-                        background: '#141416',
+                        background: 'var(--bg-surface)',
                         border: '1px solid rgba(239, 68, 68, 0.25)',
                         borderRadius: '16px',
                         padding: '32px',
@@ -56,18 +57,18 @@ class GlobalErrorBoundary extends Component {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '20px',
-                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.6)'
+                        boxShadow: 'var(--shadow-overlay)'
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ef4444' }}>
                             <span style={{ fontSize: '28px' }}>🚨</span>
                             <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0 }}>عطل تشغيلي في منصة الاعتمادات</h2>
                         </div>
                         
-                        <p style={{ fontSize: '13px', color: '#e4e4e7', lineHeight: 1.6, margin: 0 }}>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                             نعتذر، واجهت المنصة عطلاً تشغيلياً مفاجئاً أثناء رندرة مكونات الصفحة. تم عزل وتطويق الفشل بنجاح لحماية سلامة البيانات.
                         </p>
 
-                        <div style={{ background: '#0c0c0e', padding: '12px', borderRadius: '8px', border: '1px solid #222225', fontSize: '11px', color: '#a1a1aa' }}>
+                        <div style={{ background: 'var(--bg-page)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)', fontSize: '11px', color: 'var(--text-secondary)' }}>
                             <span style={{ fontWeight: 800, display: 'block', marginBottom: '4px', color: '#ef4444' }}>معلومات الخطأ (Observability Log):</span>
                             <code style={{ wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>
                                 {this.state.error?.message || String(this.state.error)}
@@ -82,7 +83,7 @@ class GlobalErrorBoundary extends Component {
                                 تحديث الصفحة
                             </button>
                             <button 
-                                style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
+                                style={{ flex: 1, padding: '10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
                                 onClick={this.handleReset}
                             >
                                 تصفير الجلسة والعودة
@@ -366,21 +367,23 @@ export default function App() {
     return (
         <GlobalErrorBoundary>
             <BrowserRouter>
-                <AuthProvider>
-                    <TemplateProvider>
-                        <Routes>
-                            <Route path="/login" element={<Login />} />
-                            <Route 
-                                path="/*" 
-                                element={
-                                    <ProtectedRoute>
-                                        <LayoutWrapper />
-                                    </ProtectedRoute>
-                                } 
-                            />
-                        </Routes>
-                    </TemplateProvider>
-                </AuthProvider>
+                <ThemeProvider>
+                    <AuthProvider>
+                        <TemplateProvider>
+                            <Routes>
+                                <Route path="/login" element={<Login />} />
+                                <Route 
+                                    path="/*" 
+                                    element={
+                                        <ProtectedRoute>
+                                            <LayoutWrapper />
+                                        </ProtectedRoute>
+                                    } 
+                                />
+                            </Routes>
+                        </TemplateProvider>
+                    </AuthProvider>
+                </ThemeProvider>
             </BrowserRouter>
         </GlobalErrorBoundary>
     )

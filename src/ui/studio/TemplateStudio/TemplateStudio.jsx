@@ -136,29 +136,29 @@ export default function TemplateStudio() {
 
             {/* ─── CREATE NEW TEMPLATE MODAL ─── */}
             {showCreateModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
-                    <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: '#f3f4f6', textAlign: 'right' }}>إنشاء قالب جديد</h2>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
+                    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: 'var(--shadow-overlay)' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0, color: 'var(--text-primary)', textAlign: 'right' }}>إنشاء قالب جديد</h2>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'right' }}>
-                            <label style={{ fontSize: '12px', fontWeight: 800, color: '#a1a1aa' }}>اسم القالب:</label>
+                            <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)' }}>اسم القالب:</label>
                             <input 
                                 type="text"
                                 value={newTemplateName} 
                                 onChange={e => setNewTemplateName(e.target.value)} 
                                 placeholder="مثال: شهادة شكر وتقدير الموظفين"
-                                style={{ background: '#0c0c0e', border: '1px solid #222225', borderRadius: '8px', color: '#fff', padding: '10px', fontSize: '13px', direction: 'rtl' }}
+                                style={{ background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '8px', color: 'var(--text-primary)', padding: '10px', fontSize: '13px', direction: 'rtl' }}
                             />
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'right' }}>
-                            <label style={{ fontSize: '12px', fontWeight: 800, color: '#a1a1aa' }}>اتجاه الصفحة (A4 Dimensions):</label>
+                            <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)' }}>اتجاه الصفحة (A4 Dimensions):</label>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div 
                                     onClick={() => setNewTemplateOrientation('landscape')}
                                     style={{
-                                        border: newTemplateOrientation === 'landscape' ? '2px solid #10b981' : '1px solid #222225',
-                                        background: newTemplateOrientation === 'landscape' ? 'rgba(16, 185, 129, 0.05)' : '#1c1c1f',
+                                        border: newTemplateOrientation === 'landscape' ? '2px solid var(--color-primary-500)' : '1px solid var(--border-default)',
+                                        background: newTemplateOrientation === 'landscape' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-subtle)',
                                         borderRadius: '10px',
                                         padding: '16px',
                                         cursor: 'pointer',
@@ -169,16 +169,16 @@ export default function TemplateStudio() {
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <div style={{ width: '40px', height: '28px', border: '2px solid #71717a', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
-                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'landscape' ? '#10b981' : '#f3f4f6' }}>أفقي (Landscape)</span>
-                                    <span style={{ fontSize: '9px', color: '#71717a' }}>297mm x 210mm</span>
+                                    <div style={{ width: '40px', height: '28px', border: '2px solid var(--text-tertiary)', borderRadius: '4px', background: 'rgba(0,0,0,0.02)' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'landscape' ? 'var(--color-primary-500)' : 'var(--text-primary)' }}>أفقي (Landscape)</span>
+                                    <span style={{ fontSize: '9px', color: 'var(--text-tertiary)' }}>297mm x 210mm</span>
                                 </div>
 
                                 <div 
                                     onClick={() => setNewTemplateOrientation('portrait')}
                                     style={{
-                                        border: newTemplateOrientation === 'portrait' ? '2px solid #10b981' : '1px solid #222225',
-                                        background: newTemplateOrientation === 'portrait' ? 'rgba(16, 185, 129, 0.05)' : '#1c1c1f',
+                                        border: newTemplateOrientation === 'portrait' ? '2px solid var(--color-primary-500)' : '1px solid var(--border-default)',
+                                        background: newTemplateOrientation === 'portrait' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-subtle)',
                                         borderRadius: '10px',
                                         padding: '16px',
                                         cursor: 'pointer',
@@ -189,9 +189,9 @@ export default function TemplateStudio() {
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <div style={{ width: '28px', height: '40px', border: '2px solid #71717a', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }} />
-                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'portrait' ? '#10b981' : '#f3f4f6' }}>عمودي (Portrait)</span>
-                                    <span style={{ fontSize: '9px', color: '#71717a' }}>210mm x 297mm</span>
+                                    <div style={{ width: '28px', height: '40px', border: '2px solid var(--text-tertiary)', borderRadius: '4px', background: 'rgba(0,0,0,0.02)' }} />
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: newTemplateOrientation === 'portrait' ? 'var(--color-primary-500)' : 'var(--text-primary)' }}>عمودي (Portrait)</span>
+                                    <span style={{ fontSize: '9px', color: 'var(--text-tertiary)' }}>210mm x 297mm</span>
                                 </div>
                             </div>
                         </div>
@@ -199,13 +199,13 @@ export default function TemplateStudio() {
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <button 
                                 onClick={handleConfirmCreate} 
-                                style={{ flex: 1, padding: '10px', background: '#10b981', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                                style={{ flex: 1, padding: '10px', background: 'var(--color-primary-500)', color: 'white', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
                             >
                                 إنشاء وتصميم
                             </button>
                             <button 
                                 onClick={() => setShowCreateModal(false)} 
-                                style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
+                                style={{ flex: 1, padding: '10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }}
                             >
                                 إلغاء الأمر
                             </button>

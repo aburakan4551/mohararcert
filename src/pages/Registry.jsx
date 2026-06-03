@@ -203,7 +203,8 @@ export default function Registry() {
                                     onChange={e => setSearch(e.target.value)}
                                     style={{
                                         padding: '8px 10px 8px 30px', border: '1.5px solid var(--border-strong)', borderRadius: '8px',
-                                        fontSize: 'var(--text-label)', fontWeight: 600, color: 'var(--text-primary)', outline: 'none'
+                                        fontSize: 'var(--text-label)', fontWeight: 600, color: 'var(--text-primary)', outline: 'none',
+                                        background: 'var(--bg-surface)'
                                     }}
                                 />
                             </div>
@@ -216,7 +217,8 @@ export default function Registry() {
                                     onChange={e => setDateFilter(e.target.value)}
                                     style={{
                                         padding: '8px 10px 8px 30px', border: '1.5px solid var(--border-strong)', borderRadius: '8px',
-                                        fontSize: 'var(--text-label)', fontWeight: 600, color: 'var(--text-primary)', outline: 'none'
+                                        fontSize: 'var(--text-label)', fontWeight: 600, color: 'var(--text-primary)', outline: 'none',
+                                        background: 'var(--bg-surface)'
                                     }}
                                 />
                             </div>

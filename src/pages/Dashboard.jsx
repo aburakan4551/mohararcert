@@ -229,7 +229,7 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 style={{
-                    background: 'linear-gradient(135deg, #0d7a3e 0%, #0FA958 50%, #1E88E5 100%)',
+                    background: 'linear-gradient(135deg, var(--color-primary-700) 0%, var(--color-primary-500) 50%, var(--color-accent-600) 100%)',
                     borderRadius: '20px',
                     padding: '28px 32px',
                     position: 'relative',
@@ -238,6 +238,7 @@ export default function Dashboard() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '20px',
+                    boxShadow: 'var(--shadow-card)'
                 }}
             >
                 {/* Decoration blobs */}
@@ -285,20 +286,20 @@ export default function Dashboard() {
                         style={{
                             position: 'relative', zIndex: 2,
                             padding: '11px 22px',
-                            background: 'white',
-                            color: '#0FA958',
+                            background: 'var(--bg-surface)',
+                            color: 'var(--color-primary-600)',
                             border: 'none',
                             borderRadius: '12px',
                             fontSize: '14px', fontWeight: 800,
                             cursor: 'pointer',
                             display: 'flex', alignItems: 'center', gap: '8px',
                             flexShrink: 0,
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                            boxShadow: 'var(--shadow-floating)',
                             transition: 'all 0.2s',
                             fontFamily: 'var(--font-sans)',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.20)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-overlay)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'var(--shadow-floating)'; }}
                     >
                         <FilePlus size={16} />
                         إنشاء شهادة جديدة
@@ -313,8 +314,8 @@ export default function Dashboard() {
                         label: 'إجمالي المعاملات',
                         value: stats.total,
                         icon: FileText,
-                        iconBg: 'rgba(15,169,88,0.10)',
-                        iconColor: '#0FA958',
+                        iconBg: 'var(--color-success-bg)',
+                        iconColor: 'var(--color-success)',
                         change: 'منذ البداية',
                         changeType: 'up',
                     },
@@ -322,8 +323,8 @@ export default function Dashboard() {
                         label: 'بانتظار الاعتماد',
                         value: stats.pending,
                         icon: Hourglass,
-                        iconBg: 'rgba(245,158,11,0.10)',
-                        iconColor: '#F59E0B',
+                        iconBg: 'var(--color-warning-bg)',
+                        iconColor: 'var(--color-warning)',
                         change: stats.pending > 0 ? 'تحتاج مراجعة' : 'لا يوجد',
                         changeType: stats.pending > 0 ? 'up' : 'up',
                     },
@@ -331,8 +332,8 @@ export default function Dashboard() {
                         label: 'معتمد نهائياً',
                         value: stats.approved,
                         icon: CheckCircle2,
-                        iconBg: 'rgba(16,185,129,0.10)',
-                        iconColor: '#10B981',
+                        iconBg: 'var(--color-success-bg)',
+                        iconColor: 'var(--color-success)',
                         change: stats.total > 0 ? `${Math.round(stats.approved / stats.total * 100)}%` : '0%',
                         changeType: 'up',
                     },
@@ -340,8 +341,8 @@ export default function Dashboard() {
                         label: 'مُرجَع / مرفوض',
                         value: stats.returned,
                         icon: AlertTriangle,
-                        iconBg: 'rgba(239,68,68,0.10)',
-                        iconColor: '#EF4444',
+                        iconBg: 'var(--color-danger-bg)',
+                        iconColor: 'var(--color-danger)',
                         change: 'يحتاج مراجعة',
                         changeType: 'down',
                     },
@@ -371,7 +372,7 @@ export default function Dashboard() {
                             }}>
                                 <span style={{
                                     width: 3, height: 16,
-                                    background: '#0FA958',
+                                    background: 'var(--color-primary-500)',
                                     borderRadius: '99px',
                                     display: 'inline-block',
                                 }} />
@@ -383,11 +384,11 @@ export default function Dashboard() {
                         </div>
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: '#0FA958', display: 'inline-block' }} />
+                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: 'var(--color-primary-500)', display: 'inline-block' }} />
                                 <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 600 }}>صادرة</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: '#1E88E5', display: 'inline-block' }} />
+                                <span style={{ width: 10, height: 10, borderRadius: '3px', background: 'var(--color-accent-500)', display: 'inline-block' }} />
                                 <span style={{ fontSize: 'var(--text-micro)', color: 'var(--text-muted)', fontWeight: 600 }}>معتمدة</span>
                             </div>
                         </div>
@@ -398,12 +399,12 @@ export default function Dashboard() {
                                 <AreaChart width={chartWidth} height={chartHeight} data={chartData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="issued" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%"  stopColor="#0FA958" stopOpacity={0.15} />
-                                            <stop offset="95%" stopColor="#0FA958" stopOpacity={0}    />
+                                            <stop offset="5%"  stopColor="var(--color-primary-500)" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0}    />
                                         </linearGradient>
                                         <linearGradient id="approved" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%"  stopColor="#1E88E5" stopOpacity={0.12} />
-                                            <stop offset="95%" stopColor="#1E88E5" stopOpacity={0}    />
+                                            <stop offset="5%"  stopColor="var(--color-accent-500)" stopOpacity={0.12} />
+                                            <stop offset="95%" stopColor="var(--color-accent-500)" stopOpacity={0}    />
                                         </linearGradient>
                                     </defs>
                                     <XAxis
@@ -428,8 +429,8 @@ export default function Dashboard() {
                                         }}
                                         labelStyle={{ fontWeight: 700, color: 'var(--text-primary)' }}
                                     />
-                                    <Area type="monotone" dataKey="issued"   name="صادرة"  stroke="#0FA958" strokeWidth={2} fillOpacity={1} fill="url(#issued)"   dot={false} />
-                                    <Area type="monotone" dataKey="approved" name="معتمدة" stroke="#1E88E5" strokeWidth={2} fillOpacity={1} fill="url(#approved)" dot={false} />
+                                    <Area type="monotone" dataKey="issued"   name="صادرة"  stroke="var(--color-primary-500)" strokeWidth={2} fillOpacity={1} fill="url(#issued)"   dot={false} />
+                                    <Area type="monotone" dataKey="approved" name="معتمدة" stroke="var(--color-accent-500)" strokeWidth={2} fillOpacity={1} fill="url(#approved)" dot={false} />
                                 </AreaChart>
                             ) : (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
@@ -494,7 +495,7 @@ export default function Dashboard() {
                                     <div style={{
                                         width: stats.total > 0 ? `${Math.round(stats.approved / stats.total * 100)}%` : '0%',
                                         height: '100%',
-                                        background: 'linear-gradient(90deg, #0FA958, #10B981)',
+                                        background: 'linear-gradient(90deg, var(--color-primary-500), var(--color-success))',
                                         borderRadius: '99px',
                                         transition: 'width 1s ease',
                                     }} />
@@ -545,7 +546,7 @@ export default function Dashboard() {
                                     fontFamily: 'var(--font-sans)',
                                     transition: 'all 0.15s',
                                 }}
-                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary-500)'; e.target.style.boxShadow = '0 0 0 3px var(--border-focus-ring)'; }}
                                 onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
@@ -622,8 +623,8 @@ const QuickLink = ({ to, icon: Icon, label, badge, badgeVariant = 'neutral' }) =
             cursor: 'pointer',
         }}
         onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(15,169,88,0.05)';
-            e.currentTarget.style.borderColor = 'rgba(15,169,88,0.18)';
+            e.currentTarget.style.background = 'var(--bg-muted)';
+            e.currentTarget.style.borderColor = 'var(--border-strong)';
         }}
         onMouseLeave={e => {
             e.currentTarget.style.background = 'var(--bg-subtle)';
@@ -639,8 +640,8 @@ const QuickLink = ({ to, icon: Icon, label, badge, badgeVariant = 'neutral' }) =
         {badge !== undefined && badge !== null && (
             <span style={{
                 fontSize: '11px', fontWeight: 800,
-                background: badgeVariant === 'warning' ? '#F59E0B' : 'var(--bg-muted)',
-                color: badgeVariant === 'warning' ? 'white' : 'var(--text-muted)',
+                background: badgeVariant === 'warning' ? 'var(--color-warning)' : 'var(--bg-muted)',
+                color: badgeVariant === 'warning' ? 'var(--text-inverse)' : 'var(--text-secondary)',
                 borderRadius: '999px',
                 padding: '1px 8px',
                 minWidth: '24px',

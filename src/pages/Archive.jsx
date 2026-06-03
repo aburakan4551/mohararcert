@@ -140,10 +140,10 @@ export default function ArchivePage() {
                     <div style={{
                         width: 28, height: 28,
                         borderRadius: '8px',
-                        background: 'rgba(15,169,88,0.10)',
+                        background: 'var(--color-success-bg)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '11px', fontWeight: 900,
-                        color: 'var(--color-primary-700)',
+                        color: 'var(--color-success)',
                         flexShrink: 0,
                     }}>
                         {v?.charAt(0) || '؟'}
@@ -184,7 +184,7 @@ export default function ArchivePage() {
                             width: 28, height: 28,
                             borderRadius: '8px',
                             border: '1.5px solid var(--border-strong)',
-                            background: activeCert?.id === row.id ? 'rgba(15,169,88,0.10)' : 'var(--bg-subtle)',
+                            background: activeCert?.id === row.id ? 'var(--color-success-bg)' : 'var(--bg-subtle)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: 'pointer',
                             color: activeCert?.id === row.id ? 'var(--color-primary-600)' : 'var(--text-tertiary)',
@@ -281,7 +281,7 @@ export default function ArchivePage() {
                                     fontFamily: 'var(--font-sans)',
                                     transition: 'all 0.15s',
                                 }}
-                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary-500)'; e.target.style.boxShadow = '0 0 0 3px var(--border-focus-ring)'; }}
                                 onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
@@ -346,7 +346,7 @@ export default function ArchivePage() {
                                 <div
                                     ref={previewContainerRef}
                                     style={{
-                                        background: '#1a1f2e',
+                                        background: 'var(--bg-page)',
                                         height: '200px',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         overflow: 'hidden',

@@ -1537,9 +1537,9 @@ export default function TemplateMapper() {
 
     if (initStatus === 'loading') {
         return (
-            <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'Cairo' }}>
-                <div style={{ width: 42, height: 42, borderRadius: '50%', border: '4px solid rgba(255,255,255,0.08)', borderTopColor: '#10b981', animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: '13px', fontWeight: 800, color: '#a1a1aa' }}>تحميل استوديو القوالب وتفاصيل الهوية الرسمية...</p>
+            <div style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', fontFamily: 'Cairo' }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', border: '4px solid var(--border-default)', borderTopColor: 'var(--color-primary-500)', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-secondary)' }}>تحميل استوديو القوالب وتفاصيل الهوية الرسمية...</p>
                 <style>{`
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
@@ -1552,19 +1552,19 @@ export default function TemplateMapper() {
 
     if (initStatus === 'failed') {
         return (
-            <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cairo', padding: '24px', direction: 'rtl' }}>
-                <div style={{ background: '#141416', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ef4444' }}>
+            <div style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cairo', padding: '24px', direction: 'rtl' }}>
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px', padding: '32px', maxWidth: '480px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: 'var(--shadow-overlay)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-danger)' }}>
                         <ShieldAlert size={28} />
                         <h2 style={{ fontSize: '18px', fontWeight: 900, margin: 0 }}>فشل تهيئة استوديو التصميم</h2>
                     </div>
 
-                    <p style={{ fontSize: '13px', color: '#e4e4e7', lineHeight: 1.6, margin: 0 }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                         {initErrorMsg || 'حدث خطأ غير متوقع أثناء تحميل القالب أو أصول الهوية.'}
                     </p>
 
-                    <div style={{ background: '#0c0c0e', padding: '12px', borderRadius: '8px', border: '1px solid #222225', fontSize: '11px', color: '#a1a1aa' }}>
-                        <span style={{ fontWeight: 800, display: 'block', marginBottom: '4px', color: '#ef4444' }}>معلومات التتبع الفني للمشرف:</span>
+                    <div style={{ background: 'var(--bg-page)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <span style={{ fontWeight: 800, display: 'block', marginBottom: '4px', color: 'var(--color-danger)' }}>معلومات التتبع الفني للمشرف:</span>
                         <code style={{ wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>
                             Template ID: {id || 'None'}<br />
                             Active Provider: local_offline_db
@@ -1572,10 +1572,10 @@ export default function TemplateMapper() {
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                        <button style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => { setInitStatus('loading'); setInitErrorMsg(''); loadTemplate(); loadCustomPresets(); loadAssets(); }}>
+                        <button style={{ flex: 1, padding: '10px', background: 'var(--color-danger)', color: '#fff', fontSize: '12px', fontWeight: 800, border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => { setInitStatus('loading'); setInitErrorMsg(''); loadTemplate(); loadCustomPresets(); loadAssets(); }}>
                             إعادة المحاولة
                         </button>
-                        <button style={{ flex: 1, padding: '10px', background: '#1c1c1f', border: '1px solid #222225', color: '#a1a1aa', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }} onClick={handleBack}>
+                        <button style={{ flex: 1, padding: '10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 800, borderRadius: '8px', cursor: 'pointer' }} onClick={handleBack}>
                             العودة للرئيسية
                         </button>
                     </div>
@@ -1584,14 +1584,14 @@ export default function TemplateMapper() {
         );
     }
 
-    if (!template) return <div style={{ background: '#0c0c0e', color: '#f3f4f6', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
+    if (!template) return <div style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>تحميل المنصة الرسمية...</div>;
 
     const activeField = fields.find(f => selectedIds.includes(f._uid));
     const unifiedBox = SelectionEngine.getUnifiedBoundingBox(fields, selectedIds);
     const pagesList = template?.pages || [{ pageNum: 1, fields: fields, backgroundUrl: template?.backgroundUrl || '' }];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0c0c0e', color: '#f3f4f6', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-page)', color: 'var(--text-primary)', overflow: 'hidden', fontFamily: 'Cairo', direction: 'rtl' }}>
             {(initStatus === 'recovered' || initStatus === 'fallback-loaded') && (
                 <div style={{
                     background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
@@ -1604,7 +1604,7 @@ export default function TemplateMapper() {
                     zIndex: 101,
                     fontSize: '11px',
                     fontWeight: 700,
-                    color: '#f59e0b',
+                    color: 'var(--color-warning)',
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <AlertTriangle size={14} />
@@ -1619,7 +1619,7 @@ export default function TemplateMapper() {
                         style={{
                             background: 'rgba(255, 255, 255, 0.08)',
                             border: '1px solid rgba(245, 158, 11, 0.2)',
-                            color: '#fff',
+                            color: 'var(--text-inverse)',
                             padding: '3px 10px',
                             borderRadius: '4px',
                             fontSize: '9px',
@@ -1633,42 +1633,42 @@ export default function TemplateMapper() {
             )}
 
             {/* ─── 🏛️ TOP ACTION BAR ─── */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', background: '#141416', padding: '10px 24px', borderBottom: '1px solid #222225', zIndex: 100 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', background: 'var(--bg-surface)', padding: '10px 24px', borderBottom: '1px solid var(--border-default)', zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <button onClick={handleBack} style={{ background: '#1f1f23', border: 'none', cursor: 'pointer', color: '#e4e4e7', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '11px' }}>
+                    <button onClick={handleBack} style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', cursor: 'pointer', color: 'var(--text-secondary)', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '11px' }}>
                         <ArrowLeft size={16} /> العودة للرئيسية
                     </button>
 
-                    <div style={{ height: '20px', width: '1px', background: '#222225' }} />
+                    <div style={{ height: '20px', width: '1px', background: 'var(--border-default)' }} />
 
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h2 style={{ fontSize: '14px', fontWeight: 900, color: '#f3f4f6', lineHeight: 1 }}>{template.name}</h2>
-                            <span style={{ fontSize: '10px', color: '#a1a1aa' }}>(الإصدار v{template.version || 1})</span>
+                            <h2 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>{template.name}</h2>
+                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>(الإصدار v{template.version || 1})</span>
 
                             {/* State indicators */}
                             {saveStatus === 'saved' && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '20px' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: 'var(--color-success)', background: 'var(--color-success-bg)', padding: '2px 8px', borderRadius: '20px' }}>
                                     <CheckCircle size={10} /> محفوظ وآمن
                                 </span>
                             )}
                             {saveStatus === 'saving' && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#0ea5e9', background: 'rgba(14, 165, 233, 0.1)', padding: '2px 8px', borderRadius: '20px', animation: 'pulse 1.2s infinite' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: 'var(--color-info)', background: 'var(--color-info-bg)', padding: '2px 8px', borderRadius: '20px', animation: 'pulse 1.2s infinite' }}>
                                     ⏳ جاري الحفظ...
                                 </span>
                             )}
                             {saveStatus === 'unsaved' && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '20px' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: 'var(--color-warning)', background: 'var(--color-warning-bg)', padding: '2px 8px', borderRadius: '20px' }}>
                                     ● تعديل غير محفوظ
                                 </span>
                             )}
                             {saveStatus === 'error' && (
-                                <span onClick={() => handleSave(true)} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '20px', cursor: 'pointer', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                <span onClick={() => handleSave(true)} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, color: 'var(--color-danger)', background: 'var(--color-danger-bg)', padding: '2px 8px', borderRadius: '20px', cursor: 'pointer', border: '1px solid var(--border-default)' }}>
                                     <AlertTriangle size={10} /> خطأ! انقر للمحاولة
                                 </span>
                             )}
                         </div>
-                        <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 800 }}>Saudi Government Official Publishing Studio</span>
+                        <span style={{ fontSize: '10px', color: 'var(--color-success)', fontWeight: 800 }}>Saudi Government Official Publishing Studio</span>
                     </div>
                 </div>
 
@@ -1676,34 +1676,34 @@ export default function TemplateMapper() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <button
                         onClick={() => setShowHistoryPanel(true)}
-                        style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '8px 12px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                         <History size={14} /> الإصدارات التاريخية ({template.versionHistory?.length || 0})
                     </button>
 
                     <button
                         onClick={() => setShowAssetManager(true)}
-                        style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '8px 12px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                         <Settings size={14} /> سجل وحوكمة الأصول الرسمية
                     </button>
 
                     <button
                         onClick={triggerBackgroundExport}
-                        style={{ padding: '8px 12px', background: 'rgba(16, 185, 129, 0.15)', border: 'none', cursor: 'pointer', color: '#10b981', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '8px 12px', background: 'var(--color-success-bg)', border: 'none', cursor: 'pointer', color: 'var(--color-success)', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                         <Play size={14} /> تصدير PDF خلفي
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#1c1c1f', padding: '2px', borderRadius: '8px' }}>
-                        <button onClick={handleUndo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Undo2 size={14} /></button>
-                        <button onClick={handleRedo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa', borderRadius: '6px' }}><Redo2 size={14} /></button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-subtle)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                        <button onClick={handleUndo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px' }}><Undo2 size={14} /></button>
+                        <button onClick={handleRedo} style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', borderRadius: '6px' }}><Redo2 size={14} /></button>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: '#1c1c1f', padding: '2px', borderRadius: '8px' }}>
-                        <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa' }}><ZoomOut size={13} /></button>
-                        <span style={{ fontSize: '11px', fontWeight: 800, minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-                        <button onClick={() => setZoom(z => Math.min(3.0, z + 0.1))} style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#a1a1aa' }}><ZoomIn size={13} /></button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--bg-subtle)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                        <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><ZoomOut size={13} /></button>
+                        <span style={{ fontSize: '11px', fontWeight: 800, minWidth: '40px', textAlign: 'center', color: 'var(--text-primary)' }}>{Math.round(zoom * 100)}%</span>
+                        <button onClick={() => setZoom(z => Math.min(3.0, z + 0.1))} style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><ZoomIn size={13} /></button>
                     </div>
                 </div>
 
@@ -1716,69 +1716,68 @@ export default function TemplateMapper() {
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
                 {/* 👈 LEFT BAR: PRESETS & STANDARD FIELDS */}
-                <div style={{ width: '310px', background: '#141416', borderLeft: '1px solid #222225', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+                <div style={{ width: '310px', background: 'var(--bg-surface)', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
 
                     {/* Collapsible layout controls */}
-                    <div style={{ padding: '12px 14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}><Columns size={12} /> محرر صفحات الوثيقة (Multi-page)</span>
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '4px' }}><Columns size={12} /> محرر صفحات الوثيقة (Multi-page)</span>
                         <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
-                            <select value={currentPageIndex} onChange={e => { setCurrentPageIndex(Number(e.target.value)); setSelectedIds([]); }} style={{ padding: '8px 12px', background: '#1c1c1f', border: 'none', color: '#fff', borderRadius: '8px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+                            <select value={currentPageIndex} onChange={e => { setCurrentPageIndex(Number(e.target.value)); setSelectedIds([]); }} style={{ padding: '8px 12px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', borderRadius: '8px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
                                 {(pagesList ?? []).map((p, i) => <option key={i} value={i}>صفحة {p.pageNum}</option>)}
                             </select>
-                            <button onClick={addNewPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="إضافة صفحة"><Plus size={14} /></button>
-                            <button onClick={duplicateCurrentPage} style={{ padding: '8px 10px', background: '#1c1c1f', border: 'none', color: '#a1a1aa', borderRadius: '8px', cursor: 'pointer' }} title="تكرار الصفحة الحالية"><Copy size={14} /></button>
-                            <button onClick={deleteCurrentPage} style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: '#ef4444', borderRadius: '8px', cursor: 'pointer' }} title="حذف الصفحة الحالية"><Trash2 size={14} /></button>
+                            <button onClick={addNewPage} style={{ padding: '8px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: '8px', cursor: 'pointer' }} title="إضافة صفحة"><Plus size={14} /></button>
+                            <button onClick={duplicateCurrentPage} style={{ padding: '8px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: '8px', cursor: 'pointer' }} title="تكرار الصفحة الحالية"><Copy size={14} /></button>
+                            <button onClick={deleteCurrentPage} style={{ padding: '8px 10px', background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: 'var(--color-danger)', borderRadius: '8px', cursor: 'pointer' }} title="حذف الصفحة الحالية"><Trash2 size={14} /></button>
                         </div>
                     </div>
 
                     {/* Government preset design blocks */}
-                    <div style={{ padding: '14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#10b981' }}><Sparkles size={14} /> كتل الهوية الرسمية (Presets)</h3>
+                    <div style={{ padding: '14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: 'var(--color-success)' }}><Sparkles size={14} /> كتل الهوية الرسمية (Presets)</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {OFFICIAL_PRESET_BLOCKS.map(block => (
-                                <button key={block.id} onClick={() => addPresetBlock(block.id)} style={{ display: 'flex', flexDirection: 'column', padding: '8px 10px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '6px', cursor: 'pointer', textAlign: 'right', width: '100%' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 900, color: '#f3f4f6' }}>{block.label}</span>
-                                    <span style={{ fontSize: '9px', color: '#a1a1aa', marginTop: '2px' }}>{block.description}</span>
+                                <button key={block.id} onClick={() => addPresetBlock(block.id)} style={{ display: 'flex', flexDirection: 'column', padding: '8px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: '6px', cursor: 'pointer', textAlign: 'right', width: '100%' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 900, color: 'var(--text-primary)' }}>{block.label}</span>
+                                    <span style={{ fontSize: '9px', color: 'var(--text-secondary)', marginTop: '2px' }}>{block.description}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Shared Custom components */}
-                    <div style={{ padding: '14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#f59e0b' }}><Clipboard size={14} /> مكونات الإدارة المشتركة</h3>
+                    <div style={{ padding: '14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: 'var(--color-warning)' }}><Clipboard size={14} /> مكونات الإدارة المشتركة</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '120px', overflowY: 'auto' }}>
                             {customPresets.map(preset => (
-                                <div key={preset.id} onClick={() => addCustomPresetBlock(preset)} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '6px', cursor: 'pointer' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#f3f4f6' }}>{preset.label}</span>
-                                    <button onClick={(e) => handleDeleteCustomPreset(e, preset.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><X size={12} /></button>
+                                <div key={preset.id} onClick={() => addCustomPresetBlock(preset)} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: '6px', cursor: 'pointer' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>{preset.label}</span>
+                                    <button onClick={(e) => handleDeleteCustomPreset(e, preset.id)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}><X size={12} /></button>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     {/* Standard Fields Add */}
-                    <div style={{ padding: '14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#0ea5e9' }}><Plus size={14} /> إضافة حقول فردية</h3>
+                    <div style={{ padding: '14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: 'var(--color-info)' }}><Plus size={14} /> إضافة حقول فردية</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                             {SUPPORTED_FIELDS.map(f => (
-                                <button key={f.id} onClick={() => addField(f.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 4px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 800 }}>
+                                <button key={f.id} onClick={() => addField(f.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 4px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>
                                     {f.label.split(' ')[0]}
                                 </button>
                             ))}
                         </div>
                     </div>
-
                     {/* 🖼️ Template Background Management Section */}
-                    <div style={{ padding: '14px', borderBottom: '1px solid #222225', background: '#0e0e10' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ padding: '14px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-page)' }}>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, marginBottom: '8px', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <ImageIcon size={14} /> خلفية قالب النشر
                         </h3>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {(template?.background || template?.backgroundUrl) ? (
                                 <>
-                                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #222225', background: '#1c1c1f' }}>
+                                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-default)', background: 'var(--bg-subtle)' }}>
                                         <img
                                             src={template.background || template.backgroundUrl}
                                             alt="Bg Preview"
@@ -1786,13 +1785,13 @@ export default function TemplateMapper() {
                                         />
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                        <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: '#fff', textAlign: 'center' }}>
+                                        <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-strong)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center' }}>
                                             استبدال
                                             <input type="file" accept=".png,.jpg,.jpeg,.svg" onChange={handleBackgroundUpload} style={{ display: 'none' }} />
                                         </label>
                                         <button
                                             onClick={handleRemoveBackground}
-                                            style={{ flex: 1, padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: '#ef4444' }}
+                                            style={{ flex: 1, padding: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 800, color: 'var(--color-danger)' }}
                                         >
                                             إزالة
                                         </button>
@@ -1807,7 +1806,7 @@ export default function TemplateMapper() {
                                             borderRadius: '4px',
                                             fontSize: '10px',
                                             fontWeight: 800,
-                                            color: template.backgroundLocked !== false ? '#10b981' : '#f59e0b',
+                                            color: template.backgroundLocked !== false ? 'var(--color-success)' : 'var(--color-warning)',
                                             cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
@@ -1828,12 +1827,12 @@ export default function TemplateMapper() {
                                 </>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <span style={{ fontSize: '10px', color: '#71717a', textAlign: 'right' }}>لا توجد صورة خلفية نشطة حالياً.</span>
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#1c1c1f', border: '1px dashed #3f3f46', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>
+                                    <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', textAlign: 'right' }}>لا توجد صورة خلفية نشطة حالياً.</span>
+                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: 'var(--bg-subtle)', border: '1px dashed var(--border-strong)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)' }}>
                                         <Plus size={14} /> رفع صورة الخلفية
                                         <input type="file" accept=".png,.jpg,.jpeg,.svg" onChange={handleBackgroundUpload} style={{ display: 'none' }} />
                                     </label>
-                                    <span style={{ fontSize: '8px', color: '#71717a', textAlign: 'right' }}>صيغ الدعم: PNG, JPG, JPEG, SVG</span>
+                                    <span style={{ fontSize: '8px', color: 'var(--text-tertiary)', textAlign: 'right' }}>صيغ الدعم: PNG, JPG, JPEG, SVG</span>
                                 </div>
                             )}
                         </div>
@@ -1841,10 +1840,10 @@ export default function TemplateMapper() {
 
                     {/* Layers listing */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: '10px 14px', borderBottom: '1px solid #222225' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#71717a' }}>الطبقات (Layers)</span>
+                        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-default)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-tertiary)' }}>الطبقات (Layers)</span>
                         </div>
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px', background: '#0e0e10' }}>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px', background: 'var(--bg-page)' }}>
                             {fields.map((f) => {
                                 const meta = getFieldMeta(f.fieldId);
                                 const isSelected = selectedIds.includes(f._uid);
@@ -1865,12 +1864,12 @@ export default function TemplateMapper() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             padding: '8px 12px',
-                                            background: isSelected ? 'rgba(16, 185, 129, 0.15)' : '#1c1c1f',
-                                            color: isSelected ? '#10b981' : '#f3f4f6',
+                                            background: isSelected ? 'var(--color-success-bg)' : 'var(--bg-subtle)',
+                                            color: isSelected ? 'var(--color-success)' : 'var(--text-primary)',
                                             borderRadius: '6px',
                                             cursor: 'pointer',
                                             gap: '8px',
-                                            border: isSelected ? '1px solid #10b981' : '1px solid #222225'
+                                            border: isSelected ? '1px solid var(--color-success)' : '1px solid var(--border-default)'
                                         }}
                                     >
                                         <div style={{ flex: 1, fontSize: '11px', fontWeight: 800 }}>
@@ -1881,7 +1880,7 @@ export default function TemplateMapper() {
                                                     onBlur={() => saveRename(f._uid)}
                                                     onKeyDown={e => { if (e.key === 'Enter') saveRename(f._uid) }}
                                                     autoFocus
-                                                    style={{ background: '#0c0c0e', border: '1px solid #10b981', color: '#fff', padding: '2px 4px', fontSize: '10px', borderRadius: '4px', width: '90%' }}
+                                                    style={{ background: 'var(--bg-page)', border: '1px solid var(--color-success)', color: 'var(--text-primary)', padding: '2px 4px', fontSize: '10px', borderRadius: '4px', width: '90%' }}
                                                 />
                                             ) : (
                                                 f.customName || meta?.label || f.fieldId
@@ -1904,7 +1903,7 @@ export default function TemplateMapper() {
                     data-canvas-workspace="true"
                     style={{
                         flex: 1,
-                        background: '#0a0a0c',
+                        background: 'var(--bg-muted)',
                         overflowX: 'auto',
                         overflowY: 'auto',
                         display: 'flex',
@@ -1920,10 +1919,10 @@ export default function TemplateMapper() {
                     {/* A4 Metric Rulers */}
                     {showRulers && (
                         <>
-                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '18px', background: '#141416', borderBottom: '1px solid #222225', zIndex: 9, pointerEvents: 'none', display: 'flex', alignItems: 'center', padding: '0 20px', fontSize: '9px', color: '#71717a' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '18px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)', zIndex: 9, pointerEvents: 'none', display: 'flex', alignItems: 'center', padding: '0 20px', fontSize: '9px', color: 'var(--text-tertiary)' }}>
                                 <span>{template?.orientation === 'portrait' ? '0mm ─────────────── 100mm ─────────────── 210mm' : '0mm ─────────────────── 100mm ─────────────────── 200mm ─────────────────── 297mm'}</span>
                             </div>
-                            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '18px', background: '#141416', borderRight: '1px solid #222225', zIndex: 9, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', fontSize: '9px', color: '#71717a' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '18px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-default)', zIndex: 9, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', fontSize: '9px', color: 'var(--text-tertiary)' }}>
                                 <span style={{ writingMode: 'vertical-rl' }}>{template?.orientation === 'portrait' ? '0mm ─────────────────── 100mm ─────────────────── 200mm ─────────────────── 297mm' : '0mm ────── 100mm ────── 210mm'}</span>
                             </div>
                         </>
@@ -1936,7 +1935,7 @@ export default function TemplateMapper() {
                             height: template?.orientation === 'portrait' ? '1122.5px' : '793.7px',
                             backgroundColor: '#ffffff',
                             position: 'relative',
-                            boxShadow: '0 30px 70px -20px rgba(0,0,0,0.9)',
+                            boxShadow: 'var(--shadow-overlay)',
                             transform: `scale(${zoom})`,
                             transformOrigin: 'top center',
                             transition: (isDragging || isResizing) ? 'none' : 'transform 0.12s ease',
@@ -2049,10 +2048,9 @@ export default function TemplateMapper() {
                                     ) : (
                                         <div style={{ width: '100%', height: `${f.height}px`, background: 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '11px', border: '1px dashed rgba(0,0,0,0.12)', flexDirection: 'column', gap: '4px' }}>
                                             <span>{meta?.label}</span>
-                                            {f.bindingKey && <span style={{ fontSize: '9px', color: '#10b981' }}>🔗 {f.bindingKey}</span>}
+                                            {f.bindingKey && <span style={{ fontSize: '9px', color: 'var(--color-primary-500)' }}>🔗 {f.bindingKey}</span>}
                                         </div>
                                     )}
-
                                     {/* 8-point scaling handles */}
                                     {isSelected && !f.locked && selectedIds.length === 1 && (
                                         <>
@@ -2102,9 +2100,9 @@ export default function TemplateMapper() {
                 </div>
 
                 {/* 👉 RIGHT BAR: PROPERTIES INSPECTOR */}
-                <div style={{ width: '330px', background: '#141416', borderRight: '1px solid #222225', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-                    <div style={{ padding: '16px', borderBottom: '1px solid #222225' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 900 }}>خصائص العناصر (Geometry)</span>
+                <div style={{ width: '330px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border-default)' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 900, color: 'var(--text-primary)' }}>خصائص العناصر (Geometry)</span>
                     </div>
 
                     <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -2113,38 +2111,38 @@ export default function TemplateMapper() {
 
                                 {/* Spacing distributions */}
                                 {selectedIds.length > 2 && (
-                                    <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                        <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#f59e0b', marginBottom: '8px' }}>توزيع الفراغات بالتساوي</h4>
+                                    <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                        <h4 style={{ fontSize: '11px', fontWeight: 900, color: 'var(--color-warning)', marginBottom: '8px' }}>توزيع الفراغات بالتساوي</h4>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                                            <button onClick={() => distributeCollectiveSpacing('horizontal')} style={{ padding: '6px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', color: '#fff' }}>توزيع أفقي</button>
-                                            <button onClick={() => distributeCollectiveSpacing('vertical')} style={{ padding: '6px', background: '#27272a', border: '1px solid #3f3f46', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', color: '#fff' }}>توزيع عمودي</button>
+                                            <button onClick={() => distributeCollectiveSpacing('horizontal')} style={{ padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-strong)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', color: 'var(--text-primary)' }}>توزيع أفقي</button>
+                                            <button onClick={() => distributeCollectiveSpacing('vertical')} style={{ padding: '6px', background: 'var(--bg-muted)', border: '1px solid var(--border-strong)', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', color: 'var(--text-primary)' }}>توزيع عمودي</button>
                                         </div>
                                     </div>
                                 )}
 
                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                    <button onClick={handleSaveAsCustomPreset} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '8px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', color: '#10b981', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}>
+                                    <button onClick={handleSaveAsCustomPreset} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '8px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: '6px', color: 'var(--color-success)', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}>
                                         <Sparkles size={12} /> حفظ كمجموعه مخصصة
                                     </button>
                                 </div>
 
                                 {/* Collective alignments */}
-                                <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                    <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#a1a1aa', marginBottom: '8px' }}>محاذاة العناصر للـ Canvas</h4>
+                                <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                    <h4 style={{ fontSize: '11px', fontWeight: 900, color: 'var(--text-secondary)', marginBottom: '8px' }}>محاذاة العناصر للـ Canvas</h4>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'left'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>يسار</button>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'centerX'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>أفقي</button>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'right'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>يمين</button>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'top'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>أعلى</button>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'centerY'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>عمودي</button>
-                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'bottom'))} style={{ padding: '4px', background: '#27272a', border: '1px solid #222225', borderRadius: '4px', color: '#fff', fontSize: '9px', cursor: 'pointer' }}>أسفل</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'left'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>يسار</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'centerX'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>أفقي</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'right'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>يمين</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'top'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>أعلى</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'centerY'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>عمودي</button>
+                                        <button onClick={() => selectedIds.forEach(id => alignField(id, 'bottom'))} style={{ padding: '4px', background: 'var(--bg-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '9px', cursor: 'pointer' }}>أسفل</button>
                                     </div>
                                 </div>
 
                                 {activeField && (
                                     <>
-                                        <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#f3f4f6', cursor: 'pointer' }}>
+                                        <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-primary)', cursor: 'pointer' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={activeField.aspectRatioLocked || false}
@@ -2155,41 +2153,41 @@ export default function TemplateMapper() {
                                             </label>
                                         </div>
 
-                                        <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                            <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#a1a1aa', marginBottom: '10px' }}>الأبعاد والموقع (Geometry)</h4>
+                                        <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                            <h4 style={{ fontSize: '11px', fontWeight: 900, color: 'var(--text-secondary)', marginBottom: '10px' }}>الأبعاد والموقع (Geometry)</h4>
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                                <label style={{ fontSize: '10px', color: '#a1a1aa' }}>X (%)
-                                                    <input type="number" step="0.5" value={activeField.x} onChange={e => { updateField(activeField._uid, { x: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, x: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
+                                                <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>X (%)
+                                                    <input type="number" step="0.5" value={activeField.x} onChange={e => { updateField(activeField._uid, { x: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, x: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked} />
                                                 </label>
-                                                <label style={{ fontSize: '10px', color: '#a1a1aa' }}>Y (%)
-                                                    <input type="number" step="0.5" value={activeField.y} onChange={e => { updateField(activeField._uid, { y: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, y: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
+                                                <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Y (%)
+                                                    <input type="number" step="0.5" value={activeField.y} onChange={e => { updateField(activeField._uid, { y: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, y: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked} />
                                                 </label>
-                                                <label style={{ fontSize: '10px', color: '#a1a1aa' }}>العرض (px)
-                                                    <input type="number" step="10" value={activeField.width || 0} onChange={e => { updateField(activeField._uid, { width: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, width: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
+                                                <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>العرض (px)
+                                                    <input type="number" step="10" value={activeField.width || 0} onChange={e => { updateField(activeField._uid, { width: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, width: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked} />
                                                 </label>
-                                                <label style={{ fontSize: '10px', color: '#a1a1aa' }}>الارتفاع (px)
-                                                    <input type="number" step="10" value={activeField.height || 0} onChange={e => { updateField(activeField._uid, { height: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, height: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
+                                                <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>الارتفاع (px)
+                                                    <input type="number" step="10" value={activeField.height || 0} onChange={e => { updateField(activeField._uid, { height: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, height: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked} />
                                                 </label>
                                             </div>
                                         </div>
 
                                         {(getFieldMeta(activeField.fieldId)?.type === 'text' || getFieldMeta(activeField.fieldId)?.type === 'textarea') && (
-                                            <div style={{ background: '#1c1c1f', padding: '12px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#a1a1aa', marginBottom: '10px' }}>النصوص والمحتوى (Typography)</h4>
-                                                <textarea value={activeField.textContent || ''} onChange={e => { updateField(activeField._uid, { textContent: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, textContent: e.target.value } : f)); }} placeholder={`نص افتراضي...`} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', minHeight: '60px', resize: 'vertical' }} disabled={activeField.locked} />
+                                            <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                                <h4 style={{ fontSize: '11px', fontWeight: 900, color: 'var(--text-secondary)', marginBottom: '10px' }}>النصوص والمحتوى (Typography)</h4>
+                                                <textarea value={activeField.textContent || ''} onChange={e => { updateField(activeField._uid, { textContent: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, textContent: e.target.value } : f)); }} placeholder={`نص افتراضي...`} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', minHeight: '60px', resize: 'vertical' }} disabled={activeField.locked} />
 
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-                                                    <label style={{ fontSize: '10px', color: '#a1a1aa' }}>حجم الخط
-                                                        <input type="number" value={activeField.fontSize} onChange={e => { updateField(activeField._uid, { fontSize: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontSize: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked} />
+                                                    <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>حجم الخط
+                                                        <input type="number" value={activeField.fontSize} onChange={e => { updateField(activeField._uid, { fontSize: Number(e.target.value) }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontSize: Number(e.target.value) } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked} />
                                                     </label>
-                                                    <label style={{ fontSize: '10px', color: '#a1a1aa' }}>اللون
-                                                        <input type="color" value={activeField.color} onChange={e => { updateField(activeField._uid, { color: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, color: e.target.value } : f)); }} style={{ width: '100%', height: '30px', border: '1px solid #222225', borderRadius: '4px', marginTop: '4px', cursor: 'pointer', padding: 0 }} disabled={activeField.locked} />
+                                                    <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>اللون
+                                                        <input type="color" value={activeField.color} onChange={e => { updateField(activeField._uid, { color: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, color: e.target.value } : f)); }} style={{ width: '100%', height: '30px', border: '1px solid var(--border-default)', borderRadius: '4px', marginTop: '4px', cursor: 'pointer', padding: 0 }} disabled={activeField.locked} />
                                                     </label>
                                                 </div>
 
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '8px' }}>
-                                                    <label style={{ fontSize: '10px', color: '#a1a1aa' }}>الخط المعتمد
-                                                        <select value={activeField.fontFamily || 'Cairo'} onChange={e => { updateField(activeField._uid, { fontFamily: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontFamily: e.target.value } : f)); }} style={{ width: '100%', padding: '6px', background: '#0e0e10', border: '1px solid #222225', borderRadius: '4px', color: '#fff', marginTop: '4px' }} disabled={activeField.locked}>
+                                                    <label style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>الخط المعتمد
+                                                        <select value={activeField.fontFamily || 'Cairo'} onChange={e => { updateField(activeField._uid, { fontFamily: e.target.value }); historyEngine.push(fields.map(f => f._uid === activeField._uid ? { ...f, fontFamily: e.target.value } : f)); }} style={{ width: '100%', padding: '6px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', borderRadius: '4px', color: 'var(--text-primary)', marginTop: '4px' }} disabled={activeField.locked}>
                                                             <option value="Cairo">Cairo (رسمي عصري)</option>
                                                             <option value="Amiri">Amiri (رسمي كلاسيكي)</option>
                                                             <option value="Tajawal">Tajawal</option>
@@ -2199,7 +2197,7 @@ export default function TemplateMapper() {
 
                                                 {/* ── Font Weight Selector ── */}
                                                 <div style={{ marginTop: '8px' }}>
-                                                    <label style={{ fontSize: '10px', color: '#a1a1aa', display: 'block', marginBottom: '6px' }}>وزن الخط (Font Weight)</label>
+                                                    <label style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>وزن الخط (Font Weight)</label>
                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
                                                         {[
                                                             { label: 'عادي', value: '400' },
@@ -2219,10 +2217,10 @@ export default function TemplateMapper() {
                                                                     }}
                                                                     style={{
                                                                         padding: '5px 3px',
-                                                                        background: isActive ? '#10b981' : '#1c1c1f',
-                                                                        border: isActive ? '1px solid #10b981' : '1px solid #333',
+                                                                        background: isActive ? 'var(--color-primary-500)' : 'var(--bg-subtle)',
+                                                                        border: isActive ? '1px solid var(--color-primary-500)' : '1px solid var(--border-default)',
                                                                         borderRadius: '4px',
-                                                                        color: isActive ? '#fff' : '#a1a1aa',
+                                                                        color: isActive ? 'var(--text-inverse)' : 'var(--text-secondary)',
                                                                         fontSize: '9px',
                                                                         fontWeight: value,
                                                                         cursor: activeField.locked ? 'default' : 'pointer',
@@ -2242,14 +2240,14 @@ export default function TemplateMapper() {
 
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <Button variant="outline" size="sm" onClick={() => selectedIds.forEach(id => duplicateField(id))} leftIcon={Copy} style={{ flex: 1, fontSize: '11px', fontWeight: 800 }}>تكرار</Button>
-                                            <Button variant="outline" size="sm" onClick={() => selectedIds.forEach(id => removeField(id))} leftIcon={Trash2} style={{ flex: 1, fontSize: '11px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)', fontWeight: 800 }}>حذف</Button>
+                                            <Button variant="outline" size="sm" onClick={() => selectedIds.forEach(id => removeField(id))} leftIcon={Trash2} style={{ flex: 1, fontSize: '11px', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)', fontWeight: 800 }}>حذف</Button>
                                         </div>
                                     </>
                                 )}
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', color: '#a1a1aa', textAlign: 'center', gap: '8px', padding: '24px' }}>
-                                <MousePointer2 size={26} style={{ opacity: 0.4, color: '#10b981' }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', color: 'var(--text-secondary)', textAlign: 'center', gap: '8px', padding: '24px' }}>
+                                <MousePointer2 size={26} style={{ opacity: 0.4, color: 'var(--color-primary-500)' }} />
                                 <span style={{ fontSize: '11px', fontWeight: 800 }}>حدد عنصراً أو عدة عناصر لتعديل أبعادها ومحاذاتها ومسافاتها بالتساوي.</span>
                             </div>
                         )}
@@ -2265,10 +2263,10 @@ export default function TemplateMapper() {
                         position: 'fixed',
                         top: contextMenu.y,
                         left: contextMenu.x,
-                        background: 'rgba(20, 20, 22, 0.85)',
+                        background: 'var(--bg-surface)',
                         backdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                        border: '1px solid var(--border-default)',
+                        boxShadow: 'var(--shadow-floating)',
                         borderRadius: '10px',
                         padding: '6px',
                         zIndex: 9999,
@@ -2283,7 +2281,7 @@ export default function TemplateMapper() {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { locked: !f.locked });
                         }}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
@@ -2295,7 +2293,7 @@ export default function TemplateMapper() {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { hidden: !f.hidden });
                         }}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
@@ -2307,35 +2305,35 @@ export default function TemplateMapper() {
                             const f = fields.find(x => x._uid === contextMenu.fieldUid);
                             if (f) updateField(f._uid, { aspectRatioLocked: !f.aspectRatioLocked });
                         }}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
                         <span>قفل النسبة المتزنة</span>
                         <Maximize size={12} style={{ opacity: 0.5 }} />
                     </button>
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                     <button
                         onClick={() => bringToFront(contextMenu.fieldUid)}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
                         جلب للمقدمة
                     </button>
                     <button
                         onClick={() => sendToBack(contextMenu.fieldUid)}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#f3f4f6', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 800, borderRadius: '6px' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
                         إرسال للخلف
                     </button>
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                     <button
                         onClick={() => removeField(contextMenu.fieldUid)}
-                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px', fontWeight: 900, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                        style={{ padding: '8px 12px', background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', fontSize: '11px', fontWeight: 900, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-danger-bg)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
                         <span>حذف المكون</span>
@@ -2346,26 +2344,26 @@ export default function TemplateMapper() {
 
             {/* 🛡️ DIALOG 1: Asset Governance Manager */}
             {showAssetManager && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
-                    <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '700px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' }}>
-                        <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                            <h3 style={{ fontSize: '15px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}><Settings size={18} /> حوكمة وإدارة أصول الجهات الرسمية</h3>
-                            <button onClick={() => setShowAssetManager(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={18} /></button>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Cairo' }}>
+                    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', width: '700px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-modal)' }}>
+                        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+                            <h3 style={{ fontSize: '15px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary-500)' }}><Settings size={18} /> حوكمة وإدارة أصول الجهات الرسمية</h3>
+                            <button onClick={() => setShowAssetManager(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
 
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Upload New Asset Form */}
-                            <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', display: 'block', marginBottom: '8px' }}>+ إضافة وتسجيل أصل رسمي جديد معتمد</span>
+                            <div style={{ background: 'var(--bg-subtle)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-warning)', display: 'block', marginBottom: '8px' }}>+ إضافة وتسجيل أصل رسمي جديد معتمد</span>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '10px', marginBottom: '10px' }}>
                                     <input
                                         type="text"
                                         value={newAssetName}
                                         onChange={e => setNewAssetName(e.target.value)}
                                         placeholder="اسم الأصل (مثال: ختم التحول الرقمي الدائري)"
-                                        style={{ background: '#0e0e10', border: '1px solid #222225', color: '#fff', padding: '8px', fontSize: '11px', borderRadius: '6px' }}
+                                        style={{ background: 'var(--bg-page)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px', fontSize: '11px', borderRadius: '6px' }}
                                     />
-                                    <select value={newAssetCategory} onChange={e => setNewAssetCategory(e.target.value)} style={{ background: '#0e0e10', border: '1px solid #222225', color: '#fff', padding: '8px', fontSize: '11px', borderRadius: '6px' }}>
+                                    <select value={newAssetCategory} onChange={e => setNewAssetCategory(e.target.value)} style={{ background: 'var(--bg-page)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px', fontSize: '11px', borderRadius: '6px' }}>
                                         <option value="LOGOS">شعارات رسمية (Logos)</option>
                                         <option value="SIGNATURES">تواقيع المدراء (Signatures)</option>
                                         <option value="STAMPS">أختام الإدارات (Stamps)</option>
@@ -2373,13 +2371,13 @@ export default function TemplateMapper() {
                                     </select>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: '#a1a1aa', cursor: 'pointer' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                                         <input type="checkbox" checked={newAssetCrop} onChange={e => setNewAssetCrop(e.target.checked)} style={{ cursor: 'pointer' }} />
                                         قص واقتصاص ذكي (Crop Canvas)
                                     </label>
                                     <label style={{ cursor: 'pointer' }}>
                                         <input type="file" onChange={handleAssetUpload} style={{ display: 'none' }} disabled={uploadingAsset} />
-                                        <div style={{ padding: '8px 16px', background: uploadingAsset ? '#52525b' : '#10b981', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 800 }}>
+                                        <div style={{ padding: '8px 16px', background: uploadingAsset ? 'var(--bg-muted)' : 'var(--color-primary-500)', color: 'var(--text-inverse)', borderRadius: '6px', fontSize: '11px', fontWeight: 800 }}>
                                             {uploadingAsset ? 'جاري معالجة وضغط الصورة...' : 'اختر الملف وارفعه'}
                                         </div>
                                     </label>
@@ -2388,14 +2386,14 @@ export default function TemplateMapper() {
 
                             {/* Assets list */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#a1a1aa' }}>سجل الأصول النشطة المعتمدة في النظام:</span>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)' }}>سجل الأصول النشطة المعتمدة في النظام:</span>
                                 {(assets ?? []).map(asset => (
-                                    <div key={asset.id} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '8px' }}>
+                                    <div key={asset.id} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', padding: '10px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <img src={asset.url} alt={asset.name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px', padding: '2px' }} />
+                                            <img src={asset.url} alt={asset.name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: 'white', borderRadius: '4px', padding: '2px', border: '1px solid var(--border-default)' }} />
                                             <div>
-                                                <div style={{ fontSize: '11px', fontWeight: 900, color: '#f3f4f6' }}>{asset.name}</div>
-                                                <div style={{ fontSize: '9px', color: '#a1a1aa', marginTop: '2px' }}>الفئة: {asset.category} | النسخة v{asset.version} | المرفوع بواسطة {asset.uploadedBy}</div>
+                                                <div style={{ fontSize: '11px', fontWeight: 900, color: 'var(--text-primary)' }}>{asset.name}</div>
+                                                <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginTop: '2px' }}>الفئة: {asset.category} | النسخة v{asset.version} | المرفوع بواسطة {asset.uploadedBy}</div>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px' }}>
@@ -2414,7 +2412,7 @@ export default function TemplateMapper() {
                                                         alert("تم تطبيق الشعار كخلفية رسمية للـ Canvas!");
                                                     }
                                                 }}
-                                                style={{ padding: '6px 10px', background: '#27272a', border: '1px solid #3f3f46', color: '#fff', borderRadius: '4px', fontSize: '9px', cursor: 'pointer' }}
+                                                style={{ padding: '6px 10px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', borderRadius: '4px', fontSize: '9px', cursor: 'pointer' }}
                                             >
                                                 استخدام
                                             </button>
@@ -2429,20 +2427,20 @@ export default function TemplateMapper() {
 
             {/* 🛡️ DIALOG 2: Historical Versions & Compare */}
             {showHistoryPanel && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-                    <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}><History size={16} /> سجل تغييرات وإصدارات قالب النشر</h3>
-                            <button onClick={() => setShowHistoryPanel(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16} /></button>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-modal)' }}>
+                        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)' }}><History size={16} /> سجل تغييرات وإصدارات قالب النشر</h3>
+                            <button onClick={() => setShowHistoryPanel(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={16} /></button>
                         </div>
 
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {(template?.versionHistory ?? []).map((snap, idx) => (
-                                <div key={idx} style={{ padding: '12px', background: '#1c1c1f', border: '1px solid #222225', borderRadius: '8px', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+                                <div key={idx} style={{ padding: '12px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: '8px', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
                                     <div>
-                                        <div style={{ fontSize: '12px', fontWeight: 900, color: '#f3f4f6' }}>الإصدار التاريخي v{snap.version}</div>
-                                        <div style={{ fontSize: '9px', color: '#a1a1aa', marginTop: '2px' }}>التاريخ: {new Date(snap.updatedAt).toLocaleString('ar-SA')}</div>
-                                        <div style={{ fontSize: '10px', color: '#f59e0b', marginTop: '4px' }}>ملاحظات: {snap.changelog}</div>
+                                        <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--text-primary)' }}>الإصدار التاريخي v{snap.version}</div>
+                                        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginTop: '2px' }}>التاريخ: {new Date(snap.updatedAt).toLocaleString('ar-SA')}</div>
+                                        <div style={{ fontSize: '10px', color: 'var(--color-warning)', marginTop: '4px' }}>ملاحظات: {snap.changelog}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <button
@@ -2450,20 +2448,20 @@ export default function TemplateMapper() {
                                                 setCompareTarget(snap);
                                                 setShowCompareDialog(true);
                                             }}
-                                            style={{ padding: '6px 12px', background: '#27272a', border: '1px solid #3f3f46', color: '#fff', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                                            style={{ padding: '6px 12px', background: 'var(--bg-page)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
                                         >
                                             قارن الفروق
                                         </button>
                                         <button
                                             onClick={() => handleRollback(snap.version)}
-                                            style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.15)', border: 'none', color: '#10b981', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 900 }}
+                                            style={{ padding: '6px 12px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', color: 'var(--color-success)', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 900 }}
                                         >
                                             استعادة الإصدار
                                         </button>
                                     </div>
                                 </div>
                             ))}
-                            {(!template?.versionHistory || template.versionHistory.length === 0) && <span style={{ fontSize: '11px', color: '#71717a', textAlign: 'center' }}>لا توجد إصدارات منشورة سابقة لهذا القالب.</span>}
+                            {(!template?.versionHistory || template.versionHistory.length === 0) && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>لا توجد إصدارات منشورة سابقة لهذا القالب.</span>}
                         </div>
                     </div>
                 </div>
@@ -2471,17 +2469,17 @@ export default function TemplateMapper() {
 
             {/* 🛡️ DIALOG 3: Visual & Textual Version Compare */}
             {showCompareDialog && compareTarget && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-                    <div style={{ background: '#141416', border: '1px solid #222225', borderRadius: '16px', width: '800px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: '20px', borderBottom: '1px solid #222225', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: 900, color: '#0ea5e9' }}>مقارنة فروق التصميم: الإصدار v{compareTarget.version} مقابل الإصدار الحالي v{template.version}</h3>
-                            <button onClick={() => setShowCompareDialog(false)} style={{ background: 'none', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}><X size={16} /></button>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', width: '800px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-modal)' }}>
+                        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--color-info)' }}>مقارنة فروق التصميم: الإصدار v{compareTarget.version} مقابل الإصدار الحالي v{template.version}</h3>
+                            <button onClick={() => setShowCompareDialog(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={16} /></button>
                         </div>
 
                         <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Textual Differences Compare */}
-                            <div style={{ background: '#1c1c1f', padding: '14px', borderRadius: '8px', border: '1px solid #222225' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 900, color: '#0ea5e9', display: 'block', marginBottom: '10px' }}>مقارنة الحقول النصية ومواقعها (Textual Diff View):</span>
+                            <div style={{ background: 'var(--bg-subtle)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 900, color: 'var(--color-info)', display: 'block', marginBottom: '10px' }}>مقارنة الحقول النصية ومواقعها (Textual Diff View):</span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     {(compareTarget?.fields ?? []).map(oldF => {
                                         const curF = fields.find(x => x.fieldId === oldF.fieldId);
@@ -2489,7 +2487,7 @@ export default function TemplateMapper() {
 
                                         if (!curF) {
                                             return (
-                                                <div key={oldF._uid} style={{ fontSize: '11px', color: '#ef4444', background: 'rgba(239,68,68,0.06)', padding: '6px', borderRadius: '4px' }}>
+                                                <div key={oldF._uid} style={{ fontSize: '11px', color: 'var(--color-danger)', background: 'var(--color-danger-bg)', padding: '6px', borderRadius: '4px', border: '1px solid var(--color-danger-border)' }}>
                                                     ❌ حقل مفقود في النسخة الحالية: {oldMeta?.label || oldF.fieldId} (الموضع التاريخي X: {oldF.x}%, Y: {oldF.y}%)
                                                 </div>
                                             );
@@ -2500,7 +2498,7 @@ export default function TemplateMapper() {
 
                                         if (textChanged || posChanged) {
                                             return (
-                                                <div key={oldF._uid} style={{ fontSize: '11px', color: '#f59e0b', background: 'rgba(245,158,11,0.06)', padding: '6px', borderRadius: '4px' }}>
+                                                <div key={oldF._uid} style={{ fontSize: '11px', color: 'var(--color-warning)', background: 'var(--color-warning-bg)', padding: '6px', borderRadius: '4px', border: '1px solid var(--color-warning-border)' }}>
                                                     ⚠️ حقل معدل: {oldMeta?.label || oldF.fieldId}
                                                     {textChanged && <div style={{ textIndent: '16px', marginTop: '2px' }}>- النص: "{oldF.textContent || 'فارغ'}" ← "{curF.textContent || 'فارغ'}"</div>}
                                                     {posChanged && <div style={{ textIndent: '16px', marginTop: '2px' }}>- الإحداثيات: X: {oldF.x}%, Y: {oldF.y}% ← X: {curF.x}%, Y: {curF.y}%</div>}
@@ -2509,7 +2507,7 @@ export default function TemplateMapper() {
                                         }
 
                                         return (
-                                            <div key={oldF._uid} style={{ fontSize: '11px', color: '#10b981', background: 'rgba(16,185,129,0.06)', padding: '6px', borderRadius: '4px' }}>
+                                            <div key={oldF._uid} style={{ fontSize: '11px', color: 'var(--color-success)', background: 'var(--color-success-bg)', padding: '6px', borderRadius: '4px', border: '1px solid var(--color-success-border)' }}>
                                                 ✓ حقل متطابق تماماً: {oldMeta?.label || oldF.fieldId}
                                             </div>
                                         );
@@ -2529,11 +2527,11 @@ export default function TemplateMapper() {
                         bottom: '24px',
                         left: '24px',
                         width: '320px',
-                        background: 'rgba(20, 20, 22, 0.9)',
+                        background: 'var(--bg-surface)',
                         backdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        border: '1px solid var(--border-default)',
                         borderRadius: '12px',
-                        boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+                        boxShadow: 'var(--shadow-floating)',
                         padding: '14px',
                         zIndex: 9999,
                         display: 'flex',
@@ -2541,32 +2539,32 @@ export default function TemplateMapper() {
                         gap: '10px'
                     }}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>📥 طابور النشر والتصدير الخلفي ({(queueTasks ?? []).filter(t => t.status === 'running' || t.status === 'pending').length})</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-default)', paddingBottom: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 900, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>📥 طابور النشر والتصدير الخلفي ({(queueTasks ?? []).filter(t => t.status === 'running' || t.status === 'pending').length})</span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
                         {(queueTasks ?? []).map(task => (
-                            <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#1c1c1f', padding: '8px', borderRadius: '6px' }}>
+                            <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-subtle)', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-default)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '10px', fontWeight: 800, color: '#f3f4f6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{task.label}</span>
+                                    <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{task.label}</span>
 
                                     <div style={{ display: 'flex', gap: '4px' }}>
                                         {task.status === 'running' && (
-                                            <button onClick={() => backgroundQueue.cancel(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title="إلغاء"><Ban size={10} /></button>
+                                            <button onClick={() => backgroundQueue.cancel(task.id)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }} title="إلغاء"><Ban size={10} /></button>
                                         )}
                                         {(task.status === 'failed' || task.status === 'cancelled') && (
-                                            <button onClick={() => backgroundQueue.retry(task.id)} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }} title="إعادة تشغيل"><RefreshCcw size={10} /></button>
+                                            <button onClick={() => backgroundQueue.retry(task.id)} style={{ background: 'none', border: 'none', color: 'var(--color-success)', cursor: 'pointer' }} title="إعادة تشغيل"><RefreshCcw size={10} /></button>
                                         )}
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <div style={{ flex: 1, height: '4px', background: '#27272a', borderRadius: '2px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${task.progress}%`, height: '100%', background: task.status === 'failed' ? '#ef4444' : (task.status === 'completed' ? '#10b981' : '#0ea5e9'), transition: 'width 0.1s' }} />
+                                    <div style={{ flex: 1, height: '4px', background: 'var(--bg-muted)', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${task.progress}%`, height: '100%', background: task.status === 'failed' ? 'var(--color-danger)' : (task.status === 'completed' ? 'var(--color-success)' : 'var(--color-info)'), transition: 'width 0.1s' }} />
                                     </div>
-                                    <span style={{ fontSize: '8px', fontWeight: 800, color: '#a1a1aa' }}>{task.progress}%</span>
+                                    <span style={{ fontSize: '8px', fontWeight: 800, color: 'var(--text-secondary)' }}>{task.progress}%</span>
                                 </div>
-                                {task.error && <span style={{ fontSize: '8px', color: '#ef4444', textIndent: '4px' }}>خطأ: {task.error}</span>}
+                                {task.error && <span style={{ fontSize: '8px', color: 'var(--color-danger)', textIndent: '4px' }}>خطأ: {task.error}</span>}
                             </div>
                         ))}
                     </div>

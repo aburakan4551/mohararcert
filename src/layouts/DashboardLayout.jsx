@@ -13,6 +13,7 @@ import {
 import FloatingSidebar from '../ui/navigation/FloatingSidebar';
 import { Avatar } from '../ui/components/Avatar';
 import { logger } from '../utils/debug';
+import { useTheme } from '../context/ThemeContext';
 
 const PAGE_TITLES = {
     '/dashboard':       { title: 'لوحة التحكم',            subtitle: 'نظرة عامة على المعاملات والإحصائيات' },
@@ -43,10 +44,7 @@ export default function DashboardLayout({
     const [isCollapsed,    setIsCollapsed]    = useState(() =>
         localStorage.getItem('mohararcert_sidebar_collapsed') === 'true'
     );
-    const [isDarkMode, setIsDarkMode] = useState(() =>
-        localStorage.getItem('theme') === 'dark' ||
-        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    );
+    const { isDarkMode, toggleDarkMode } = useTheme();
 
     const location  = useLocation();
     const isEditor  = location.pathname === '/create' || location.pathname === '/settings';
@@ -55,17 +53,6 @@ export default function DashboardLayout({
                       (location.pathname.startsWith('/approvals/')
                           ? { title: 'تفاصيل واعتماد المعاملة', subtitle: 'مراجعة واتخاذ قرار الاعتماد' }
                           : { title: 'إدارة التميز المؤسسي', subtitle: '' });
-
-    /* ── Dark Mode ── */
-    useEffect(() => {
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    }, [isDarkMode]);
 
     const toggleCollapse = () => {
         const next = !isCollapsed;
@@ -217,7 +204,7 @@ export default function DashboardLayout({
                         {/* Dark Mode Toggle */}
                         <TopbarIconBtn
                             onClick={() => {
-                                setIsDarkMode(d => !d);
+                                toggleDarkMode();
                                 logger.system('تبديل ثيم الواجهة.');
                             }}
                             title={isDarkMode ? 'الوضع المضيء' : 'الوضع المظلم'}

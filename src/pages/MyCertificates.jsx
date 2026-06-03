@@ -168,7 +168,7 @@ export default function MyCertificates() {
                                             {c.comments && (c.status === 'RETURNED_FOR_EDIT' || c.status === 'REJECTED') && (
                                                 <div style={{
                                                     marginTop: '6px', padding: '8px 12px',
-                                                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)',
+                                                    background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)',
                                                     borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'flex-start', gap: '8px',
                                                 }}>
                                                     <MessageCircle size={13} style={{ color: 'var(--color-danger)', marginTop: '2px', flexShrink: 0 }} />
@@ -196,11 +196,11 @@ export default function MyCertificates() {
                                                     onClick={() => handleDelete(c.id)}
                                                     style={{
                                                         width: 32, height: 32, borderRadius: '8px', border: 'none',
-                                                        background: 'rgba(239,68,68,0.08)', color: 'var(--color-danger)',
+                                                        background: 'var(--color-danger-bg)', color: 'var(--color-danger)',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s'
                                                     }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.15)'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-danger-border)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-danger-bg)'}
                                                     title="حذف المسودة"
                                                 >
                                                     <Trash2 size={14} />

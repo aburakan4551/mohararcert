@@ -219,9 +219,9 @@ export default function SystemSettings() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '700px' }}>
                                         <InfoBanner>
                                             هذه النصوص تُستخدم تلقائياً في جميع القوالب عبر الحقول:
-                                            <code style={{ margin: '0 4px', background: 'rgba(0,0,0,0.06)', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>{'{{certificate_header_text}}'}</code>
+                                            <code style={{ margin: '0 4px', background: 'var(--bg-muted)', color: 'var(--text-primary)', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>{'{{certificate_header_text}}'}</code>
                                             و
-                                            <code style={{ margin: '0 4px', background: 'rgba(0,0,0,0.06)', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>{'{{certificate_closing_text}}'}</code>
+                                            <code style={{ margin: '0 4px', background: 'var(--bg-muted)', color: 'var(--text-primary)', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>{'{{certificate_closing_text}}'}</code>
                                         </InfoBanner>
 
                                         <FormField
@@ -257,8 +257,8 @@ export default function SystemSettings() {
                                         {/* Live Preview */}
                                         <div style={{ padding: '16px', background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', direction: 'rtl' }}>
                                             <p style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '10px' }}>معاينة النص الرسمي</p>
-                                            <p style={{ fontFamily: 'Amiri, serif', fontSize: '18px', color: '#333', lineHeight: 2, textAlign: 'center', margin: '0 0 8px' }}>{formData.certificate_header_text}</p>
-                                            <p style={{ fontFamily: 'Amiri, serif', fontSize: '15px', color: '#666', lineHeight: 2, textAlign: 'center', margin: 0 }}>{formData.certificate_closing_text}</p>
+                                            <p style={{ fontFamily: 'Amiri, serif', fontSize: '18px', color: 'var(--text-primary)', lineHeight: 2, textAlign: 'center', margin: '0 0 8px' }}>{formData.certificate_header_text}</p>
+                                            <p style={{ fontFamily: 'Amiri, serif', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 2, textAlign: 'center', margin: 0 }}>{formData.certificate_closing_text}</p>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -495,7 +495,7 @@ export default function SystemSettings() {
                                                     type="button"
                                                     variant="outline"
                                                     onClick={() => handleTitleRemove(idx)}
-                                                    style={{ color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', padding: '0 10px', flexShrink: 0 }}
+                                                    style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger-border)', padding: '0 10px', flexShrink: 0 }}
                                                 >
                                                     <Trash2 size={14} />
                                                 </Button>
@@ -563,7 +563,7 @@ export default function SystemSettings() {
             </AnimatePresence>
 
             {/* ── Sticky Save Footer ── */}
-            <div style={{ position: 'sticky', bottom: '16px', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-floating)', zIndex: 10 }}>
+            <div style={{ position: 'sticky', bottom: '16px', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-floating)', zIndex: 10 }}>
                 <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 500 }}>
                     ✓ التغييرات تؤثر فوراً على جميع القوالب والشهادات الجديدة
                 </p>
@@ -602,7 +602,7 @@ const FieldKey = ({ field }) => (
 );
 
 const InfoBanner = ({ children }) => (
-    <div style={{ padding: '10px 14px', background: 'rgba(14, 165, 233, 0.06)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+    <div style={{ padding: '10px 14px', background: 'var(--color-info-bg)', border: '1px solid var(--color-info-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
         {children}
     </div>
 );

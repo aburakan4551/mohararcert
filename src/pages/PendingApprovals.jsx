@@ -179,8 +179,8 @@ export default function PendingApprovals() {
             <div style={{
                 width: 56, height: 56,
                 borderRadius: 'var(--radius-xl)',
-                background: 'rgba(15,169,88,0.08)',
-                border: '1.5px solid rgba(15,169,88,0.15)',
+                background: 'var(--color-success-bg)',
+                border: '1.5px solid var(--color-success-border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 16px',
             }}>
@@ -219,15 +219,15 @@ export default function PendingApprovals() {
                         label: 'إجمالي المعلقة',
                         value: pendingCerts.length,
                         color: 'var(--color-warning)',
-                        bg: 'rgba(245,158,11,0.08)',
-                        border: 'rgba(245,158,11,0.15)',
+                        bg: 'var(--color-warning-bg)',
+                        border: 'var(--color-warning-border)',
                     },
                     {
                         label: 'المحددة للاعتماد',
                         value: selectedIds.length,
                         color: 'var(--color-primary-600)',
-                        bg: 'rgba(15,169,88,0.08)',
-                        border: 'rgba(15,169,88,0.15)',
+                        bg: 'var(--color-success-bg)',
+                        border: 'var(--color-success-border)',
                     },
                     {
                         label: 'مستوى الأولوية',
@@ -267,15 +267,15 @@ export default function PendingApprovals() {
                             alignItems: 'center',
                             gap: '12px',
                             padding: '12px 16px',
-                            background: 'rgba(15,169,88,0.06)',
-                            border: '1.5px solid rgba(15,169,88,0.18)',
+                            background: 'var(--color-success-bg)',
+                            border: '1.5px solid var(--color-success-border)',
                             borderRadius: 'var(--radius-lg)',
                             flexWrap: 'wrap',
                         }}
                     >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                             <CheckCircle size={15} style={{ color: 'var(--color-primary-600)', flexShrink: 0 }} />
-                            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--color-primary-700)' }}>
+                            <span style={{ fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--color-primary-600)' }}>
                                 تم تحديد {selectedIds.length} معاملة
                             </span>
                         </div>
@@ -302,7 +302,7 @@ export default function PendingApprovals() {
                                     width: '240px',
                                     fontFamily: 'var(--font-sans)',
                                 }}
-                                onFocus={e => { e.target.style.borderColor = '#0FA958'; e.target.style.boxShadow = '0 0 0 3px rgba(15,169,88,0.10)'; }}
+                                onFocus={e => { e.target.style.borderColor = 'var(--color-primary-500)'; e.target.style.boxShadow = '0 0 0 3px var(--border-focus-ring)'; }}
                                 onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = 'none'; }}
                             />
                         </div>
@@ -333,16 +333,16 @@ export default function PendingApprovals() {
                         <div style={{
                             width: 6, height: 6, borderRadius: '50%',
                             background: pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--color-success)',
-                            boxShadow: pendingCerts.length > 0 ? '0 0 0 3px rgba(245,158,11,0.2)' : 'none',
+                            boxShadow: pendingCerts.length > 0 ? '0 0 0 3px var(--color-warning-border)' : 'none',
                         }} />
                         <h3 style={{ fontSize: 'var(--text-body-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
                             طابور الاعتماد
                         </h3>
                         <span style={{
                             fontSize: 'var(--text-micro)', fontWeight: 700,
-                            background: pendingCerts.length > 0 ? 'rgba(245,158,11,0.10)' : 'var(--bg-muted)',
-                            color: pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--text-muted)',
-                            border: `1px solid ${pendingCerts.length > 0 ? 'rgba(245,158,11,0.20)' : 'var(--border-default)'}`,
+                            background: pendingCerts.length > 0 ? 'var(--color-warning-bg)' : 'var(--bg-muted)',
+                            color: pendingCerts.length > 0 ? 'var(--color-warning)' : 'var(--text-secondary)',
+                            border: `1px solid ${pendingCerts.length > 0 ? 'var(--color-warning-border)' : 'var(--border-default)'}`,
                             padding: '2px 8px', borderRadius: '999px',
                         }}>
                             {pendingCerts.length} معاملة
