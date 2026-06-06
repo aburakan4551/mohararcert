@@ -22,47 +22,47 @@ import { Button } from '../ui/components/Button';
 import PageHeader from '../ui/layouts/PageHeader';
 
 const TABS = [
-    { id: 'texts',       label: 'النصوص الرسمية',        icon: FileText  },
-    { id: 'signatories', label: 'المعتمدون والتواقيع',   icon: User      },
-    { id: 'stamp',       label: 'الختم الرسمي',          icon: Stamp     },
-    { id: 'prefixes',    label: 'الألقاب الرسمية',       icon: Type      },
-    { id: 'colors',      label: 'الألوان',               icon: Palette   },
+    { id: 'texts', label: 'النصوص الرسمية', icon: FileText },
+    { id: 'signatories', label: 'المعتمدون والتواقيع', icon: User },
+    { id: 'stamp', label: 'الختم الرسمي', icon: Stamp },
+    { id: 'prefixes', label: 'الألقاب الرسمية', icon: Type },
+    { id: 'colors', label: 'الألوان', icon: Palette },
 ];
 
 export default function SystemSettings() {
     const { settings, refreshSettings, user } = useAuth();
 
-    const [activeTab, setActiveTab]   = useState('texts');
-    const [saving,    setSaving]      = useState(false);
-    const [saved,     setSaved]       = useState(false);
-    const [showSig,   setShowSig]     = useState({ gm: false, ap: false, os: false });
+    const [activeTab, setActiveTab] = useState('texts');
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [showSig, setShowSig] = useState({ gm: false, ap: false, os: false });
 
     const [formData, setFormData] = useState({
         // ── Organization ────────────────────────────────────────────────
-        orgName:    settings?.orgName    || 'وزارة الصحة',
+        orgName: settings?.orgName || 'وزارة الصحة',
         orgSubName: settings?.orgSubName || 'فرع الوزارة بالحدود الشمالية',
-        orgLogo:    settings?.orgLogo    || '',
+        orgLogo: settings?.orgLogo || '',
 
         // ── Official Certificate Texts ───────────────────────────────────
-        certificate_header_text:  settings?.certificate_header_text  || 'يتقدم فرع وزارة الصحة بمنطقة الحدود الشمالية بخالص الشكر والتقدير',
+        certificate_header_text: settings?.certificate_header_text || 'يتقدم فرع وزارة الصحة بمنطقة الحدود الشمالية بخالص الشكر والتقدير',
         certificate_closing_text: settings?.certificate_closing_text || 'متمنين له/ـها دوام التوفيق والنجاح',
 
         // ── General Manager ─────────────────────────────────────────────
-        general_manager_name:      settings?.general_manager_name      || settings?.directorName  || '',
-        general_manager_title:     settings?.general_manager_title     || settings?.directorTitle || '',
+        general_manager_name: settings?.general_manager_name || settings?.directorName || '',
+        general_manager_title: settings?.general_manager_title || settings?.directorTitle || '',
         general_manager_signature: settings?.general_manager_signature || settings?.directorSignature || '',
 
         // ── Assistant Planning Director ─────────────────────────────────
-        assistant_planning_name:      settings?.assistant_planning_name      || settings?.visaName  || '',
-        assistant_planning_title:     settings?.assistant_planning_title     || settings?.visaLabel || '',
+        assistant_planning_name: settings?.assistant_planning_name || settings?.visaName || '',
+        assistant_planning_title: settings?.assistant_planning_title || settings?.visaLabel || '',
         assistant_planning_signature: settings?.assistant_planning_signature || settings?.visaSignature || '',
-        assistant_planning_enabled:   settings?.assistant_planning_enabled ?? true,
+        assistant_planning_enabled: settings?.assistant_planning_enabled ?? true,
 
         // ── Official Seal ───────────────────────────────────────────────
-        official_seal:    settings?.official_seal || settings?.stamp || '',
-        stampSize:        settings?.stampSize     || 120,
-        stampOpacity:     settings?.stampOpacity  || 0.85,
-        stampRotation:    settings?.stampRotation || -8,
+        official_seal: settings?.official_seal || settings?.stamp || '',
+        stampSize: settings?.stampSize || 120,
+        stampOpacity: settings?.stampOpacity || 0.85,
+        stampRotation: settings?.stampRotation || -8,
 
         // ── Official Signature (general purpose) ────────────────────────
         official_signature: settings?.official_signature || '',
@@ -75,13 +75,13 @@ export default function SystemSettings() {
 
         // ── Colors ──────────────────────────────────────────────────────
         primaryColor: settings?.primaryColor || '#0FA958',
-        goldColor:    settings?.goldColor    || '#D4A017',
+        goldColor: settings?.goldColor || '#D4A017',
     });
 
     const set = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
 
     // ── Prefix handlers ──────────────────────────────────────────────────
-    const handleTitleAdd    = () => set('official_titles', [...formData.official_titles, '']);
+    const handleTitleAdd = () => set('official_titles', [...formData.official_titles, '']);
     const handleTitleChange = (idx, val) => {
         const arr = [...formData.official_titles];
         arr[idx] = val;
@@ -110,14 +110,14 @@ export default function SystemSettings() {
             const payload = {
                 ...formData,
                 // legacy aliases
-                directorName:      formData.general_manager_name,
-                directorTitle:     formData.general_manager_title,
+                directorName: formData.general_manager_name,
+                directorTitle: formData.general_manager_title,
                 directorSignature: formData.general_manager_signature,
-                visaName:          formData.assistant_planning_name,
-                visaLabel:         formData.assistant_planning_title,
-                visaSignature:     formData.assistant_planning_signature,
-                stamp:             formData.official_seal,
-                prefixes:          formData.official_titles,
+                visaName: formData.assistant_planning_name,
+                visaLabel: formData.assistant_planning_title,
+                visaSignature: formData.assistant_planning_signature,
+                stamp: formData.official_seal,
+                prefixes: formData.official_titles,
             };
             await settingService.update(payload);
             await auditService.log('UPDATE_SETTINGS', user, 'تحديث إعدادات الهوية المؤسسية الشاملة');
@@ -166,8 +166,8 @@ export default function SystemSettings() {
                                 transition: 'all 0.15s', fontFamily: 'var(--font-sans)',
                                 boxShadow: isActive ? 'var(--shadow-card)' : 'none',
                             }}
-                            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-primary)'; }}}
-                            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}}
+                            onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+                            onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)'; } }}
                         >
                             <Icon size={14} />
                             <span>{tab.label}</span>
@@ -201,7 +201,7 @@ export default function SystemSettings() {
                                             <input type="text" value={formData.orgName} onChange={e => set('orgName', e.target.value)} placeholder="وزارة الصحة" className="form-input" />
                                         </FormField>
                                         <FormField label="الإدارة أو الفرع">
-                                            <input type="text" value={formData.orgSubName} onChange={e => set('orgSubName', e.target.value)} placeholder="فرع منطقة الحدود الشمالية" className="form-input" />
+                                            <input type="text" value={formData.orgSubName} onChange={e => set('orgSubName', e.target.value)} placeholder="فرع وزارة الصحة بمنطقة الحدود الشمالية" className="form-input" />
                                         </FormField>
                                         <FormField label="شعار الجهة الرسمي" hint="PNG أو SVG بخلفية شفافة">
                                             <SignatureUploader value={formData.orgLogo} onChange={v => set('orgLogo', v)} hint="يُستخدم في رأس الشهادات الرسمية" />
@@ -316,7 +316,7 @@ export default function SystemSettings() {
                             <Card>
                                 <CardHeader>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <SectionTitle icon={User} title="مساعد المدير العام للتخطيط والتحول" color="var(--color-accent-500)" />
+                                        <SectionTitle icon={User} title="مساعد المدير العام للتخطيط" color="var(--color-accent-500)" />
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <FieldKey field="assistant_planning_name / assistant_planning_title / assistant_planning_signature" />
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 700 }}>
@@ -339,7 +339,7 @@ export default function SystemSettings() {
                                                     type="text"
                                                     value={formData.assistant_planning_name}
                                                     onChange={e => set('assistant_planning_name', e.target.value)}
-                                                    placeholder="أ. أحمد بن محمد السويلم"
+                                                    placeholder="د. أحمد بن مريح العنزي"
                                                     className="form-input"
                                                 />
                                             </FormField>
@@ -348,7 +348,7 @@ export default function SystemSettings() {
                                                     type="text"
                                                     value={formData.assistant_planning_title}
                                                     onChange={e => set('assistant_planning_title', e.target.value)}
-                                                    placeholder="مساعد المدير العام للتخطيط والتحول"
+                                                    placeholder="مساعد المدير العام للتخطيط"
                                                     className="form-input"
                                                 />
                                             </FormField>
@@ -523,8 +523,8 @@ export default function SystemSettings() {
                             <CardContent>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '480px' }}>
                                     {[
-                                        { key: 'primaryColor', label: 'اللون الأساسي',  hint: 'يُستخدم في إطارات الشهادة وألوانها الرئيسية' },
-                                        { key: 'goldColor',    label: 'اللون الذهبي',   hint: 'يُستخدم في الزخارف والفواصل الرسمية'         },
+                                        { key: 'primaryColor', label: 'اللون الأساسي', hint: 'يُستخدم في إطارات الشهادة وألوانها الرئيسية' },
+                                        { key: 'goldColor', label: 'اللون الذهبي', hint: 'يُستخدم في الزخارف والفواصل الرسمية' },
                                     ].map(({ key, label, hint }) => (
                                         <FormField key={key} label={label} hint={hint}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
