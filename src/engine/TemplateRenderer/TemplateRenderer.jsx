@@ -11,7 +11,7 @@
 
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getFieldMeta, resolveFieldValue } from '../FieldEngine/FieldEngine';
+import { getFieldMeta, resolveFieldValue, resolveDynamicField } from '../FieldEngine/FieldEngine';
 import { useAuth } from '../../context/AuthContext';
 
 /* A4 Paper Dimensions at 96dpi */
@@ -177,8 +177,16 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
 
             {/* Dynamic Form Fields Overlay */}
             {(dataContext?.formFields || []).map((field) => {
-                const valuesSource = dataContext?.formValues || dataContext || {};
-                const value = valuesSource[field.name] ?? '';
+                const isDynamic = ['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(field.dynamicType || field.name);
+                
+                let value = '';
+                if (isDynamic) {
+                    value = resolveDynamicField(field.dynamicType || field.name, dataContext, settings);
+                } else {
+                    const valuesSource = dataContext?.formValues || dataContext || {};
+                    value = valuesSource[field.name] ?? '';
+                }
+
                 if (!value) return null;
 
                 const baseW = isPortrait ? 793.7 : 1122.5;
@@ -188,6 +196,27 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                 const pctY = (field.y / baseH) * 100;
                 const pctW = (field.width / baseW) * 100;
                 const pctH = (field.height / baseH) * 100;
+
+                const isImageField = field.type === 'signature' || field.type === 'stamp' || field.type === 'image';
+
+                if (isImageField) {
+                    return (
+                        <img
+                            key={field.id}
+                            src={value}
+                            alt={field.label}
+                            style={{
+                                position: 'absolute',
+                                left: `${pctX}%`,
+                                top: `${pctY}%`,
+                                width: `${pctW}%`,
+                                height: `${pctH}%`,
+                                objectFit: 'contain',
+                                zIndex: 30
+                            }}
+                        />
+                    );
+                }
 
                 // Font size scaling (base 14px, or if field height is taller we can scale slightly)
                 const fontSize = 14 * scale;

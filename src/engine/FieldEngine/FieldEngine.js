@@ -93,6 +93,19 @@ export const getFieldMeta = (fieldId) => {
  * @returns {string|null}     - Resolved display value
  */
 export const resolveFieldValue = (field, meta, dataContext = {}, settings = {}) => {
+    // 0. Check certificateSnapshot first for template fields (backward compatibility with GM/Assistant changes)
+    const snap = dataContext?.certificateSnapshot || {};
+    if (snap && Object.keys(snap).length > 0) {
+        if ((field.fieldId === 'general_manager_name' || field.fieldId === 'manager_name') && snap.approver_name) return snap.approver_name;
+        if (field.fieldId === 'general_manager_title' && snap.approver_title) return snap.approver_title;
+        if ((field.fieldId === 'general_manager_signature' || field.fieldId === 'manager_signature') && snap.signature_1) return snap.signature_1;
+        if ((field.fieldId === 'assistant_planning_name' || field.fieldId === 'assistant_name') && snap.signer_name) return snap.signer_name;
+        if (field.fieldId === 'assistant_planning_title' && snap.signer_title) return snap.signer_title;
+        if ((field.fieldId === 'assistant_planning_signature' || field.fieldId === 'assistant_signature') && snap.signature_2) return snap.signature_2;
+        if ((field.fieldId === 'official_stamp' || field.fieldId === 'official_seal') && snap.official_stamp) return snap.official_stamp;
+        if (field.fieldId === 'official_signature' && snap.signature_3) return snap.signature_3;
+    }
+
     // 1. Runtime data has highest priority (recipient name, reason, date, serial, qr_code)
     const runtimeValue = dataContext?.[field.fieldId];
     if (runtimeValue !== undefined && runtimeValue !== null && runtimeValue !== '') {
@@ -206,4 +219,71 @@ export const extractPrefixAndName = (inputName, selectedPrefix = '', officialTit
         rawName: name
     };
 };
+
+/**
+ * resolveDynamicField — Resolves standard and dynamic fields from settings or snapshots.
+ *
+ * @param {string} dynamicType - The type/key of the dynamic variable
+ * @param {object} dataContext - Certificate context containing snapshots
+ * @param {object} settings    - Live system settings
+ * @returns {string}           - Resolved string value or image base64
+ */
+export const resolveDynamicField = (dynamicType, dataContext = {}, settings = {}) => {
+    // 1. Read from certificateSnapshot first
+    const snap = dataContext?.certificateSnapshot || {};
+    if (snap && snap[dynamicType] !== undefined && snap[dynamicType] !== null && snap[dynamicType] !== '') {
+        return snap[dynamicType];
+    }
+
+    // 2. Read from legacy managerSnapshot/assistantSnapshot
+    const assistant = dataContext?.assistantSnapshot || {};
+    const manager = dataContext?.managerSnapshot || {};
+
+    if (dynamicType === 'signer_name') {
+        return assistant.visaName || settings.assistant_planning_name || settings.visaName || '';
+    }
+    if (dynamicType === 'signer_title') {
+        return assistant.visaLabel || settings.assistant_planning_title || settings.visaLabel || 'مساعد المدير العام للتخطيط';
+    }
+    if (dynamicType === 'approver_name') {
+        return manager.directorName || settings.general_manager_name || settings.directorName || '';
+    }
+    if (dynamicType === 'approver_title') {
+        return manager.directorTitle || settings.general_manager_title || settings.directorTitle || 'مدير عام فرع وزارة الصحة بالحدود الشمالية';
+    }
+    if (dynamicType === 'signature_1') {
+        return manager.directorSignature || settings.general_manager_signature || settings.directorSignature || '';
+    }
+    if (dynamicType === 'signature_2') {
+        return assistant.visaSignature || settings.assistant_planning_signature || settings.visaSignature || '';
+    }
+    if (dynamicType === 'signature_3') {
+        return settings.official_signature || '';
+    }
+    if (dynamicType === 'official_stamp') {
+        return manager.stamp || settings.official_seal || settings.stamp || '';
+    }
+
+    return '';
+};
+
+/**
+ * buildCertificateSnapshot — Captures a minimal snapshot of dynamic variables active at generation time.
+ *
+ * @param {object} settings - The live settings object from AuthContext
+ * @returns {object}        - Captured certificateSnapshot object
+ */
+export const buildCertificateSnapshot = (settings = {}) => {
+    return {
+        signer_name: settings.assistant_planning_name || settings.visaName || '',
+        signer_title: settings.assistant_planning_title || settings.visaLabel || '',
+        approver_name: settings.general_manager_name || settings.directorName || '',
+        approver_title: settings.general_manager_title || settings.directorTitle || '',
+        signature_1: settings.general_manager_signature || settings.directorSignature || '',
+        signature_2: settings.assistant_planning_signature || settings.visaSignature || '',
+        signature_3: settings.official_signature || '',
+        official_stamp: settings.official_seal || settings.stamp || ''
+    };
+};
+
 

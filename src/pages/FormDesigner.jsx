@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formService, templateService } from '../services/db';
+import { resolveDynamicField } from '../engine/FieldEngine/FieldEngine';
 import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
 import PageHeader from '../ui/layouts/PageHeader';
@@ -44,7 +45,7 @@ const MAPPING_OPTIONS = [
 export default function FormDesigner() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, settings } = useAuth();
 
     const [form, setForm] = useState(null);
     const [template, setTemplate] = useState(null);
@@ -231,6 +232,92 @@ export default function FormDesigner() {
         setFields(prev => [...prev, newField]);
         setSelectedFieldIds([newField.id]);
         setHasUnsavedChanges(true);
+    };
+
+    const handleAddDynamicField = (type, label, fieldType, defaultWidth, defaultHeight) => {
+        if (isImmutable) return;
+
+        const newField = {
+            id: `fld-${Date.now()}`,
+            name: type,
+            label: label,
+            type: fieldType,
+            dynamicType: type,
+            x: Math.round(baseW / 2 - defaultWidth / 2),
+            y: Math.round(baseH / 2 - defaultHeight / 2),
+            width: defaultWidth,
+            height: defaultHeight,
+            baseWidth: baseW,
+            baseHeight: baseH,
+            required: false,
+            options: [],
+            certificateMapping: ''
+        };
+        setFields(prev => [...prev, newField]);
+        setSelectedFieldIds([newField.id]);
+        setHasUnsavedChanges(true);
+    };
+
+    const handleCanvasDrop = (e) => {
+        if (isImmutable) return;
+        e.preventDefault();
+        try {
+            const dataStr = e.dataTransfer.getData('application/json');
+            if (!dataStr) return;
+            const dragData = JSON.parse(dataStr);
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            const dropX = (e.clientX - rect.left) / scale;
+            const dropY = (e.clientY - rect.top) / scale;
+            
+            if (dragData.isDynamic) {
+                const w = dragData.w || 150;
+                const h = dragData.h || 40;
+                const newField = {
+                    id: `fld-${Date.now()}`,
+                    name: dragData.type,
+                    label: dragData.label,
+                    type: dragData.fieldType,
+                    dynamicType: dragData.type,
+                    x: Math.round(Math.max(0, Math.min(baseW - w, dropX - w / 2))),
+                    y: Math.round(Math.max(0, Math.min(baseH - h, dropY - h / 2))),
+                    width: w,
+                    height: h,
+                    baseWidth: baseW,
+                    baseHeight: baseH,
+                    required: false,
+                    options: [],
+                    certificateMapping: ''
+                };
+                setFields(prev => [...prev, newField]);
+                setSelectedFieldIds([newField.id]);
+                setHasUnsavedChanges(true);
+            } else {
+                const w = 200;
+                const h = 42;
+                const typeLabels = { text: 'حقل نصي', textarea: 'حقل نصي طويل', select: 'قائمة خيارات', date: 'تاريخ', number: 'رقم' };
+                const newField = {
+                    id: `fld-${Date.now()}`,
+                    name: `field_${fields.length + 1}`,
+                    label: typeLabels[dragData.type] || 'حقل جديد',
+                    type: dragData.type,
+                    x: Math.round(Math.max(0, Math.min(baseW - w, dropX - w / 2))),
+                    y: Math.round(Math.max(0, Math.min(baseH - h, dropY - h / 2))),
+                    width: w,
+                    height: h,
+                    baseWidth: baseW,
+                    baseHeight: baseH,
+                    required: false,
+                    options: dragData.type === 'select' ? ['خيار ١', 'خيار ٢'] : [],
+                    certificateMapping: ''
+                };
+                setFields(prev => [...prev, newField]);
+                setSelectedFieldIds([newField.id]);
+                setHasUnsavedChanges(true);
+            }
+        } catch (err) {
+            console.error('Drop error:', err);
+        }
     };
 
     // Delete fields
@@ -576,6 +663,12 @@ export default function FormDesigner() {
                         {/* Canvas Frame */}
                         <div
                             id="form-design-canvas"
+                            onDragOver={(e) => {
+                                if (isImmutable) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'copy';
+                            }}
+                            onDrop={handleCanvasDrop}
                             style={{
                                 width: `${canvasWidth}px`,
                                 height: `${canvasHeight}px`,
@@ -622,19 +715,38 @@ export default function FormDesigner() {
                                     zIndex: 10
                                 };
 
+                                const isDynamic = ['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(field.dynamicType || field.name);
+                                const resolvedVal = isDynamic ? resolveDynamicField(field.dynamicType || field.name, {}, settings) : '';
+
                                 return (
                                     <div
                                         key={field.id}
                                         style={fieldStyle}
                                         onMouseDown={(e) => handleCanvasMouseDown(e, field, 'drag')}
                                     >
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', pointerEvents: 'none', direction: 'rtl', padding: '4px' }}>
-                                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textAlign: 'center' }}>
-                                                {field.label}
-                                            </span>
-                                            <span style={{ fontSize: '8.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                                {field.name}
-                                            </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', pointerEvents: 'none', direction: 'rtl', padding: '4px', width: '100%', height: '100%', justifyContent: 'center', overflow: 'hidden' }}>
+                                            {isDynamic ? (
+                                                (field.type === 'signature' || field.type === 'stamp' || field.type === 'image') ? (
+                                                    resolvedVal ? (
+                                                        <img src={resolvedVal} alt={field.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                                    ) : (
+                                                        <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800 }}>{field.label} (غير متوفر)</span>
+                                                    )
+                                                ) : (
+                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                                                        {resolvedVal || `[${field.label}]`}
+                                                    </span>
+                                                )
+                                            ) : (
+                                                <>
+                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textAlign: 'center' }}>
+                                                        {field.label}
+                                                    </span>
+                                                    <span style={{ fontSize: '8.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                                        {field.name}
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Resize anchor */}
@@ -681,6 +793,14 @@ export default function FormDesigner() {
                                         key={btn.type}
                                         onClick={() => handleAddField(btn.type)}
                                         disabled={isImmutable}
+                                        draggable={!isImmutable}
+                                        onDragStart={(e) => {
+                                            if (isImmutable) return;
+                                            e.dataTransfer.setData('application/json', JSON.stringify({
+                                                isDynamic: false,
+                                                type: btn.type
+                                            }));
+                                        }}
                                         style={{
                                             width: '100%', padding: '10px', borderRadius: '8px',
                                             border: '1.5px solid var(--border-default)', background: 'var(--bg-subtle)',
@@ -698,6 +818,73 @@ export default function FormDesigner() {
                             </CardContent>
                         </Card>
 
+                        {/* Dynamic Fields Toolbox */}
+                        <Card>
+                            <CardHeader>
+                                <h3 style={{ fontSize: '12px', fontWeight: 800 }}>حقول ديناميكية (Dynamic Fields)</h3>
+                            </CardHeader>
+                            <CardContent style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '12px' }}>
+                                {[
+                                    { type: 'signer_name', label: '👤 اسم مساعد المدير', fieldType: 'title', w: 180, h: 35 },
+                                    { type: 'signer_title', label: '🏷️ مسمى مساعد المدير', fieldType: 'title', w: 180, h: 35 },
+                                    { type: 'approver_name', label: '👤 اسم المدير العام', fieldType: 'title', w: 180, h: 35 },
+                                    { type: 'approver_title', label: '🏷️ مسمى المدير العام', fieldType: 'title', w: 180, h: 35 },
+                                    { type: 'signature_1', label: '✍️ توقيع المدير العام', fieldType: 'signature', w: 140, h: 70 },
+                                    { type: 'signature_2', label: '✍️ توقيع مساعد المدير', fieldType: 'signature', w: 140, h: 70 },
+                                    { type: 'signature_3', label: '✍️ التوقيع العام', fieldType: 'signature', w: 140, h: 70 },
+                                    { type: 'official_stamp', label: '🔷 الختم الرسمي', fieldType: 'stamp', w: 110, h: 110 }
+                                ].map(btn => {
+                                    const previewVal = resolveDynamicField(btn.type, {}, settings);
+                                    const isImg = btn.fieldType === 'signature' || btn.fieldType === 'stamp';
+                                    return (
+                                        <button
+                                            key={btn.type}
+                                            onClick={() => handleAddDynamicField(btn.type, btn.label.substring(3), btn.fieldType, btn.w, btn.h)}
+                                            disabled={isImmutable}
+                                            draggable={!isImmutable}
+                                            onDragStart={(e) => {
+                                                if (isImmutable) return;
+                                                e.dataTransfer.setData('application/json', JSON.stringify({
+                                                    isDynamic: true,
+                                                    type: btn.type,
+                                                    label: btn.label.substring(3),
+                                                    fieldType: btn.fieldType,
+                                                    w: btn.w,
+                                                    h: btn.h
+                                                }));
+                                            }}
+                                            style={{
+                                                padding: '8px', borderRadius: '8px',
+                                                border: '1.5px solid var(--border-default)', background: 'var(--bg-subtle)',
+                                                color: 'var(--text-primary)', fontSize: '11px', fontWeight: 800,
+                                                cursor: isImmutable ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                                                transition: 'all 0.15s', minHeight: '80px', justifyContent: 'space-between'
+                                            }}
+                                            onMouseEnter={e => { if (!isImmutable) e.currentTarget.style.borderColor = 'var(--color-primary-400)'; }}
+                                            onMouseLeave={e => { if (!isImmutable) e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+                                        >
+                                            <span style={{ textAlign: 'center', fontSize: '10px' }}>{btn.label}</span>
+                                            
+                                            {/* Visual Live Preview */}
+                                            <div style={{ width: '100%', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(255,255,255,0.4)', borderRadius: '4px', border: '1px solid var(--border-subtle)', padding: '2px' }}>
+                                                {isImg ? (
+                                                    previewVal ? (
+                                                        <img src={previewVal} alt="preview" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+                                                    ) : (
+                                                        <span style={{ fontSize: '8px', color: 'var(--text-muted)' }}>لا يوجد</span>
+                                                    )
+                                                ) : (
+                                                    <span style={{ fontSize: '9px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80px' }}>
+                                                        {previewVal || 'غير معين'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </CardContent>
+                        </Card>
+
                         {/* Selected Field Configuration form */}
                         {selectedField ? (
                             <Card>
@@ -705,72 +892,90 @@ export default function FormDesigner() {
                                     <h3 style={{ fontSize: '12px', fontWeight: 800 }}>تعديل خصائص الحقل</h3>
                                 </CardHeader>
                                 <CardContent style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px' }}>
-                                    
-                                    {/* Label */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>الاسم المعروض (Label):</label>
-                                        <input
-                                            type="text"
-                                            value={selectedField.label}
-                                            disabled={isImmutable}
-                                            onChange={e => handleFieldPropertyChange(selectedField.id, 'label', e.target.value)}
-                                            style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo' }}
-                                        />
-                                    </div>
-
-                                    {/* Key Name */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>الاسم البرمجي (Key Name):</label>
-                                        <input
-                                            type="text"
-                                            value={selectedField.name}
-                                            disabled={isImmutable}
-                                            onChange={e => handleFieldPropertyChange(selectedField.id, 'name', e.target.value)}
-                                            placeholder="e.g. employeeId"
-                                            style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}
-                                        />
-                                    </div>
-
-                                    {/* Field Mapping */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>ربط الحقل مع أعمدة الشهادة:</label>
-                                        <select
-                                            value={selectedField.certificateMapping || ''}
-                                            disabled={isImmutable}
-                                            onChange={e => handleFieldPropertyChange(selectedField.id, 'certificateMapping', e.target.value)}
-                                            style={{ padding: '6px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo', cursor: 'pointer' }}
-                                        >
-                                            {MAPPING_OPTIONS.map(opt => (
-                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Required toggle */}
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', background: 'var(--bg-muted)', borderRadius: '6px', cursor: isImmutable ? 'not-allowed' : 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!!selectedField.required}
-                                            disabled={isImmutable}
-                                            onChange={e => handleFieldPropertyChange(selectedField.id, 'required', e.target.checked)}
-                                            style={{ accentColor: 'var(--color-primary-600)' }}
-                                        />
-                                        <span style={{ fontSize: '11px', fontWeight: 800 }}>حقل إلزامي</span>
-                                    </label>
-
-                                    {/* Dropdown Options */}
-                                    {selectedField.type === 'select' && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>خيارات القائمة (مفصولة بفاصلة):</label>
-                                            <textarea
-                                                value={(selectedField.options || []).join(', ')}
-                                                disabled={isImmutable}
-                                                onChange={e => handleOptionsChange(selectedField.id, e.target.value)}
-                                                rows={3}
-                                                placeholder="خيار ١, خيار ٢, خيار ٣"
-                                                style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo', resize: 'vertical' }}
-                                            />
+                                    {['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(selectedField.dynamicType || selectedField.name) ? (
+                                        <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '12px', borderRadius: '10px', border: '1.5px dashed rgba(59, 130, 246, 0.2)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 900, color: 'var(--color-info)' }}>✨ حقل ديناميكي مركزي</span>
+                                            <p style={{ fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                                                هذا الحقل مرتبط بتوقيعات وتواقيع الهوية الرسمية المعدة مسبقاً في النظام.
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-default)', paddingTop: '8px', marginTop: '4px' }}>
+                                                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800 }}>الاسم المعروض (Label):</span>
+                                                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>{selectedField.label}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800 }}>المتغير البرمجي:</span>
+                                                <code style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--color-primary-600)', direction: 'ltr', textAlign: 'right' }}>{selectedField.name}</code>
+                                            </div>
                                         </div>
+                                    ) : (
+                                        <>
+                                            {/* Label */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>الاسم المعروض (Label):</label>
+                                                <input
+                                                    type="text"
+                                                    value={selectedField.label}
+                                                    disabled={isImmutable}
+                                                    onChange={e => handleFieldPropertyChange(selectedField.id, 'label', e.target.value)}
+                                                    style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo' }}
+                                                />
+                                            </div>
+
+                                            {/* Key Name */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>الاسم البرمجي (Key Name):</label>
+                                                <input
+                                                    type="text"
+                                                    value={selectedField.name}
+                                                    disabled={isImmutable}
+                                                    onChange={e => handleFieldPropertyChange(selectedField.id, 'name', e.target.value)}
+                                                    placeholder="e.g. employeeId"
+                                                    style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}
+                                                />
+                                            </div>
+
+                                            {/* Field Mapping */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>ربط الحقل مع أعمدة الشهادة:</label>
+                                                <select
+                                                    value={selectedField.certificateMapping || ''}
+                                                    disabled={isImmutable}
+                                                    onChange={e => handleFieldPropertyChange(selectedField.id, 'certificateMapping', e.target.value)}
+                                                    style={{ padding: '6px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo', cursor: 'pointer' }}
+                                                >
+                                                    {MAPPING_OPTIONS.map(opt => (
+                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Required toggle */}
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', background: 'var(--bg-muted)', borderRadius: '6px', cursor: isImmutable ? 'not-allowed' : 'pointer' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!selectedField.required}
+                                                    disabled={isImmutable}
+                                                    onChange={e => handleFieldPropertyChange(selectedField.id, 'required', e.target.checked)}
+                                                    style={{ accentColor: 'var(--color-primary-600)' }}
+                                                />
+                                                <span style={{ fontSize: '11px', fontWeight: 800 }}>حقل إلزامي</span>
+                                            </label>
+
+                                            {/* Dropdown Options */}
+                                            {selectedField.type === 'select' && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <label style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)' }}>خيارات القائمة (مفصولة بفاصلة):</label>
+                                                    <textarea
+                                                        value={(selectedField.options || []).join(', ')}
+                                                        disabled={isImmutable}
+                                                        onChange={e => handleOptionsChange(selectedField.id, e.target.value)}
+                                                        rows={3}
+                                                        placeholder="خيار ١, خيار ٢, خيار ٣"
+                                                        style={{ padding: '6px 10px', border: '1px solid var(--border-strong)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-page)', fontFamily: 'Cairo', resize: 'vertical' }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </>
                                     )}
 
                                     {/* Coordinate parameters */}

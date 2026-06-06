@@ -176,6 +176,141 @@ async function runTests() {
         const recoveredForm = await localProvider.forms.recover(unusedForm.id);
         assert(recoveredForm.status === 'DRAFT', "تم استعادة النموذج المحذوف بنجاح وإرجاعه لحالة مسودة (DRAFT).");
 
+        // --- 8. الفحص النهائي: محاكاة سحب حقل ديناميكي، حفظه، التحقق منه، وتأمين لقطة الشهادة ---
+        console.log("\n[7] الفحص النهائي: محاكاة سحب حقل ديناميكي، حفظه، التحقق منه، وتأمين لقطة الشهادة...");
+
+        // 1. Get current settings and set baseline
+        const baseSettings = await localProvider.settings.get();
+        await localProvider.settings.update({
+            general_manager_name: 'أ. منصور بن سالم الرشيدي',
+            general_manager_title: 'مدير عام فرع وزارة الصحة بمنطقة الحدود الشمالية',
+            general_manager_signature: 'sig_data_1',
+            assistant_planning_name: 'أ. أحمد بن محمد السويلم',
+            assistant_planning_title: 'مساعد المدير العام للتخطيط والتحول',
+            assistant_planning_signature: 'sig_data_assistant_1',
+            official_seal: 'stamp_data_1'
+        });
+
+        // 2. Create a form with a dynamic field (e.g. signer_name, official_stamp)
+        const dynamicFormPayload = {
+            id: 'form-dynamic-test-77',
+            name: 'نموذج الحقول الديناميكية المطور',
+            templateId: 'tpl-1',
+            templateName: 'شهادة شكر وتقدير الفرع',
+            orientation: 'landscape',
+            version: 1,
+            fields: [
+                {
+                    id: 'fld-dyn-1',
+                    name: 'signer_name',
+                    label: 'اسم مساعد المدير',
+                    type: 'title',
+                    dynamicType: 'signer_name',
+                    x: 150,
+                    y: 200,
+                    width: 180,
+                    height: 35,
+                    required: false,
+                    certificateMapping: ''
+                },
+                {
+                    id: 'fld-dyn-2',
+                    name: 'official_stamp',
+                    label: 'الختم الرسمي',
+                    type: 'stamp',
+                    dynamicType: 'official_stamp',
+                    x: 300,
+                    y: 400,
+                    width: 110,
+                    height: 110,
+                    required: false,
+                    certificateMapping: ''
+                }
+            ]
+        };
+
+        // 3. Save the form
+        const savedDynForm = await localProvider.forms.create(dynamicFormPayload);
+        assert(savedDynForm && savedDynForm.id === 'form-dynamic-test-77', "تم إنشاء وحفظ نموذج يحتوي على حقول ديناميكية بنجاح.");
+
+        // 4. Retrieve/Reload the form and verify the fields exist
+        const reloadedDynForm = await localProvider.forms.getById('form-dynamic-test-77');
+        assert(reloadedDynForm && reloadedDynForm.fields.length === 2, "تمت إعادة فتح النموذج بنجاح والتأكد من بقاء الحقول الديناميكية المضافة.");
+        assert(reloadedDynForm.fields[0].dynamicType === 'signer_name', "تم التحقق من ربط الحقل الأول تلقائياً بـ signer_name.");
+        assert(reloadedDynForm.fields[1].dynamicType === 'official_stamp', "تم التحقق من ربط الحقل الثاني تلقائياً بـ official_stamp.");
+
+        // 5. Create a certificate from this form (with snapshot)
+        const { buildCertificateSnapshot, resolveDynamicField } = await import('../src/engine/FieldEngine/FieldEngine.js');
+        const currentSettings = await localProvider.settings.get();
+
+        const dynCertPayload = {
+            id: 'cert-dyn-test-77',
+            recipientName: 'فيصل الشمري',
+            event: 'ورشة عمل الصحة الإلكترونية',
+            date: '2026/06/06',
+            serial: '2026-DYN-77',
+            templateId: reloadedDynForm.templateId,
+            formId: reloadedDynForm.id,
+            formFields: reloadedDynForm.fields,
+            formValues: {}, // dynamic fields don't need typed formValues
+            frozenTemplate: { id: 'tpl-1', version: 1 },
+            status: 'DRAFT',
+            createdBy: creatorUser.id,
+            creatorName: creatorUser.name,
+            // Freeze Snapshot
+            certificateSnapshot: buildCertificateSnapshot(currentSettings)
+        };
+
+        const certDyn = await localProvider.certificates.create(dynCertPayload);
+        assert(certDyn && certDyn.id === 'cert-dyn-test-77', "تم إنشاء الشهادة بنجاح وحفظ الـ certificateSnapshot.");
+
+        // 6. Verify that the correct resolved value appears in the rendering engine (resolveDynamicField)
+        const resolvedName1 = resolveDynamicField('signer_name', certDyn, currentSettings);
+        const resolvedStamp1 = resolveDynamicField('official_stamp', certDyn, currentSettings);
+        assert(resolvedName1 === 'أ. أحمد بن محمد السويلم', "تفسير اسم مساعد المدير العام بنجاح من إعدادات النظام.");
+        assert(resolvedStamp1 === 'stamp_data_1', "تفسير صورة الختم الرسمي بنجاح من إعدادات النظام.");
+
+        // 7. Modify settings
+        await localProvider.settings.update({
+            assistant_planning_name: 'أ. خالد بن عبد العزيز الرويلي',
+            official_seal: 'new_stamp_data_99'
+        });
+
+        // 8. Retrieve first certificate and verify it has not changed (uses old snapshot)
+        const retrievedCertDyn1 = await localProvider.certificates.getById('cert-dyn-test-77');
+        const updatedSettings = await localProvider.settings.get();
+
+        const resolvedName1AfterChange = resolveDynamicField('signer_name', retrievedCertDyn1, updatedSettings);
+        const resolvedStamp1AfterChange = resolveDynamicField('official_stamp', retrievedCertDyn1, updatedSettings);
+
+        assert(resolvedName1AfterChange === 'أ. أحمد بن محمد السويلم', "الشهادة التاريخية القديمة لم تتغير وتستخدم الاسم القديم من اللقطة.");
+        assert(resolvedStamp1AfterChange === 'stamp_data_1', "الشهادة التاريخية القديمة لم تتغير وتستخدم صورة الختم القديمة من اللقطة.");
+
+        // 9. Create new certificate and verify it uses the new values
+        const secondDynCertPayload = {
+            id: 'cert-dyn-test-78',
+            recipientName: 'نايف العنزي',
+            event: 'ورشة عمل الصحة الإلكترونية 2',
+            date: '2026/06/07',
+            serial: '2026-DYN-78',
+            templateId: reloadedDynForm.templateId,
+            formId: reloadedDynForm.id,
+            formFields: reloadedDynForm.fields,
+            formValues: {},
+            frozenTemplate: { id: 'tpl-1', version: 1 },
+            status: 'DRAFT',
+            createdBy: creatorUser.id,
+            creatorName: creatorUser.name,
+            certificateSnapshot: buildCertificateSnapshot(updatedSettings)
+        };
+
+        const certDyn2 = await localProvider.certificates.create(secondDynCertPayload);
+        const resolvedName2 = resolveDynamicField('signer_name', certDyn2, updatedSettings);
+        const resolvedStamp2 = resolveDynamicField('official_stamp', certDyn2, updatedSettings);
+
+        assert(resolvedName2 === 'أ. خالد بن عبد العزيز الرويلي', "الشهادة الجديدة بعد تعديل الإعدادات تستخدم الاسم الجديد للموقّع.");
+        assert(resolvedStamp2 === 'new_stamp_data_99', "الشهادة الجديدة بعد تعديل الإعدادات تستخدم الختم الجديد للمؤسسة.");
+
     } catch (e) {
         console.error("❌ حدث خطأ غير متوقع أثناء الفحص التلقائي:", e);
         failed++;

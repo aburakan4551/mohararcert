@@ -11,7 +11,7 @@ import { dbService, auditService, notificationService, templateService } from '.
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Save, Send, LayoutTemplate, QrCode, FileSpreadsheet, UserPlus, Database, ChevronLeft, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
 import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
-import { getRecipientDisplayName, extractPrefixAndName } from '../engine/FieldEngine/FieldEngine';
+import { getRecipientDisplayName, extractPrefixAndName, buildCertificateSnapshot } from '../engine/FieldEngine/FieldEngine';
 import ExcelImporter from '../components/ExcelImporter';
 import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
@@ -173,7 +173,8 @@ export default function CreateCertificate() {
                 createdBy: user.id,
                 creatorName: user.name,
                 prefix: finalPrefix,
-                rawName: finalName
+                rawName: finalName,
+                certificateSnapshot: buildCertificateSnapshot(settings)
             };
 
             let certId = editId;
@@ -231,7 +232,8 @@ export default function CreateCertificate() {
                     createdBy: user.id,
                     creatorName: user.name,
                     prefix: finalPrefix,
-                    rawName: finalName
+                    rawName: finalName,
+                    certificateSnapshot: buildCertificateSnapshot(settings)
                 };
 
                 const newCert = await dbService.create(payload);

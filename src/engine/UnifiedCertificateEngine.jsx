@@ -9,6 +9,7 @@
 import React, { forwardRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import EditorCanvas from '../components/EditorCanvas'
+import { resolveDynamicField } from './FieldEngine/FieldEngine'
 
 /* ── A4 reference dimensions at 96 dpi ── */
 const A4_LANDSCAPE_W_PX = 297 * (96 / 25.4)  // ≈ 1122.5 px
@@ -420,8 +421,16 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
 
             {/* Dynamic Form Fields Overlay */}
             {(data?.formFields || []).map((field) => {
-                const valuesSource = data?.formValues || {};
-                const value = valuesSource[field.name] ?? '';
+                const isDynamic = ['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(field.dynamicType || field.name);
+                
+                let value = '';
+                if (isDynamic) {
+                    value = resolveDynamicField(field.dynamicType || field.name, data, settings);
+                } else {
+                    const valuesSource = data?.formValues || {};
+                    value = valuesSource[field.name] ?? '';
+                }
+
                 if (!value) return null;
 
                 const isPortrait = (orientation || 'portrait') === 'portrait';
@@ -433,6 +442,27 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                 const pctY = (field.y / refH) * 100;
                 const pctW = (field.width / refW) * 100;
                 const pctH = (field.height / refH) * 100;
+
+                const isImageField = field.type === 'signature' || field.type === 'stamp' || field.type === 'image';
+
+                if (isImageField) {
+                    return (
+                        <img
+                            key={field.id}
+                            src={value}
+                            alt={field.label}
+                            style={{
+                                position: 'absolute',
+                                left: `${pctX}%`,
+                                top: `${pctY}%`,
+                                width: `${pctW}%`,
+                                height: `${pctH}%`,
+                                objectFit: 'contain',
+                                zIndex: 30
+                            }}
+                        />
+                    );
+                }
 
                 const fontSize = 14 * scale;
 

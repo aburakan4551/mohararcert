@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { formService, dbService, templateService } from '../services/db';
 import { Button } from '../ui/components/Button';
 import { logger } from '../utils/debug';
+import { buildCertificateSnapshot, resolveDynamicField } from '../engine/FieldEngine/FieldEngine';
 
 const A4_LANDSCAPE_W = 1122.5;
 const A4_LANDSCAPE_H = 793.7;
@@ -18,7 +19,7 @@ const A4_PORTRAIT_W  = 793.7;
 const A4_PORTRAIT_H  = 1122.5;
 
 export default function FormRenderer({ formId, isPreview = false, onBack }) {
-    const { user } = useAuth();
+    const { user, settings } = useAuth();
     const navigate = useNavigate();
 
     const [form, setForm] = useState(null);
@@ -146,6 +147,7 @@ export default function FormRenderer({ formId, isPreview = false, onBack }) {
                 formFields: form.fields,
                 formValues: values,
                 frozenTemplate: form.frozenTemplate || template,
+                certificateSnapshot: buildCertificateSnapshot(settings),
                 
                 status: 'DRAFT',
                 createdBy: user.id,
@@ -261,6 +263,8 @@ export default function FormRenderer({ formId, isPreview = false, onBack }) {
                         };
 
                         const val = values[field.name] || '';
+                        const isDynamic = ['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(field.dynamicType || field.name);
+                        const resolvedVal = isDynamic ? resolveDynamicField(field.dynamicType || field.name, {}, settings) : '';
 
                         return (
                             <div
@@ -273,65 +277,86 @@ export default function FormRenderer({ formId, isPreview = false, onBack }) {
                                     height: `${field.height * scale}px`,
                                     zIndex: 10
                                 }}
-                                title={`${field.label} ${field.required ? '*' : ''}`}
+                                title={field.label}
                             >
-                                {/* Render appropriate input type */}
-                                {field.type === 'textarea' ? (
-                                    <textarea
-                                        value={val}
-                                        required={field.required}
-                                        placeholder={`${field.label} ${field.required ? '*' : ''}`}
-                                        onChange={e => handleValueChange(field.name, e.target.value)}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        style={{ ...inputStyle, resize: 'none' }}
-                                    />
-                                ) : field.type === 'select' ? (
-                                    <select
-                                        value={val}
-                                        required={field.required}
-                                        onChange={e => handleValueChange(field.name, e.target.value)}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        style={inputStyle}
-                                    >
-                                        <option value="">{field.label} {field.required ? '*' : ''}</option>
-                                        {(field.options || []).map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                    </select>
-                                ) : field.type === 'date' ? (
-                                    <input
-                                        type="date"
-                                        value={val}
-                                        required={field.required}
-                                        onChange={e => handleValueChange(field.name, e.target.value)}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        style={inputStyle}
-                                    />
-                                ) : field.type === 'number' ? (
-                                    <input
-                                        type="number"
-                                        value={val}
-                                        required={field.required}
-                                        placeholder={`${field.label} ${field.required ? '*' : ''}`}
-                                        onChange={e => handleValueChange(field.name, e.target.value)}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        style={inputStyle}
-                                    />
+                                {isDynamic ? (
+                                    (field.type === 'signature' || field.type === 'stamp' || field.type === 'image') ? (
+                                        resolvedVal ? (
+                                            <img
+                                                src={resolvedVal}
+                                                alt={field.label}
+                                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                            />
+                                        ) : (
+                                            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800 }}>{field.label} (غير متوفر)</span>
+                                        )
+                                    ) : (
+                                        <div style={{
+                                            width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                                            textAlign: 'right', color: '#1e293b', fontFamily: 'Cairo, sans-serif', fontSize: `${13 * scale}px`,
+                                            fontWeight: 700, whiteSpace: 'pre-wrap', overflow: 'hidden', direction: 'rtl'
+                                        }}>
+                                            {resolvedVal || `[${field.label}]`}
+                                        </div>
+                                    )
                                 ) : (
-                                    <input
-                                        type="text"
-                                        value={val}
-                                        required={field.required}
-                                        placeholder={`${field.label} ${field.required ? '*' : ''}`}
-                                        onChange={e => handleValueChange(field.name, e.target.value)}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        style={inputStyle}
-                                    />
+                                    field.type === 'textarea' ? (
+                                        <textarea
+                                            value={val}
+                                            required={field.required}
+                                            placeholder={`${field.label} ${field.required ? '*' : ''}`}
+                                            onChange={e => handleValueChange(field.name, e.target.value)}
+                                            onFocus={handleFocus}
+                                            onBlur={handleBlur}
+                                            style={{ ...inputStyle, resize: 'none' }}
+                                        />
+                                    ) : field.type === 'select' ? (
+                                        <select
+                                            value={val}
+                                            required={field.required}
+                                            onChange={e => handleValueChange(field.name, e.target.value)}
+                                            onFocus={handleFocus}
+                                            onBlur={handleBlur}
+                                            style={inputStyle}
+                                        >
+                                            <option value="">{field.label} {field.required ? '*' : ''}</option>
+                                            {(field.options || []).map(opt => (
+                                                <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                        </select>
+                                    ) : field.type === 'date' ? (
+                                        <input
+                                            type="date"
+                                            value={val}
+                                            required={field.required}
+                                            onChange={e => handleValueChange(field.name, e.target.value)}
+                                            onFocus={handleFocus}
+                                            onBlur={handleBlur}
+                                            style={inputStyle}
+                                        />
+                                    ) : field.type === 'number' ? (
+                                        <input
+                                            type="number"
+                                            value={val}
+                                            required={field.required}
+                                            placeholder={`${field.label} ${field.required ? '*' : ''}`}
+                                            onChange={e => handleValueChange(field.name, e.target.value)}
+                                            onFocus={handleFocus}
+                                            onBlur={handleBlur}
+                                            style={inputStyle}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={val}
+                                            required={field.required}
+                                            placeholder={`${field.label} ${field.required ? '*' : ''}`}
+                                            onChange={e => handleValueChange(field.name, e.target.value)}
+                                            onFocus={handleFocus}
+                                            onBlur={handleBlur}
+                                            style={inputStyle}
+                                        />
+                                    )
                                 )}
                             </div>
                         );
