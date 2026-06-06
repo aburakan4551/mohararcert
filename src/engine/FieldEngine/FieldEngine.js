@@ -93,6 +93,84 @@ export const getFieldMeta = (fieldId) => {
  * @returns {string|null}     - Resolved display value
  */
 export const resolveFieldValue = (field, meta, dataContext = {}, settings = {}) => {
+    const status = dataContext?.status || 'DRAFT';
+    
+    const isDirectorSignature = 
+        field.fieldId === 'general_manager_signature' || 
+        field.fieldId === 'manager_signature' || 
+        field.fieldId === 'directorSignature' || 
+        field.fieldId === 'signature_1' ||
+        field.bindingKey === 'general_manager_signature' ||
+        field.bindingKey === 'directorSignature' ||
+        field.bindingKey === 'signature_1';
+
+    const isStamp = 
+        field.fieldId === 'official_stamp' || 
+        field.fieldId === 'official_seal' || 
+        field.fieldId === 'stamp' ||
+        field.bindingKey === 'official_seal' ||
+        field.bindingKey === 'stamp' ||
+        field.bindingKey === 'official_stamp';
+
+    const isAssistantSignature = 
+        field.fieldId === 'assistant_planning_signature' || 
+        field.fieldId === 'assistant_signature' || 
+        field.fieldId === 'visaSignature' || 
+        field.fieldId === 'signature_2' ||
+        field.bindingKey === 'assistant_planning_signature' ||
+        field.bindingKey === 'visaSignature' ||
+        field.bindingKey === 'signature_2';
+
+    const isOfficialSignature = 
+        field.fieldId === 'official_signature' || 
+        field.fieldId === 'signature_3' ||
+        field.bindingKey === 'official_signature' ||
+        field.bindingKey === 'signature_3';
+
+    // ─── Rule Gates ───
+    if (isDirectorSignature || isAssistantSignature || isStamp || isOfficialSignature) {
+        console.log(`[APPROVAL FLOW AUDIT - FieldEngine (resolveFieldValue)]`, {
+            'certificate.status': status,
+            'assistantSnapshot exists?': !!(dataContext?.assistantSnapshot),
+            'managerSnapshot exists?': !!(dataContext?.managerSnapshot),
+            'directorSignature source': status === 'DRAFT' ? 'settings' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden'),
+            'stamp source': status === 'DRAFT' ? 'settings' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden')
+        });
+    }
+
+    if (status === 'PENDING_APPROVAL' || status === 'RETURNED_FOR_EDIT' || status === 'REJECTED') {
+        if (isDirectorSignature || isAssistantSignature || isStamp || isOfficialSignature) {
+            return null;
+        }
+    } else if (status === 'APPROVED_BY_ASSISTANT') {
+        if (isDirectorSignature || isStamp || isOfficialSignature) {
+            return null;
+        }
+        if (isAssistantSignature) {
+            const assistant = dataContext?.assistantSnapshot || {};
+            const snap = dataContext?.certificateSnapshot || {};
+            return assistant.visaSignature || snap.signature_2 || null;
+        }
+    } else if (status === 'FINAL_APPROVED' || status === 'ARCHIVED') {
+        // Enforce snapshots only (no settings fallback!)
+        const snap = dataContext?.certificateSnapshot || {};
+        const assistant = dataContext?.assistantSnapshot || {};
+        const manager = dataContext?.managerSnapshot || {};
+
+        if (isDirectorSignature) {
+            return manager.directorSignature || snap.signature_1 || null;
+        }
+        if (isAssistantSignature) {
+            return assistant.visaSignature || snap.signature_2 || null;
+        }
+        if (isStamp) {
+            return manager.stamp || snap.official_stamp || null;
+        }
+        if (isOfficialSignature) {
+            return snap.signature_3 || null;
+        }
+    }
+
     // 0. Check certificateSnapshot first for template fields (backward compatibility with GM/Assistant changes)
     const snap = dataContext?.certificateSnapshot || {};
     if (snap && Object.keys(snap).length > 0) {
@@ -229,6 +307,51 @@ export const extractPrefixAndName = (inputName, selectedPrefix = '', officialTit
  * @returns {string}           - Resolved string value or image base64
  */
 export const resolveDynamicField = (dynamicType, dataContext = {}, settings = {}) => {
+    const status = dataContext?.status || 'DRAFT';
+
+    if (['signature_1', 'signature_2', 'signature_3', 'official_stamp', 'directorSignature', 'visaSignature', 'stamp', 'official_seal', 'general_manager_signature', 'assistant_planning_signature', 'official_signature'].includes(dynamicType)) {
+        console.log(`[APPROVAL FLOW AUDIT - FieldEngine (resolveDynamicField)]`, {
+            'certificate.status': status,
+            'assistantSnapshot exists?': !!(dataContext?.assistantSnapshot),
+            'managerSnapshot exists?': !!(dataContext?.managerSnapshot),
+            'directorSignature source': status === 'DRAFT' ? 'settings' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden'),
+            'stamp source': status === 'DRAFT' ? 'settings' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden')
+        });
+    }
+
+    // ─── Status-based gates ───
+    if (status === 'PENDING_APPROVAL' || status === 'RETURNED_FOR_EDIT' || status === 'REJECTED') {
+        if (['signature_1', 'signature_2', 'signature_3', 'official_stamp', 'directorSignature', 'visaSignature', 'stamp', 'official_seal', 'general_manager_signature', 'assistant_planning_signature', 'official_signature'].includes(dynamicType)) {
+            return '';
+        }
+    } else if (status === 'APPROVED_BY_ASSISTANT') {
+        if (['signature_1', 'signature_3', 'official_stamp', 'directorSignature', 'stamp', 'official_seal', 'general_manager_signature', 'official_signature'].includes(dynamicType)) {
+            return '';
+        }
+        if (dynamicType === 'signature_2' || dynamicType === 'visaSignature' || dynamicType === 'assistant_planning_signature') {
+            const assistant = dataContext?.assistantSnapshot || {};
+            const snap = dataContext?.certificateSnapshot || {};
+            return assistant.visaSignature || snap.signature_2 || '';
+        }
+    } else if (status === 'FINAL_APPROVED' || status === 'ARCHIVED') {
+        const snap = dataContext?.certificateSnapshot || {};
+        const assistant = dataContext?.assistantSnapshot || {};
+        const manager = dataContext?.managerSnapshot || {};
+
+        if (dynamicType === 'signature_1' || dynamicType === 'directorSignature' || dynamicType === 'general_manager_signature') {
+            return manager.directorSignature || snap.signature_1 || '';
+        }
+        if (dynamicType === 'signature_2' || dynamicType === 'visaSignature' || dynamicType === 'assistant_planning_signature') {
+            return assistant.visaSignature || snap.signature_2 || '';
+        }
+        if (dynamicType === 'signature_3' || dynamicType === 'official_signature') {
+            return snap.signature_3 || '';
+        }
+        if (dynamicType === 'official_stamp' || dynamicType === 'stamp' || dynamicType === 'official_seal') {
+            return manager.stamp || snap.official_stamp || '';
+        }
+    }
+
     // 1. Read from certificateSnapshot first
     const snap = dataContext?.certificateSnapshot || {};
     if (snap && snap[dynamicType] !== undefined && snap[dynamicType] !== null && snap[dynamicType] !== '') {

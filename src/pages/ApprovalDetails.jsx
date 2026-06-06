@@ -155,18 +155,54 @@ export default function ApprovalDetails() {
 
     const getApprovedSettings = () => {
         if (!cert) return settings;
-        return {
-            ...settings,
-            directorName: cert.managerSnapshot?.directorName || settings?.directorName,
-            directorTitle: cert.managerSnapshot?.directorTitle || settings?.directorTitle,
-            directorSignature: cert.managerSnapshot?.directorSignature || settings?.directorSignature,
-            visaName: cert.assistantSnapshot?.visaName || settings?.visaName,
-            visaLabel: cert.assistantSnapshot?.visaLabel || settings?.visaLabel,
-            visaSignature: cert.assistantSnapshot?.visaSignature || settings?.visaSignature,
-            stamp: cert.managerSnapshot?.stamp || settings?.stamp,
-            stampSize: cert.managerSnapshot?.stampSize || settings?.stampSize,
-            stampRotation: cert.managerSnapshot?.stampRotation || settings?.stampRotation
-        };
+        
+        const merged = { ...settings };
+        const status = cert.status || 'DRAFT';
+
+        if (status === 'DRAFT') {
+            return {
+                ...settings,
+                directorSignature: cert.managerSnapshot?.directorSignature || settings?.directorSignature,
+                visaSignature: cert.assistantSnapshot?.visaSignature || settings?.visaSignature,
+                stamp: cert.managerSnapshot?.stamp || settings?.stamp
+            };
+        }
+
+        // Under approval flow: strictly enforce snapshot constraints and eliminate settings fallbacks
+        if (!cert.assistantSnapshot) {
+            merged.assistant_planning_signature = null;
+            merged.visaSignature = null;
+            merged.signature_2 = null;
+        } else {
+            merged.assistant_planning_signature = cert.assistantSnapshot.visaSignature;
+            merged.visaSignature = cert.assistantSnapshot.visaSignature;
+            merged.signature_2 = cert.assistantSnapshot.visaSignature;
+            merged.visaName = cert.assistantSnapshot.visaName || merged.visaName;
+            merged.visaLabel = cert.assistantSnapshot.visaLabel || merged.visaLabel;
+        }
+
+        if (!cert.managerSnapshot) {
+            merged.general_manager_signature = null;
+            merged.directorSignature = null;
+            merged.signature_1 = null;
+            merged.stamp = null;
+            merged.official_stamp = null;
+            merged.official_seal = null;
+        } else {
+            merged.general_manager_signature = cert.managerSnapshot.directorSignature;
+            merged.directorSignature = cert.managerSnapshot.directorSignature;
+            merged.signature_1 = cert.managerSnapshot.directorSignature;
+            merged.directorName = cert.managerSnapshot.directorName || merged.directorName;
+            merged.directorTitle = cert.managerSnapshot.directorTitle || merged.directorTitle;
+            
+            merged.stamp = cert.managerSnapshot.stamp;
+            merged.official_stamp = cert.managerSnapshot.stamp;
+            merged.official_seal = cert.managerSnapshot.stamp;
+            merged.stampSize = cert.managerSnapshot.stampSize || merged.stampSize;
+            merged.stampRotation = cert.managerSnapshot.stampRotation || merged.stampRotation;
+        }
+
+        return merged;
     };
 
     const handleExport = async () => {
@@ -244,6 +280,14 @@ export default function ApprovalDetails() {
     };
 
     const isFinalOrArchived = cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED';
+
+    console.log(`[APPROVAL FLOW AUDIT - ApprovalDetails]`, {
+        certificateStatus: cert.status,
+        assistantSnapshotExists: !!cert.assistantSnapshot,
+        managerSnapshotExists: !!cert.managerSnapshot,
+        directorSignatureSource: cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED' ? (cert.managerSnapshot?.directorSignature ? 'managerSnapshot' : 'none') : 'hidden',
+        stampSource: cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED' ? (cert.managerSnapshot?.stamp ? 'managerSnapshot' : 'none') : 'hidden'
+    });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

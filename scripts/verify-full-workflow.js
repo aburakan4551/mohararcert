@@ -122,6 +122,14 @@ async function runWorkflowTest() {
         const submittedCert = await localProvider.certificates.transitionWorkflow(createdCert.id, 'PENDING_APPROVAL', creatorUser);
         assert(submittedCert.status === 'PENDING_APPROVAL', "تم تقديم الشهادة بنجاح وحالتها معلقة.");
 
+        // فحص أنه في حالة PENDING_APPROVAL لا يظهر أي توقيع أو ختم
+        const pPendingSig1 = resolveDynamicField('signature_1', submittedCert, loadedSettings);
+        const pPendingSig2 = resolveDynamicField('signature_2', submittedCert, loadedSettings);
+        const pPendingStamp = resolveDynamicField('official_stamp', submittedCert, loadedSettings);
+        assert(pPendingSig1 === '', "في حالة PENDING_APPROVAL يمنع ظهور توقيع المدير.");
+        assert(pPendingSig2 === '', "في حالة PENDING_APPROVAL يمنع ظهور توقيع المساعد.");
+        assert(pPendingStamp === '', "في حالة PENDING_APPROVAL يمنع ظهور الختم.");
+
         // ----------------------------------------------------
         // Step 6: تأشيرة المساعد (Assistant Visa)
         // ----------------------------------------------------
@@ -133,6 +141,14 @@ async function runWorkflowTest() {
         assert(visaCert.status === 'APPROVED_BY_ASSISTANT', "حالة الشهادة الآن: مؤشرة من مساعد المدير.");
         assert(visaCert.assistantSnapshot !== undefined, "تم إنشاء لقطة تأشيرة المساعد (assistantSnapshot).");
         assert(visaCert.assistantSnapshot.visaSignature === mockAssistant, "توقيع التأشيرة محفوظ ومطابق في اللقطة.");
+
+        // فحص أنه في حالة APPROVED_BY_ASSISTANT يظهر توقيع المساعد فقط ويمنع ظهور توقيع المدير والختم
+        const pVisaSig1 = resolveDynamicField('signature_1', visaCert, loadedSettings);
+        const pVisaSig2 = resolveDynamicField('signature_2', visaCert, loadedSettings);
+        const pVisaStamp = resolveDynamicField('official_stamp', visaCert, loadedSettings);
+        assert(pVisaSig2 === mockAssistant, "في حالة APPROVED_BY_ASSISTANT يظهر توقيع المساعد.");
+        assert(pVisaSig1 === '', "في حالة APPROVED_BY_ASSISTANT يمنع ظهور توقيع المدير.");
+        assert(pVisaStamp === '', "في حالة APPROVED_BY_ASSISTANT يمنع ظهور الختم.");
 
         // ----------------------------------------------------
         // Step 7 & 8: اعتماد المدير العام (GM Final Approval)

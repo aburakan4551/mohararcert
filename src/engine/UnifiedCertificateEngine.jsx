@@ -171,12 +171,40 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
     // Use versioned snapshot values if they exist on the certificate (prevents retroactive modifications)
     const activeVisaName = assistantSnapshot?.visaName || visaName || visaLabel;
     const activeVisaLabel = assistantSnapshot?.visaLabel || visaLabel || 'مساعد المدير العام للتخطيط';
-    const activeVisaSignature = assistantSnapshot?.visaSignature || visaSignature;
+    
+    // Enforce approval flow signature/stamp visibility rules
+    let activeVisaSignature = null;
+    let activeDirectorSignature = null;
+    let activeStamp = null;
+
+    if (status === 'DRAFT') {
+        activeVisaSignature = assistantSnapshot?.visaSignature || visaSignature;
+        activeDirectorSignature = managerSnapshot?.directorSignature || directorSignature;
+        activeStamp = managerSnapshot?.stamp || stamp;
+    } else if (status === 'PENDING_APPROVAL') {
+        activeVisaSignature = null;
+        activeDirectorSignature = null;
+        activeStamp = null;
+    } else if (status === 'APPROVED_BY_ASSISTANT') {
+        activeVisaSignature = assistantSnapshot?.visaSignature || null;
+        activeDirectorSignature = null;
+        activeStamp = null;
+    } else if (status === 'FINAL_APPROVED' || status === 'ARCHIVED') {
+        activeVisaSignature = assistantSnapshot?.visaSignature || null;
+        activeDirectorSignature = managerSnapshot?.directorSignature || null;
+        activeStamp = managerSnapshot?.stamp || null;
+    }
+
+    console.log(`[APPROVAL FLOW AUDIT - UnifiedCertificateEngine]`, {
+        'certificate.status': status,
+        'assistantSnapshot exists?': !!assistantSnapshot,
+        'managerSnapshot exists?': !!managerSnapshot,
+        'directorSignature source': status === 'DRAFT' ? 'settings/snapshot' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden'),
+        'stamp source': status === 'DRAFT' ? 'settings/snapshot' : (status === 'FINAL_APPROVED' || status === 'ARCHIVED' ? 'managerSnapshotOnly' : 'hidden')
+    });
     
     const activeDirectorName = managerSnapshot?.directorName || directorName;
     const activeDirectorTitle = managerSnapshot?.directorTitle || 'المدير العام للمنصة';
-    const activeDirectorSignature = managerSnapshot?.directorSignature || directorSignature;
-    const activeStamp = managerSnapshot?.stamp || stamp;
     const activeStampSize = managerSnapshot?.stampSize || stampSize;
     const activeStampRotation = managerSnapshot?.stampRotation || stampRotation;
 
