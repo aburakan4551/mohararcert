@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState, useMemo, useEffect, memo } from 'react'
+import { getLayerZIndex } from '../engine/FieldEngine/FieldEngine'
 
 const SNAP_TOLERANCE = 1.5 // % threshold for snapping
 
@@ -35,7 +36,12 @@ export default function EditorCanvas({
 
     /* ── Sorted layers (memoized) ── */
     const sorted = useMemo(() =>
-        [...layers].sort((a, b) => a.zIndex - b.zIndex),
+        [...layers].sort((a, b) => {
+            const za = getLayerZIndex(a);
+            const zb = getLayerZIndex(b);
+            if (za !== zb) return za - zb;
+            return (a.zIndex || 0) - (b.zIndex || 0);
+        }),
         [layers]
     )
 
@@ -313,7 +319,7 @@ export default function EditorCanvas({
                             left: `${displayX}%`,
                             top: `${displayY}%`,
                             transform: 'translate(-50%, -50%)',
-                            zIndex: layer.zIndex,
+                            zIndex: getLayerZIndex(layer),
                             width: `${displayW}px`,
                             height: layer.type === 'text' ? 'auto' : `${displayH}px`,
                             minHeight: `${displayH}px`,

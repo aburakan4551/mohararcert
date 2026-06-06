@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formService, templateService } from '../services/db';
-import { resolveDynamicField } from '../engine/FieldEngine/FieldEngine';
+import { resolveDynamicField, getLayerZIndex } from '../engine/FieldEngine/FieldEngine';
 import { Card, CardHeader, CardContent } from '../ui/cards/Card';
 import { Button } from '../ui/components/Button';
 import PageHeader from '../ui/layouts/PageHeader';
@@ -712,7 +712,7 @@ export default function FormDesigner() {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     cursor: isImmutable ? 'not-allowed' : 'move',
-                                    zIndex: 10
+                                    zIndex: getLayerZIndex(field)
                                 };
 
                                 const isDynamic = ['signer_name', 'signer_title', 'approver_name', 'approver_title', 'signature_1', 'signature_2', 'signature_3', 'official_stamp'].includes(field.dynamicType || field.name);
@@ -763,7 +763,7 @@ export default function FormDesigner() {
                                                     cursor: 'se-resize',
                                                     borderTopLeftRadius: '3px',
                                                     borderBottomRightRadius: '5px',
-                                                    zIndex: 20
+                                                    zIndex: getLayerZIndex(field) + 5
                                                 }}
                                             />
                                         )}

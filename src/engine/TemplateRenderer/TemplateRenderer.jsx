@@ -11,7 +11,7 @@
 
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getFieldMeta, resolveFieldValue, resolveDynamicField } from '../FieldEngine/FieldEngine';
+import { getFieldMeta, resolveFieldValue, resolveDynamicField, getLayerZIndex } from '../FieldEngine/FieldEngine';
 import { useAuth } from '../../context/AuthContext';
 
 /* A4 Paper Dimensions at 96dpi */
@@ -113,7 +113,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                     left: `${field.x}%`,
                     transform: `translate(-50%, -50%) rotate(${field.rotation || 0}deg)`,
                     opacity: field.opacity || 1,
-                    zIndex: 10 + (activeFields.length - 1 - idx),
+                    zIndex: getLayerZIndex(field),
                 };
 
                 // ── Render Text or Textarea ───────────────────────────────
@@ -212,7 +212,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                                 width: `${pctW}%`,
                                 height: `${pctH}%`,
                                 objectFit: 'contain',
-                                zIndex: 30
+                                zIndex: getLayerZIndex(field)
                             }}
                         />
                     );
@@ -240,7 +240,7 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
                             fontWeight: 700,
                             whiteSpace: 'pre-wrap',
                             overflow: 'hidden',
-                            zIndex: 30,
+                            zIndex: getLayerZIndex(field),
                             direction: 'rtl'
                         }}
                     >

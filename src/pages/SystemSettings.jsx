@@ -50,22 +50,22 @@ export default function SystemSettings() {
         // ── General Manager ─────────────────────────────────────────────
         general_manager_name: settings?.general_manager_name || settings?.directorName || '',
         general_manager_title: settings?.general_manager_title || settings?.directorTitle || '',
-        general_manager_signature: settings?.general_manager_signature || settings?.directorSignature || '',
+        general_manager_signature: settings?.general_manager_signature || settings?.directorSignature || settings?.signature_1 || '',
 
         // ── Assistant Planning Director ─────────────────────────────────
         assistant_planning_name: settings?.assistant_planning_name || settings?.visaName || '',
         assistant_planning_title: settings?.assistant_planning_title || settings?.visaLabel || '',
-        assistant_planning_signature: settings?.assistant_planning_signature || settings?.visaSignature || '',
+        assistant_planning_signature: settings?.assistant_planning_signature || settings?.visaSignature || settings?.signature_2 || '',
         assistant_planning_enabled: settings?.assistant_planning_enabled ?? true,
 
         // ── Official Seal ───────────────────────────────────────────────
-        official_seal: settings?.official_seal || settings?.stamp || '',
+        official_seal: settings?.official_seal || settings?.stamp || settings?.official_stamp || '',
         stampSize: settings?.stampSize || 120,
         stampOpacity: settings?.stampOpacity || 0.85,
         stampRotation: settings?.stampRotation || -8,
 
         // ── Official Signature (general purpose) ────────────────────────
-        official_signature: settings?.official_signature || '',
+        official_signature: settings?.official_signature || settings?.signature_3 || '',
 
         // ── Official Titles ─────────────────────────────────────────────
         official_titles: settings?.official_titles || settings?.prefixes || [
@@ -79,6 +79,16 @@ export default function SystemSettings() {
     });
 
     const set = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
+
+    const handleStampSettingsChange = (newSettings) => {
+        const stampVal = newSettings.stamp || newSettings.official_seal || newSettings.official_stamp || '';
+        setFormData({
+            ...newSettings,
+            stamp: stampVal,
+            official_seal: stampVal,
+            official_stamp: stampVal
+        });
+    };
 
     // ── Prefix handlers ──────────────────────────────────────────────────
     const handleTitleAdd = () => set('official_titles', [...formData.official_titles, '']);
@@ -107,17 +117,38 @@ export default function SystemSettings() {
         setSaving(true);
         try {
             // Sync legacy aliases so old code keeps working
+            // Ensure we have a single source of truth and everything is fully synchronized
+            const stampValue = formData.official_seal || formData.stamp || formData.official_stamp || '';
+            const gmSigValue = formData.general_manager_signature || formData.directorSignature || formData.signature_1 || '';
+            const apSigValue = formData.assistant_planning_signature || formData.visaSignature || formData.signature_2 || '';
+            const officialSigValue = formData.official_signature || formData.signature_3 || '';
+
             const payload = {
                 ...formData,
-                // legacy aliases
+                // Unified + legacy signature 1
+                general_manager_signature: gmSigValue,
+                directorSignature: gmSigValue,
+                signature_1: gmSigValue,
+
+                // Unified + legacy signature 2
+                assistant_planning_signature: apSigValue,
+                visaSignature: apSigValue,
+                signature_2: apSigValue,
+
+                // Unified + legacy signature 3
+                official_signature: officialSigValue,
+                signature_3: officialSigValue,
+
+                // Unified + legacy stamp
+                official_seal: stampValue,
+                stamp: stampValue,
+                official_stamp: stampValue,
+
+                prefixes: formData.official_titles,
                 directorName: formData.general_manager_name,
                 directorTitle: formData.general_manager_title,
-                directorSignature: formData.general_manager_signature,
                 visaName: formData.assistant_planning_name,
                 visaLabel: formData.assistant_planning_title,
-                visaSignature: formData.assistant_planning_signature,
-                stamp: formData.official_seal,
-                prefixes: formData.official_titles,
             };
             await settingService.update(payload);
             await auditService.log('UPDATE_SETTINGS', user, 'تحديث إعدادات الهوية المؤسسية الشاملة');
@@ -305,7 +336,14 @@ export default function SystemSettings() {
                                         <FormField label="التوقيع الرسمي للمدير العام" hint="يُحقن عند الاعتماد النهائي للشهادة">
                                             <SignatureUploader
                                                 value={formData.general_manager_signature}
-                                                onChange={v => set('general_manager_signature', v)}
+                                                onChange={v => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        general_manager_signature: v,
+                                                        directorSignature: v,
+                                                        signature_1: v
+                                                    }));
+                                                }}
                                             />
                                         </FormField>
                                     </div>
@@ -356,7 +394,14 @@ export default function SystemSettings() {
                                         <FormField label="توقيع مساعد المدير (التأشيرة)" hint="يُحقن عند التأشير والمراجعة">
                                             <SignatureUploader
                                                 value={formData.assistant_planning_signature}
-                                                onChange={v => set('assistant_planning_signature', v)}
+                                                onChange={v => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        assistant_planning_signature: v,
+                                                        visaSignature: v,
+                                                        signature_2: v
+                                                    }));
+                                                }}
                                             />
                                         </FormField>
                                     </div>
@@ -376,7 +421,13 @@ export default function SystemSettings() {
                                         <FormField label="التوقيع الرسمي (للقوالب العامة)" hint="يمكن ربطه بالحقل official_signature في أي قالب">
                                             <SignatureUploader
                                                 value={formData.official_signature}
-                                                onChange={v => set('official_signature', v)}
+                                                onChange={v => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        official_signature: v,
+                                                        signature_3: v
+                                                    }));
+                                                }}
                                             />
                                         </FormField>
                                     </div>
@@ -402,7 +453,14 @@ export default function SystemSettings() {
                                         <FormField label="صورة الختم الرسمي" hint="PNG بخلفية شفافة — يُستخدم في حقل official_seal في القوالب">
                                             <SignatureUploader
                                                 value={formData.official_seal}
-                                                onChange={v => set('official_seal', v)}
+                                                onChange={v => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        official_seal: v,
+                                                        stamp: v,
+                                                        official_stamp: v
+                                                    }));
+                                                }}
                                                 hint="يُستخدم تلقائياً في بلوك الختم الرسمي للفرع"
                                             />
                                         </FormField>
@@ -424,7 +482,7 @@ export default function SystemSettings() {
                                             </div>
                                         )}
                                     </div>
-                                    <StampManager settings={formData} onSettingsChange={setFormData} />
+                                    <StampManager settings={formData} onSettingsChange={handleStampSettingsChange} />
                                 </CardContent>
                             </Card>
                         </div>

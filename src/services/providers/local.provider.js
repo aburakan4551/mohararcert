@@ -46,6 +46,12 @@ const DEFAULT_SETTINGS = {
     visaName: 'أ. أحمد بن محمد السويلم',
     visaSignature: null,
 
+    // ─── Unified Signatures & Stamps ─────────────────────────────────────
+    signature_1: null,
+    signature_2: null,
+    signature_3: null,
+    official_stamp: null,
+
     // ─── Official Seal ───────────────────────────────────────────────────
     official_seal: null,
     stamp: null,
@@ -788,6 +794,50 @@ export const localProvider = {
         async update(newSettings) {
             const current = await this.get();
             const merged = { ...current, ...newSettings };
+            
+            // Sync GM Signature aliases
+            if (newSettings.general_manager_signature !== undefined) {
+                merged.directorSignature = newSettings.general_manager_signature;
+                merged.signature_1 = newSettings.general_manager_signature;
+            } else if (newSettings.directorSignature !== undefined) {
+                merged.general_manager_signature = newSettings.directorSignature;
+                merged.signature_1 = newSettings.directorSignature;
+            } else if (newSettings.signature_1 !== undefined) {
+                merged.general_manager_signature = newSettings.signature_1;
+                merged.directorSignature = newSettings.signature_1;
+            }
+
+            // Sync Assistant Signature aliases
+            if (newSettings.assistant_planning_signature !== undefined) {
+                merged.visaSignature = newSettings.assistant_planning_signature;
+                merged.signature_2 = newSettings.assistant_planning_signature;
+            } else if (newSettings.visaSignature !== undefined) {
+                merged.assistant_planning_signature = newSettings.visaSignature;
+                merged.signature_2 = newSettings.visaSignature;
+            } else if (newSettings.signature_2 !== undefined) {
+                merged.assistant_planning_signature = newSettings.signature_2;
+                merged.visaSignature = newSettings.signature_2;
+            }
+
+            // Sync Official Signature aliases
+            if (newSettings.official_signature !== undefined) {
+                merged.signature_3 = newSettings.official_signature;
+            } else if (newSettings.signature_3 !== undefined) {
+                merged.official_signature = newSettings.signature_3;
+            }
+
+            // Sync Stamp aliases
+            if (newSettings.official_seal !== undefined) {
+                merged.stamp = newSettings.official_seal;
+                merged.official_stamp = newSettings.official_seal;
+            } else if (newSettings.stamp !== undefined) {
+                merged.official_seal = newSettings.stamp;
+                merged.official_stamp = newSettings.stamp;
+            } else if (newSettings.official_stamp !== undefined) {
+                merged.official_seal = newSettings.official_stamp;
+                merged.stamp = newSettings.official_stamp;
+            }
+
             db.setItem('settings', merged);
             return merged;
         }

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { formService, dbService, templateService } from '../services/db';
 import { Button } from '../ui/components/Button';
 import { logger } from '../utils/debug';
-import { buildCertificateSnapshot, resolveDynamicField } from '../engine/FieldEngine/FieldEngine';
+import { buildCertificateSnapshot, resolveDynamicField, getLayerZIndex } from '../engine/FieldEngine/FieldEngine';
 
 const A4_LANDSCAPE_W = 1122.5;
 const A4_LANDSCAPE_H = 793.7;
@@ -275,7 +275,7 @@ export default function FormRenderer({ formId, isPreview = false, onBack }) {
                                     top: `${field.y * scale}px`,
                                     width: `${field.width * scale}px`,
                                     height: `${field.height * scale}px`,
-                                    zIndex: 10
+                                    zIndex: getLayerZIndex(field)
                                 }}
                                 title={field.label}
                             >

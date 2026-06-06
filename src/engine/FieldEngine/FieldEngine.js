@@ -286,4 +286,95 @@ export const buildCertificateSnapshot = (settings = {}) => {
     };
 };
 
+/**
+ * getLayerZIndex — Resolves visual stacking order z-index based on field type/ID.
+ * 
+ * Layer 1: Background (implicit or zIndex 0/10)
+ * Layer 2: Decorative Elements (zIndex 20)
+ * Layer 3: Official Stamps (zIndex 30)
+ * Layer 4: Signatures (zIndex 40)
+ * Layer 5: Static Certificate Text (zIndex 50)
+ * Layer 6: Dynamic Text + QR (zIndex 60)
+ * 
+ * @param {object} field - Field item to evaluate
+ * @returns {number}     - z-index value representing the target layer
+ */
+export const getLayerZIndex = (field) => {
+    if (!field) return 10;
+    const id = (field.id || '').toLowerCase();
+    const fieldId = (field.fieldId || '').toLowerCase();
+    const name = (field.name || '').toLowerCase();
+    const dynamicType = (field.dynamicType || '').toLowerCase();
+    const type = (field.type || '').toLowerCase();
+
+    // Layer 3: Official Stamps
+    const isStamp = 
+        id === 'official_stamp' || 
+        id === 'official_seal' || 
+        id === 'stamp' ||
+        fieldId === 'official_stamp' || 
+        fieldId === 'official_seal' || 
+        fieldId === 'stamp' ||
+        name === 'official_stamp' || 
+        name === 'official_seal' || 
+        name === 'stamp' ||
+        dynamicType === 'official_stamp' ||
+        type === 'stamp';
+    if (isStamp) return 30;
+
+    // Layer 4: Signatures
+    const isSignature = 
+        id.includes('signature') || 
+        id.includes('sig') ||
+        fieldId.includes('signature') || 
+        fieldId.includes('sig') ||
+        name.startsWith('signature') || 
+        name.includes('sig') ||
+        dynamicType.startsWith('signature') ||
+        type === 'signature';
+    if (isSignature) return 40;
+
+    // Layer 6: Dynamic Text (Names / Titles / Certificate Number / QR)
+    const isQR = type === 'qr' || id === 'qr_code' || id === 'qr' || fieldId === 'qr_code' || name === 'qr_code';
+    const isDynamicText = 
+        id === 'recipient_name' || 
+        id === 'recipientname' ||
+        id === 'name' || 
+        id === 'reason' || 
+        id === 'date' || 
+        id === 'serial' || 
+        id === 'serial_number' ||
+        id === 'director-name' || 
+        id === 'visa-name' || 
+        fieldId === 'recipient_name' || 
+        fieldId === 'reason' || 
+        fieldId === 'date' || 
+        fieldId === 'serial_number' ||
+        name === 'recipient_name' || 
+        name === 'recipientname' ||
+        name === 'reason' || 
+        name === 'reasontext' ||
+        name === 'date' || 
+        name === 'serial' || 
+        name === 'serial_number' ||
+        dynamicType === 'signer_name' || 
+        dynamicType === 'signer_title' || 
+        dynamicType === 'approver_name' || 
+        dynamicType === 'approver_title' ||
+        name === 'signer_name' || 
+        name === 'signer_title' || 
+        name === 'approver_name' || 
+        name === 'approver_title';
+
+    if (isQR || isDynamicText) return 60;
+
+    // Layer 5: Static Certificate Text
+    const isText = type === 'text' || type === 'textarea' || !type;
+    if (isText) return 50;
+
+    // Layer 2: Decorative Elements (shapes, logos, borders, custom images that are not stamps/signatures)
+    return 20;
+};
+
+
 

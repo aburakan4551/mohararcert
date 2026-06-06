@@ -9,7 +9,7 @@
 import React, { forwardRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import EditorCanvas from '../components/EditorCanvas'
-import { resolveDynamicField } from './FieldEngine/FieldEngine'
+import { resolveDynamicField, getLayerZIndex } from './FieldEngine/FieldEngine'
 
 /* ── A4 reference dimensions at 96 dpi ── */
 const A4_LANDSCAPE_W_PX = 297 * (96 / 25.4)  // ≈ 1122.5 px
@@ -45,7 +45,7 @@ function LayerRenderer({ layer, contentMap, imageMap, showQR, canvasWidth, orien
         left: `${layer.x}%`,
         top: `${layer.y}%`,
         transform: 'translate(-50%, -50%)',
-        zIndex: layer.zIndex,
+        zIndex: getLayerZIndex(layer),
         width: `${widthPct}%`,
         pointerEvents: 'none',
     }
@@ -243,7 +243,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                 textAlign: 'center',
                 width: '60%',
                 pointerEvents: 'none',
-                zIndex: 10
+                zIndex: 50
             }}>
                 <h1 style={{
                     fontSize: '34px',
@@ -396,7 +396,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                         opacity: stampOpacity,
                         objectFit: 'contain',
                         pointerEvents: 'none',
-                        zIndex: 45
+                        zIndex: 30
                     }}
                 />
             )}
@@ -413,7 +413,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                     padding: '4px',
                     borderRadius: '6px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    zIndex: 35
+                    zIndex: 60
                 }}>
                     <QRCodeSVG value={`CERT:${serial}|${recipientName}|STATUS:${status}`} size={54} />
                 </div>
@@ -458,7 +458,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                                 width: `${pctW}%`,
                                 height: `${pctH}%`,
                                 objectFit: 'contain',
-                                zIndex: 30
+                                zIndex: getLayerZIndex(field)
                             }}
                         />
                     );
@@ -485,7 +485,7 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                             fontWeight: 700,
                             whiteSpace: 'pre-wrap',
                             overflow: 'hidden',
-                            zIndex: 30,
+                            zIndex: getLayerZIndex(field),
                             direction: 'rtl'
                         }}
                     >
