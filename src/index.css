@@ -59,10 +59,10 @@
 
   /* ── Text Scale ── */
   --text-primary:      #0F172A;
-  --text-secondary:    #64748B;
-  --text-tertiary:     #94A3B8;
-  --text-muted:        #cbd5e1;
-  --text-disabled:     #E2E8F0;
+  --text-secondary:    #334155;
+  --text-tertiary:     #64748B;
+  --text-muted:        #64748B;
+  --text-disabled:     #94A3B8;
   --text-inverse:      #FFFFFF;
   --text-brand:        #10B981;
   --text-accent:       #2563EB;
