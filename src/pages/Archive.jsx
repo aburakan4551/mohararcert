@@ -8,13 +8,12 @@ import { useAuth } from '../context/AuthContext';
 import { dbService, templateService, auditService } from '../services/db';
 import { useNavigate } from 'react-router-dom';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
-import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
+import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
 import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     Archive, Search, FileText, Download, Printer,
     ShieldCheck, Eye, Calendar, User2, X,
 } from 'lucide-react';
-import { useLayers } from '../hooks/useLayers';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
 
@@ -78,7 +77,7 @@ export default function ArchivePage() {
         return () => ro.disconnect();
     }, [activeCert]);
 
-    const { layers: editorLayers, canvasWidth } = useLayers(activeCert?.templateId || 'default');
+    const isPortrait = activeTemplate?.orientation === 'portrait';
 
     const filteredCerts = useMemo(() =>
         certs.filter(c =>
@@ -119,11 +118,17 @@ export default function ArchivePage() {
         event: activeCert.event,
         date: activeCert.date,
         serial: activeCert.serial,
-        formFields: activeCert.formFields,
-        formValues: activeCert.formValues,
-        status: activeCert.status,
+        recipient_name: getRecipientDisplayName(activeCert),
+        certificate_title: 'شهادة شكر وتقدير',
+        reason: activeCert.reasonText || activeCert.event,
+        serial_number: activeCert.serial,
+        qr_code: activeCert.showQR ? `CERT:${activeCert.serial}|${getRecipientDisplayName(activeCert)}|STATUS:${activeCert.status}` : '',
+        certificateSnapshot: activeCert.certificateSnapshot,
         assistantSnapshot: activeCert.assistantSnapshot,
         managerSnapshot: activeCert.managerSnapshot,
+        formFields: activeCert.formFields,
+        formValues: activeCert.formValues,
+        status: activeCert.status
     } : null;
 
     /* ── Table Columns ── */
@@ -361,18 +366,16 @@ export default function ArchivePage() {
                                     <div style={{
                                         transform: `scale(${scale})`,
                                         transformOrigin: 'center center',
-                                        width: '297mm', height: '210mm',
+                                        width: isPortrait ? '210mm' : '297mm',
+                                        height: isPortrait ? '297mm' : '210mm',
                                         flexShrink: 0,
                                     }}>
-                                        <UnifiedCertificateEngine
+                                        <TemplateRenderer
                                             ref={certRef}
-                                            mode="preview"
                                             template={activeTemplate}
-                                            layers={editorLayers}
-                                            canvasWidth={canvasWidth}
-                                            data={certData}
+                                            dataContext={certData}
+                                            width={isPortrait ? 793.7 : 1122.5}
                                             settings={activeCert.managerSnapshot || activeCert.assistantSnapshot || settings}
-                                            showQR={activeCert.showQR}
                                         />
                                     </div>
                                 </div>

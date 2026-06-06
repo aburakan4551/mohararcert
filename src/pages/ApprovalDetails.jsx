@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { dbService, templateService, auditService, notificationService } from '../services/db';
-import UnifiedCertificateEngine from '../engine/UnifiedCertificateEngine';
+import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
 import { exportSinglePDF, printElements } from '../utils/pdfExport';
 import { ExportEngine } from '../engine/StudioEngine/ExportEngine';
 import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
@@ -11,7 +11,6 @@ import {
     MessageSquare, ShieldAlert, Sparkles, Printer, Download,
     ShieldCheck, XCircle,
 } from 'lucide-react';
-import { useLayers } from '../hooks/useLayers';
 import { logger } from '../utils/debug';
 import { motion } from 'framer-motion';
 
@@ -89,7 +88,7 @@ export default function ApprovalDetails() {
 
     useEffect(() => { loadCertDetails(); }, [id]);
 
-    const { layers: editorLayers, canvasWidth } = useLayers(cert?.templateId || 'default');
+    const isPortrait = template?.orientation === 'portrait';
 
     const canTakeDecision = () => {
         if (!cert) return false;
@@ -224,16 +223,23 @@ export default function ApprovalDetails() {
         );
     }
 
+    const previewName = getRecipientDisplayName(cert);
     const certData = {
-        recipientName: getRecipientDisplayName(cert),
+        recipientName: previewName,
         event: cert.event,
         date: cert.date,
         serial: cert.serial,
-        formFields: cert.formFields,
-        formValues: cert.formValues,
-        status: cert.status,
+        recipient_name: previewName,
+        certificate_title: 'شهادة شكر وتقدير',
+        reason: cert.reasonText || cert.event,
+        serial_number: cert.serial,
+        qr_code: cert.showQR ? `CERT:${cert.serial}|${previewName}|STATUS:${cert.status}` : '',
+        certificateSnapshot: cert.certificateSnapshot,
         assistantSnapshot: cert.assistantSnapshot,
         managerSnapshot: cert.managerSnapshot,
+        formFields: cert.formFields,
+        formValues: cert.formValues,
+        status: cert.status
     };
 
     const isFinalOrArchived = cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED';
@@ -351,19 +357,17 @@ export default function ApprovalDetails() {
                             <div style={{
                                 transform: `scale(${scale})`,
                                 transformOrigin: 'center center',
-                                width: '297mm', height: '210mm',
+                                width: isPortrait ? '210mm' : '297mm',
+                                height: isPortrait ? '297mm' : '210mm',
                                 flexShrink: 0,
                                 position: 'relative', zIndex: 2,
                             }}>
-                                <UnifiedCertificateEngine
+                                <TemplateRenderer
                                     ref={certRef}
-                                    mode="preview"
                                     template={template}
-                                    layers={editorLayers}
-                                    canvasWidth={canvasWidth}
-                                    data={certData}
+                                    dataContext={certData}
+                                    width={isPortrait ? 793.7 : 1122.5}
                                     settings={getApprovedSettings()}
-                                    showQR={cert.showQR}
                                 />
                             </div>
                         </div>

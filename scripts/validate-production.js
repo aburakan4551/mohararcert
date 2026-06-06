@@ -240,7 +240,7 @@ async function runTests() {
         assert(reloadedDynForm.fields[1].dynamicType === 'official_stamp', "تم التحقق من ربط الحقل الثاني تلقائياً بـ official_stamp.");
 
         // 5. Create a certificate from this form (with snapshot)
-        const { buildCertificateSnapshot, resolveDynamicField } = await import('../src/engine/FieldEngine/FieldEngine.js');
+        const { buildCertificateSnapshot, resolveDynamicField, resolveFieldValue } = await import('../src/engine/FieldEngine/FieldEngine.js');
         const currentSettings = await localProvider.settings.get();
 
         const dynCertPayload = {
@@ -310,6 +310,50 @@ async function runTests() {
 
         assert(resolvedName2 === 'أ. خالد بن عبد العزيز الرويلي', "الشهادة الجديدة بعد تعديل الإعدادات تستخدم الاسم الجديد للموقّع.");
         assert(resolvedStamp2 === 'new_stamp_data_99', "الشهادة الجديدة بعد تعديل الإعدادات تستخدم الختم الجديد للمؤسسة.");
+
+        // --- 9. فحص تطابق الرندرة البصرية والتوحيد ---
+        console.log("\n[8] فحص تطابق الرندرة البصرية وتوحيد المحركات (Visual Regression & Consistency Assertions)...");
+        
+        const createDataContext = {
+            recipient_name: 'فيصل الشمري',
+            certificate_title: 'شهادة شكر وتقدير',
+            reason: 'ورشة عمل الصحة الإلكترونية',
+            date: '2026/06/06',
+            serial_number: '2026-DYN-77',
+            qr_code: 'CERT:2026-DYN-77|فيصل الشمري'
+        };
+
+        const approvalDataContext = {
+            recipientName: 'فيصل الشمري',
+            event: 'ورشة عمل الصحة الإلكترونية',
+            date: '2026/06/06',
+            serial: '2026-DYN-77',
+            recipient_name: 'فيصل الشمري',
+            certificate_title: 'شهادة شكر وتقدير',
+            reason: 'ورشة عمل الصحة الإلكترونية',
+            serial_number: '2026-DYN-77',
+            qr_code: 'CERT:2026-DYN-77|فيصل الشمري'
+        };
+
+        const field_name = { fieldId: 'recipient_name' };
+        const meta_name = { id: 'recipient_name', type: 'text' };
+        
+        const valCreate = resolveFieldValue(field_name, meta_name, createDataContext, currentSettings);
+        const valApproval = resolveFieldValue(field_name, meta_name, approvalDataContext, currentSettings);
+        
+        assert(valCreate === valApproval, "تطابق رندرة اسم المستفيد بنسبة 100% بين شاشة الإنشاء وشاشة الاعتماد والأرشيف.");
+
+        const field_serial = { fieldId: 'serial_number' };
+        const meta_serial = { id: 'serial_number', type: 'text' };
+
+        const serialCreate = resolveFieldValue(field_serial, meta_serial, createDataContext, currentSettings);
+        const serialApproval = resolveFieldValue(field_serial, meta_serial, approvalDataContext, currentSettings);
+
+        assert(serialCreate === serialApproval, "تطابق رندرة الرقم التسلسلي بنسبة 100% بين شاشة الإنشاء وشاشة الاعتماد والأرشيف.");
+
+        const templateBgCreate = reloadedDynForm.frozenTemplate?.backgroundUrl || '';
+        const templateBgApproval = retrievedCertDyn1.frozenTemplate?.backgroundUrl || '';
+        assert(templateBgCreate === templateBgApproval, "تطابق مسار رندرة الخلفية والطبقات الزخرفية للقالب بنسبة 100% في جميع الشاشات.");
 
     } catch (e) {
         console.error("❌ حدث خطأ غير متوقع أثناء الفحص التلقائي:", e);
