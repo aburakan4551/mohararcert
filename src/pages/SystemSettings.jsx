@@ -393,7 +393,7 @@ export default function SystemSettings() {
                             <Card>
                                 <CardHeader>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <SectionTitle icon={Stamp} title="الختم الرسمي للوزارة" color="var(--color-primary-600)" />
+                                        <SectionTitle icon={Stamp} title="الختم الرسمي للفرع" color="var(--color-primary-600)" />
                                         <FieldKey field="official_seal" />
                                     </div>
                                 </CardHeader>
@@ -403,7 +403,7 @@ export default function SystemSettings() {
                                             <SignatureUploader
                                                 value={formData.official_seal}
                                                 onChange={v => set('official_seal', v)}
-                                                hint="يُستخدم تلقائياً في بلوك الختم الرسمي للوزارة"
+                                                hint="يُستخدم تلقائياً في بلوك الختم الرسمي للفرع"
                                             />
                                         </FormField>
 
@@ -564,7 +564,7 @@ export default function SystemSettings() {
 
             {/* ── Sticky Save Footer ── */}
             <div style={{ position: 'sticky', bottom: '16px', background: 'var(--bg-surface)', backdropFilter: 'blur(12px)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-floating)', zIndex: 10 }}>
-                <p style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                <p style={{ fontSize: 'var(--text-caption)', color: '#0D7F55', fontWeight: 600 }}>
                     ✓ التغييرات تؤثر فوراً على جميع القوالب والشهادات الجديدة
                 </p>
                 <Button type="submit" variant="primary" size="md" isLoading={saving} leftIcon={saved ? CheckCircle : Save}>
@@ -602,7 +602,10 @@ const FieldKey = ({ field }) => (
 );
 
 const InfoBanner = ({ children }) => (
-    <div style={{ padding: '10px 14px', background: 'var(--color-info-bg)', border: '1px solid var(--color-info-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+    <div style={{
+        padding: '10px 14px', background: 'var(--color-info-bg)', border: '1px solid var(--color-info-border)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: '#0D7F55', lineHeight: 1.8,
+        fontWeight: 600
+    }}>
         {children}
     </div>
 );
