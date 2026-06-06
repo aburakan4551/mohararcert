@@ -54,18 +54,19 @@ export default function ApprovalDetails() {
     /* ── Auto Scale for A4 ── */
     useEffect(() => {
         if (loading || !cert) return;
+        const isPortrait = template?.orientation === 'portrait';
         const measure = () => {
             const el = previewContainerRef.current;
             if (!el) return;
-            const A4_W = 297 * (96 / 25.4);
-            const A4_H = 210 * (96 / 25.4);
+            const A4_W = (isPortrait ? 210 : 297) * (96 / 25.4);
+            const A4_H = (isPortrait ? 297 : 210) * (96 / 25.4);
             setScale(Math.min(el.clientWidth / A4_W, el.clientHeight / A4_H) * 0.94);
         };
         const ro = new ResizeObserver(measure);
         if (previewContainerRef.current) ro.observe(previewContainerRef.current);
         measure();
         return () => ro.disconnect();
-    }, [loading, cert]);
+    }, [loading, cert, template]);
 
     const loadCertDetails = async () => {
         setLoading(true);
@@ -355,20 +356,32 @@ export default function ApprovalDetails() {
                                 pointerEvents: 'none',
                             }} />
                             <div style={{
-                                transform: `scale(${scale})`,
-                                transformOrigin: 'center center',
-                                width: isPortrait ? '210mm' : '297mm',
-                                height: isPortrait ? '297mm' : '210mm',
+                                width: `${(isPortrait ? 793.7 : 1122.5) * scale}px`,
+                                height: `${(isPortrait ? 1122.5 : 793.7) * scale}px`,
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 flexShrink: 0,
-                                position: 'relative', zIndex: 2,
+                                zIndex: 2,
                             }}>
-                                <TemplateRenderer
-                                    ref={certRef}
-                                    template={template}
-                                    dataContext={certData}
-                                    width={isPortrait ? 793.7 : 1122.5}
-                                    settings={getApprovedSettings()}
-                                />
+                                <div style={{
+                                    transform: `scale(${scale})`,
+                                    transformOrigin: 'top left',
+                                    width: isPortrait ? '793.7px' : '1122.5px',
+                                    height: isPortrait ? '1122.5px' : '793.7px',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                }}>
+                                    <TemplateRenderer
+                                        ref={certRef}
+                                        template={template}
+                                        dataContext={certData}
+                                        width={isPortrait ? 793.7 : 1122.5}
+                                        settings={getApprovedSettings()}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </Card>

@@ -61,23 +61,23 @@ export default function ArchivePage() {
         })();
     }, []);
 
+    const isPortrait = activeTemplate?.orientation === 'portrait';
+
     /* Auto Scale for A4 Preview */
     useEffect(() => {
         if (!activeCert) return;
         const measure = () => {
             const el = previewContainerRef.current;
             if (!el) return;
-            const A4W = 297 * (96 / 25.4);
-            const A4H = 210 * (96 / 25.4);
+            const A4W = (isPortrait ? 210 : 297) * (96 / 25.4);
+            const A4H = (isPortrait ? 297 : 210) * (96 / 25.4);
             setScale(Math.min(el.clientWidth / A4W, el.clientHeight / A4H) * 0.92);
         };
         const ro = new ResizeObserver(measure);
         if (previewContainerRef.current) ro.observe(previewContainerRef.current);
         measure();
         return () => ro.disconnect();
-    }, [activeCert]);
-
-    const isPortrait = activeTemplate?.orientation === 'portrait';
+    }, [activeCert, isPortrait]);
 
     const filteredCerts = useMemo(() =>
         certs.filter(c =>
@@ -357,26 +357,39 @@ export default function ArchivePage() {
                                     ref={previewContainerRef}
                                     style={{
                                         background: 'var(--bg-page)',
-                                        height: '200px',
+                                        minHeight: '220px',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        overflow: 'hidden',
+                                        overflow: 'auto',
                                         position: 'relative',
+                                        padding: '16px',
                                     }}
                                 >
                                     <div style={{
-                                        transform: `scale(${scale})`,
-                                        transformOrigin: 'center center',
-                                        width: isPortrait ? '210mm' : '297mm',
-                                        height: isPortrait ? '297mm' : '210mm',
+                                        width: `${(isPortrait ? 793.7 : 1122.5) * scale}px`,
+                                        height: `${(isPortrait ? 1122.5 : 793.7) * scale}px`,
+                                        position: 'relative',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                         flexShrink: 0,
                                     }}>
-                                        <TemplateRenderer
-                                            ref={certRef}
-                                            template={activeTemplate}
-                                            dataContext={certData}
-                                            width={isPortrait ? 793.7 : 1122.5}
-                                            settings={activeCert.managerSnapshot || activeCert.assistantSnapshot || settings}
-                                        />
+                                        <div style={{
+                                            transform: `scale(${scale})`,
+                                            transformOrigin: 'top left',
+                                            width: isPortrait ? '793.7px' : '1122.5px',
+                                            height: isPortrait ? '1122.5px' : '793.7px',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                        }}>
+                                            <TemplateRenderer
+                                                ref={certRef}
+                                                template={activeTemplate}
+                                                dataContext={certData}
+                                                width={isPortrait ? 793.7 : 1122.5}
+                                                settings={activeCert.managerSnapshot || activeCert.assistantSnapshot || settings}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
