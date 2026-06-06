@@ -309,6 +309,52 @@ class LocalDatabase {
             if (!localStorage.getItem(this.prefix + 'notifications')) {
                 localStorage.setItem(this.prefix + 'notifications', JSON.stringify([]));
             }
+            if (!localStorage.getItem(this.prefix + 'forms')) {
+                const seedForms = [
+                    {
+                        id: 'form-seed-1',
+                        name: 'نموذج التميز الطبي العام v1',
+                        templateId: 'tpl-1',
+                        templateName: 'شهادة شكر وتقدير الفرع',
+                        orientation: 'landscape',
+                        status: 'PUBLISHED',
+                        enabled: true,
+                        version: 1,
+                        createdBy: 'usr-4',
+                        createdByName: 'يوسف العنزي',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        usageCount: 0,
+                        fields: [
+                            {
+                                id: 'fld-1',
+                                name: 'recipientName',
+                                label: 'اسم الموظف المكرم',
+                                type: 'text',
+                                x: 200,
+                                y: 350,
+                                width: 722,
+                                height: 50,
+                                required: true,
+                                certificateMapping: 'recipientName'
+                            },
+                            {
+                                id: 'fld-2',
+                                name: 'reasonText',
+                                label: 'نص التكريم المفصل',
+                                type: 'textarea',
+                                x: 200,
+                                y: 440,
+                                width: 722,
+                                height: 100,
+                                required: true,
+                                certificateMapping: 'reasonText'
+                            }
+                        ]
+                    }
+                ];
+                localStorage.setItem(this.prefix + 'forms', JSON.stringify(seedForms));
+            }
 
             // Naming & Prefix Migration
             const certsKey = this.prefix + 'certificates';
@@ -800,5 +846,148 @@ export const localProvider = {
             db.setItem('notifications', updated);
             return true;
         }
+    },
+
+    forms: {
+        checkAdmin() {
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || 'null');
+            if (!currentUser) throw new Error('غير مصرح: يرجى تسجيل الدخول أولاً.');
+            
+            const isAdmin = currentUser.role === 'SUPER_ADMIN' || 
+                            currentUser.role === 'System Administrator' || 
+                            currentUser.role === 'SYSTEM_ADMINISTRATOR' ||
+                            currentUser.role === 'Super Admin';
+            
+            let hasFormsAdminPerm = false;
+            try {
+                const settings = JSON.parse(localStorage.getItem('mohararcert_db_settings') || '{}');
+                const perms = settings?.rbacSettings?.[currentUser.role] || [];
+                hasFormsAdminPerm = perms.includes('forms.admin') || perms.includes('*');
+            } catch(e) {}
+
+            if (!isAdmin && !hasFormsAdminPerm) {
+                throw new Error('غير مصرح: ليس لديك الصلاحيات الكافية للقيام بهذا الإجراء.');
+            }
+        },
+
+        async getAll() {
+            return db.getItem('forms');
+        },
+
+        async getById(id) {
+            const list = db.getItem('forms');
+            return list.find(f => f.id === id) || null;
+        },
+
+        async create(form) {
+            this.checkAdmin();
+            const list = db.getItem('forms');
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            const newForm = {
+                ...form,
+                id: form.id || `form-${Date.now()}`,
+                status: 'DRAFT',
+                enabled: form.enabled !== undefined ? form.enabled : true,
+                version: form.version || 1,
+                usageCount: 0,
+                createdBy: currentUser.id || 'system',
+                createdByName: currentUser.name || 'System Administrator',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                fields: form.fields || []
+            };
+            list.unshift(newForm);
+            db.setItem('forms', list);
+            await localProvider.audit.log('CREATE_FORM', currentUser, `إنشاء نموذج جديد: ${newForm.name} (v${newForm.version})`, newForm.id);
+            return newForm;
+        },
+
+        async update(id, changes) {
+            this.checkAdmin();
+            const list = db.getItem('forms');
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            let updatedForm = null;
+            const updated = list.map(f => {
+                if (f.id === id) {
+                    if (f.usageCount > 0 && changes.fields) {
+                        throw new Error('لا يمكن تعديل حقول نموذج يحتوي على شهادات مصدرة بالفعل. يرجى إنشاء إصدار جديد.');
+                    }
+                    updatedForm = {
+                        ...f,
+                        ...changes,
+                        updatedAt: new Date().toISOString()
+                    };
+                    return updatedForm;
+                }
+                return f;
+            });
+            db.setItem('forms', updated);
+            if (updatedForm) {
+                await localProvider.audit.log('UPDATE_FORM', currentUser, `تعديل نموذج: ${updatedForm.name} (v${updatedForm.version})`, id);
+            }
+            return updatedForm;
+        },
+
+        async delete(id) {
+            this.checkAdmin();
+            const list = db.getItem('forms');
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            let deletedForm = null;
+            const updated = list.map(f => {
+                if (f.id === id) {
+                    deletedForm = {
+                        ...f,
+                        status: 'DELETED',
+                        updatedAt: new Date().toISOString()
+                    };
+                    return deletedForm;
+                }
+                return f;
+            });
+            db.setItem('forms', updated);
+            if (deletedForm) {
+                await localProvider.audit.log('DELETE_FORM', currentUser, `حذف نموذج (soft-delete): ${deletedForm.name} (v${deletedForm.version})`, id);
+            }
+            return true;
+        },
+
+        async recover(id) {
+            this.checkAdmin();
+            const list = db.getItem('forms');
+            const currentUser = JSON.parse(sessionStorage.getItem('current_user_session') || '{}');
+            let recoveredForm = null;
+            const updated = list.map(f => {
+                if (f.id === id) {
+                    recoveredForm = {
+                        ...f,
+                        status: 'DRAFT',
+                        updatedAt: new Date().toISOString()
+                    };
+                    return recoveredForm;
+                }
+                return f;
+            });
+            db.setItem('forms', updated);
+            if (recoveredForm) {
+                await localProvider.audit.log('RECOVER_FORM', currentUser, `استعادة نموذج محذوف: ${recoveredForm.name} (v${recoveredForm.version})`, id);
+            }
+            return recoveredForm;
+        },
+
+        async incrementUsage(id) {
+            const list = db.getItem('forms');
+            const updated = list.map(f => {
+                if (f.id === id) {
+                    return {
+                        ...f,
+                        usageCount: (f.usageCount || 0) + 1
+                    };
+                }
+                return f;
+            });
+            db.setItem('forms', updated);
+            return true;
+        }
     }
 };
+

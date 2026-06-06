@@ -146,45 +146,60 @@ const Diagnostics = safeLazy(() => import('./pages/Diagnostics'))
 const TemplateStudio = safeLazy(() => import('./ui/studio/TemplateStudio/TemplateStudio'))
 const TemplateMapper = safeLazy(() => import('./ui/studio/TemplateMapper/TemplateMapper'))
 
-const getNavItems = (role) => {
-    switch (role) {
-        case 'CREATOR':
-            return [
-                { to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' },
-                { to: '/create', icon: 'FilePlus', label: 'مساحة العمل والتوليد' },
-                { to: '/my-certificates', icon: 'FolderHeart', label: 'شهاداتي الخاصة' }
-            ];
-        case 'ASSISTANT_MANAGER':
-        case 'GENERAL_MANAGER':
-            return [
-                { to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' },
-                { to: '/pending', icon: 'Hourglass', label: 'الطلبات المعلقة' },
-                { to: '/archive', icon: 'Archive', label: 'الأرشيف العام' },
-                { to: '/system-settings', icon: 'Settings', label: 'إعدادات الهوية' }
-            ];
-        case 'SUPER_ADMIN':
-            return [
-                { to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' },
-                { to: '/create', icon: 'FilePlus', label: 'مساحة العمل والتوليد' },
-                { to: '/my-certificates', icon: 'FolderHeart', label: 'شهاداتي الخاصة' },
-                { to: '/pending', icon: 'Hourglass', label: 'الطلبات المعلقة' },
-                { to: '/archive', icon: 'Archive', label: 'الأرشيف العام' },
-                { to: '/registry', icon: 'BookOpen', label: 'سجل النظام الموحد' },
-                { to: '/assets', icon: 'ShieldCheck', label: 'حوكمة الأصول الرسمية' },
-                { to: '/system-settings', icon: 'Settings', label: 'إعدادات الهوية' },
-                { to: '/users', icon: 'Users', label: 'إدارة الحسابات' },
-                { to: '/permissions', icon: 'ShieldAlert', label: 'صلاحيات الأدوار' },
-                { to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' },
-                { to: '/diagnostics', icon: 'Activity', label: 'التشخيص ومراقبة الأداء' },
-                { to: '/studio', icon: 'Settings2', label: 'مصمم القوالب' }
-            ];
-        default:
-            return [];
-    }
-}
+// Forms Builder Pages
+const FormsBuilder = safeLazy(() => import('./pages/FormsBuilder'))
+const FormDesigner = safeLazy(() => import('./pages/FormDesigner'))
+const FillForms = safeLazy(() => import('./pages/FillForms'))
 
-function ProtectedRoute({ children, allowedRoles = [] }) {
-    const { user, loading } = useAuth()
+const getNavItems = (user, canPerform) => {
+    if (!user) return [];
+    const items = [];
+    items.push({ to: '/dashboard', icon: 'LayoutDashboard', label: 'لوحة التحكم' });
+
+    const isFormsAdmin = user.role === 'SUPER_ADMIN' || 
+                         user.role === 'System Administrator' || 
+                         user.role === 'SYSTEM_ADMINISTRATOR' || 
+                         user.role === 'Super Admin' || 
+                         (typeof canPerform === 'function' && canPerform('forms.admin'));
+
+    if (isFormsAdmin) {
+        items.push({ to: '/forms-builder', icon: 'Sliders', label: 'إدارة النماذج (Forms)' });
+    }
+
+    items.push({ to: '/fill-forms', icon: 'ClipboardSignature', label: 'تعبئة النماذج' });
+
+    if (user.role === 'CREATOR' || user.role === 'SUPER_ADMIN') {
+        items.push({ to: '/create', icon: 'FilePlus', label: 'مساحة العمل والتوليد' });
+        items.push({ to: '/my-certificates', icon: 'FolderHeart', label: 'شهاداتي الخاصة' });
+    }
+
+    if (['ASSISTANT_MANAGER', 'GENERAL_MANAGER', 'SUPER_ADMIN'].includes(user.role)) {
+        items.push({ to: '/pending', icon: 'Hourglass', label: 'الطلبات المعلقة' });
+        items.push({ to: '/archive', icon: 'Archive', label: 'الأرشيف العام' });
+    }
+
+    if (user.role === 'SUPER_ADMIN') {
+        items.push({ to: '/registry', icon: 'BookOpen', label: 'سجل النظام الموحد' });
+        items.push({ to: '/assets', icon: 'ShieldCheck', label: 'حوكمة الأصول الرسمية' });
+    }
+
+    if (['ASSISTANT_MANAGER', 'GENERAL_MANAGER', 'SUPER_ADMIN'].includes(user.role)) {
+        items.push({ to: '/system-settings', icon: 'Settings', label: 'إعدادات الهوية' });
+    }
+
+    if (user.role === 'SUPER_ADMIN') {
+        items.push({ to: '/users', icon: 'Users', label: 'إدارة الحسابات' });
+        items.push({ to: '/permissions', icon: 'ShieldAlert', label: 'صلاحيات الأدوار' });
+        items.push({ to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' });
+        items.push({ to: '/diagnostics', icon: 'Activity', label: 'التشخيص ومراقبة الأداء' });
+        items.push({ to: '/studio', icon: 'Settings2', label: 'مصمم القوالب' });
+    }
+
+    return items;
+};
+
+function ProtectedRoute({ children, allowedRoles = [], requiredPermission }) {
+    const { user, loading, canPerform } = useAuth()
 
     if (loading) {
         return (
@@ -198,7 +213,10 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
         return <Navigate to="/login" replace />
     }
 
-    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    const hasAllowedRole = allowedRoles.length === 0 || allowedRoles.includes(user.role);
+    const hasRequiredPerm = !requiredPermission || (typeof canPerform === 'function' && canPerform(requiredPermission));
+
+    if (!hasAllowedRole && !hasRequiredPerm) {
         return <Navigate to="/dashboard" replace />
     }
 
@@ -206,8 +224,8 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 }
 
 function LayoutWrapper() {
-    const { user, logout, notifications, clearAllNotifications } = useAuth()
-    const navItems = getNavItems(user?.role || '')
+    const { user, logout, notifications, clearAllNotifications, canPerform } = useAuth()
+    const navItems = getNavItems(user, canPerform)
 
     return (
         <DashboardLayout
@@ -345,6 +363,32 @@ function LayoutWrapper() {
                         element={
                             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                                 <TemplateMapper />
+                            </ProtectedRoute>
+                        } 
+                    />
+
+                    {/* Forms Builder Routes */}
+                    <Route 
+                        path="/forms-builder" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'System Administrator', 'SYSTEM_ADMINISTRATOR', 'Super Admin']} requiredPermission="forms.admin">
+                                <FormsBuilder />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/forms-builder/designer/:id" 
+                        element={
+                            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'System Administrator', 'SYSTEM_ADMINISTRATOR', 'Super Admin']} requiredPermission="forms.admin">
+                                <FormDesigner />
+                            </ProtectedRoute>
+                        } 
+                    />
+                    <Route 
+                        path="/fill-forms" 
+                        element={
+                            <ProtectedRoute>
+                                <FillForms />
                             </ProtectedRoute>
                         } 
                     />

@@ -89,7 +89,7 @@ export default function ArchivePage() {
 
     const handleInspect = (c) => {
         setActiveCert(c);
-        setActiveTemplate(templates.find(t => t.id === c.templateId) || null);
+        setActiveTemplate(c.frozenTemplate || templates.find(t => t.id === c.templateId) || null);
         logger.api(`معاينة شهادة: ${c.serial}`);
     };
 
@@ -119,6 +119,11 @@ export default function ArchivePage() {
         event: activeCert.event,
         date: activeCert.date,
         serial: activeCert.serial,
+        formFields: activeCert.formFields,
+        formValues: activeCert.formValues,
+        status: activeCert.status,
+        assistantSnapshot: activeCert.assistantSnapshot,
+        managerSnapshot: activeCert.managerSnapshot,
     } : null;
 
     /* ── Table Columns ── */

@@ -47,5 +47,15 @@ export const supabaseProvider = {
         async create(notification) { return notification; },
         async markAsRead(id) { return true; },
         async markAllAsRead(userId) { return true; }
+    },
+
+    forms: {
+        async getAll() { return []; },
+        async getById(id) { return null; },
+        async create(form) { return form; },
+        async update(id, form) { return form; },
+        async delete(id) { return true; },
+        async recover(id) { return null; },
+        async incrementUsage(id) { return true; }
     }
 };

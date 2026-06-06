@@ -69,6 +69,17 @@ export const templateService = {
     rollback: (id, targetVersion) => provider.templates.rollback(id, targetVersion)
 };
 
+// 📋 Dynamic Forms Service
+export const formService = {
+    getAll: () => provider.forms.getAll(),
+    getById: (id) => provider.forms.getById(id),
+    create: (form) => provider.forms.create(form),
+    update: (id, form) => provider.forms.update(id, form),
+    delete: (id) => provider.forms.delete(id),
+    recover: (id) => provider.forms.recover(id),
+    incrementUsage: (id) => provider.forms.incrementUsage(id)
+};
+
 // 🏛️ Centralized Organization Assets Service
 export const assetService = {
     getAll: () => provider.assets.getAll(),

@@ -417,6 +417,52 @@ function CertificatePreview({ template, layers, canvasWidth, data, settings, sho
                     <QRCodeSVG value={`CERT:${serial}|${recipientName}|STATUS:${status}`} size={54} />
                 </div>
             )}
+
+            {/* Dynamic Form Fields Overlay */}
+            {(data?.formFields || []).map((field) => {
+                const valuesSource = data?.formValues || {};
+                const value = valuesSource[field.name] ?? '';
+                if (!value) return null;
+
+                const isPortrait = (orientation || 'portrait') === 'portrait';
+                const refW = isPortrait ? A4_PORTRAIT_W_PX : A4_LANDSCAPE_W_PX;
+                const refH = isPortrait ? A4_PORTRAIT_H_PX : A4_LANDSCAPE_H_PX;
+                const scale = canvasWidth / refW;
+
+                const pctX = (field.x / refW) * 100;
+                const pctY = (field.y / refH) * 100;
+                const pctW = (field.width / refW) * 100;
+                const pctH = (field.height / refH) * 100;
+
+                const fontSize = 14 * scale;
+
+                return (
+                    <div
+                        key={field.id}
+                        style={{
+                            position: 'absolute',
+                            left: `${pctX}%`,
+                            top: `${pctY}%`,
+                            width: `${pctW}%`,
+                            height: `${pctH}%`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            textAlign: 'right',
+                            color: '#1e293b',
+                            fontFamily: 'Cairo, sans-serif',
+                            fontSize: `${fontSize}px`,
+                            fontWeight: 700,
+                            whiteSpace: 'pre-wrap',
+                            overflow: 'hidden',
+                            zIndex: 30,
+                            direction: 'rtl'
+                        }}
+                    >
+                        {value}
+                    </div>
+                );
+            })}
         </div>
     )
 }

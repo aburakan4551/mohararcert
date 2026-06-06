@@ -181,7 +181,9 @@ export default function ApprovalDetails() {
                 reason: cert.reasonText || cert.reason || '',
                 date: cert.date || '',
                 serial_number: cert.serial,
-                qr_code: cert.showQR ? `CERT:${cert.serial}|${previewName}` : ''
+                qr_code: cert.showQR ? `CERT:${cert.serial}|${previewName}` : '',
+                formFields: cert.formFields,
+                formValues: cert.formValues
             };
 
             await ExportEngine.exportHeadless(
@@ -227,6 +229,11 @@ export default function ApprovalDetails() {
         event: cert.event,
         date: cert.date,
         serial: cert.serial,
+        formFields: cert.formFields,
+        formValues: cert.formValues,
+        status: cert.status,
+        assistantSnapshot: cert.assistantSnapshot,
+        managerSnapshot: cert.managerSnapshot,
     };
 
     const isFinalOrArchived = cert.status === 'FINAL_APPROVED' || cert.status === 'ARCHIVED';

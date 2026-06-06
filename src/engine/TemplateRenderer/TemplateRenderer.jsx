@@ -174,6 +174,51 @@ const TemplateRenderer = forwardRef(({ template, dataContext, width = 800, setti
 
                 return null;
             })}
+
+            {/* Dynamic Form Fields Overlay */}
+            {(dataContext?.formFields || []).map((field) => {
+                const valuesSource = dataContext?.formValues || dataContext || {};
+                const value = valuesSource[field.name] ?? '';
+                if (!value) return null;
+
+                const baseW = isPortrait ? 793.7 : 1122.5;
+                const baseH = isPortrait ? 1122.5 : 793.7;
+
+                const pctX = (field.x / baseW) * 100;
+                const pctY = (field.y / baseH) * 100;
+                const pctW = (field.width / baseW) * 100;
+                const pctH = (field.height / baseH) * 100;
+
+                // Font size scaling (base 14px, or if field height is taller we can scale slightly)
+                const fontSize = 14 * scale;
+
+                return (
+                    <div
+                        key={field.id}
+                        style={{
+                            position: 'absolute',
+                            left: `${pctX}%`,
+                            top: `${pctY}%`,
+                            width: `${pctW}%`,
+                            height: `${pctH}%`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            textAlign: 'right',
+                            color: '#1e293b', // Sleek dark slate color for premium print look
+                            fontFamily: 'Cairo, sans-serif',
+                            fontSize: `${fontSize}px`,
+                            fontWeight: 700,
+                            whiteSpace: 'pre-wrap',
+                            overflow: 'hidden',
+                            zIndex: 30,
+                            direction: 'rtl'
+                        }}
+                    >
+                        {value}
+                    </div>
+                );
+            })}
         </div>
     );
 });
