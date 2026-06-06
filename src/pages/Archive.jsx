@@ -12,7 +12,7 @@ import TemplateRenderer from '../engine/TemplateRenderer/TemplateRenderer';
 import { getRecipientDisplayName } from '../engine/FieldEngine/FieldEngine';
 import {
     Archive, Search, FileText, Download, Printer,
-    ShieldCheck, Eye, Calendar, User2, X,
+    ShieldCheck, Eye, Calendar, User2, X, AlertTriangle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
@@ -351,6 +351,23 @@ export default function ArchivePage() {
                                         </button>
                                     </div>
                                 </div>
+
+                                {activeCert.legacyCorruptionDetected && (
+                                    <div style={{
+                                        padding: '12px 16px',
+                                        background: 'var(--color-danger-bg, #fff5f5)',
+                                        borderBottom: '1px solid var(--color-danger-border, #feb2b2)',
+                                        color: 'var(--color-danger, #e53e3e)',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                    }}>
+                                        <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                                        <span>تنبيه: هذه المعاملة متأثرة بخلل تاريخي (فقدان التوقيع/الختم).</span>
+                                    </div>
+                                )}
 
                                 {/* Certificate Preview */}
                                 <div

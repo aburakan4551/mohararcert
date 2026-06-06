@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import {
     Award, ShieldAlert, Key, User, Eye, EyeOff,
     FileCheck, Users, ShieldCheck, TrendingUp, CheckCircle2,
+    Clock, AlertTriangle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../utils/debug';
+import { dbService, authService } from '../services/db';
 
 export default function Login() {
     const { user, login } = useAuth();
@@ -18,6 +20,60 @@ export default function Login() {
     const [submitting, setSubmitting] = useState(false);
     const [shake, setShake] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+
+    const [stats, setStats] = useState({
+        total: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        users: 0,
+        rate: '0%'
+    });
+
+    const loadStats = async () => {
+        try {
+            const allCerts = await dbService.getAll();
+            const allUsers = await authService.getUsers();
+            
+            const total = allCerts.length;
+            const approved = allCerts.filter(c => ['FINAL_APPROVED', 'APPROVED', 'ARCHIVED'].includes(c.status)).length;
+            const pending = allCerts.filter(c => ['PENDING', 'PENDING_APPROVAL', 'UNDER_REVIEW', 'APPROVED_BY_ASSISTANT'].includes(c.status)).length;
+            const rejected = allCerts.filter(c => ['REJECTED', 'RETURNED_FOR_EDIT'].includes(c.status)).length;
+            const users = allUsers.length;
+            const rateVal = total > 0 ? Math.round((approved / total) * 100) : 0;
+            
+            setStats({
+                total,
+                approved,
+                pending,
+                rejected,
+                users,
+                rate: `${rateVal}%`
+            });
+        } catch (e) {
+            console.error('Failed to load login stats:', e);
+        }
+    };
+
+    useEffect(() => {
+        loadStats();
+        
+        // Real-time interval polling
+        const interval = setInterval(loadStats, 1000);
+        
+        // Listen to storage changes from other tabs
+        const handleStorageChange = (e) => {
+            if (e.key && (e.key.includes('certificates') || e.key.includes('users'))) {
+                loadStats();
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
 
     useEffect(() => {
         if (user) {
@@ -60,10 +116,12 @@ export default function Login() {
     ];
 
     const kpis = [
-        { label: 'إجمالي المعاملات', value: '0', icon: FileCheck, color: 'var(--color-primary-600)', bg: 'rgba(15,169,88,0.10)' },
-        { label: 'مستخدم نشط', value: '0', icon: Users, color: 'var(--color-accent-500)', bg: 'rgba(30,136,229,0.10)' },
-        { label: 'معدل الاعتماد', value: '0%', icon: TrendingUp, color: '#F59E0B', bg: 'rgba(245,158,11,0.10)' },
-        { label: 'شهادة معتمدة', value: '0', icon: CheckCircle2, color: '#10B981', bg: 'rgba(16,185,129,0.10)' },
+        { label: 'إجمالي المعاملات', value: stats.total, icon: FileCheck },
+        { label: 'شهادة معتمدة', value: stats.approved, icon: CheckCircle2 },
+        { label: 'بانتظار الاعتماد', value: stats.pending, icon: Clock },
+        { label: 'المعاملات المرفوضة', value: stats.rejected, icon: AlertTriangle },
+        { label: 'المستخدمون النشطون', value: stats.users, icon: Users },
+        { label: 'معدل الاعتماد', value: stats.rate, icon: TrendingUp },
     ];
 
     return (

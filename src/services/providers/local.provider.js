@@ -362,7 +362,7 @@ class LocalDatabase {
                 localStorage.setItem(this.prefix + 'forms', JSON.stringify(seedForms));
             }
 
-            // Naming & Prefix Migration
+            // Naming & Prefix Migration + Legacy Repair Tool
             const certsKey = this.prefix + 'certificates';
             let certs = null;
             try {
@@ -370,15 +370,153 @@ class LocalDatabase {
             } catch (e) {}
 
             if (certs && certs.length > 0) {
+                let settings = null;
+                try {
+                    settings = JSON.parse(localStorage.getItem(this.prefix + 'settings'));
+                } catch (e) {}
+                if (!settings) {
+                    settings = DEFAULT_SETTINGS;
+                }
+
                 let correctedCount = 0;
+                let repairedCount = 0;
+                let corruptionFlaggedCount = 0;
                 const officialTitles = DEFAULT_SETTINGS.official_titles;
                 
                 const updatedCerts = certs.map(c => {
                     let changed = false;
+
+                    // 1. Repair / Populate missing signatures/stamps in legacy snapshots
+                    const needsRepair = 
+                        c.status === 'APPROVED_BY_ASSISTANT' || 
+                        c.status === 'FINAL_APPROVED' || 
+                        c.status === 'ARCHIVED';
+
+                    if (needsRepair) {
+                        if (!c.certificateSnapshot) {
+                            c.certificateSnapshot = {};
+                            changed = true;
+                        }
+                        
+                        const snap = c.certificateSnapshot;
+
+                        // ─── Phase A: Cross-Snapshot Restorations ───
+                        // 1. Assistant / Visa Signature
+                        let activeVisaSig = c.assistantSnapshot?.visaSignature || snap.signature_2;
+                        
+                        // 2. Director / General Manager Signature & Stamp (Only for FINAL_APPROVED or ARCHIVED)
+                        let activeDirectorSig = null;
+                        let activeStampVal = null;
+                        if (c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') {
+                            activeDirectorSig = c.managerSnapshot?.directorSignature || snap.signature_1;
+                            activeStampVal = c.managerSnapshot?.stamp || snap.official_stamp;
+                        }
+
+                        // ─── Phase B: Current Settings Fallback (if still missing from snapshots) ───
+                        if (!activeVisaSig) {
+                            activeVisaSig = settings.visaSignature || settings.assistant_planning_signature || settings.signature_2 || null;
+                        }
+                        if ((c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') && !activeDirectorSig) {
+                            activeDirectorSig = settings.directorSignature || settings.general_manager_signature || settings.signature_1 || null;
+                        }
+                        if ((c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') && !activeStampVal) {
+                            activeStampVal = settings.stamp || settings.official_seal || settings.official_stamp || null;
+                        }
+
+                        // ─── Phase C: Apply Restored Values ───
+                        // 1. Assistant Approval Signature
+                        if (activeVisaSig) {
+                            if (!c.assistantSnapshot) {
+                                c.assistantSnapshot = {
+                                    visaName: settings.visaName || 'أ. أحمد بن محمد السويلم',
+                                    visaLabel: settings.visaLabel || 'مساعد المدير العام للتخطيط والتحول',
+                                    approvedAt: c.updatedAt || new Date().toISOString()
+                                };
+                                changed = true;
+                            }
+                            if (c.assistantSnapshot.visaSignature !== activeVisaSig) {
+                                c.assistantSnapshot.visaSignature = activeVisaSig;
+                                changed = true;
+                                repairedCount++;
+                            }
+                            if (snap.signature_2 !== activeVisaSig) {
+                                snap.signature_2 = activeVisaSig;
+                                changed = true;
+                                repairedCount++;
+                            }
+                        }
+
+                        // 2. Manager Approval Signature and Stamp (Only if FINAL_APPROVED or ARCHIVED)
+                        if (c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') {
+                            if (activeDirectorSig || activeStampVal) {
+                                if (!c.managerSnapshot) {
+                                    c.managerSnapshot = {
+                                        directorName: settings.directorName || 'أ. منصور بن سالم الرشيدي',
+                                        directorTitle: settings.directorTitle || 'مدير عام فرع وزارة الصحة بمنطقة الحدود الشمالية',
+                                        approvedAt: c.updatedAt || new Date().toISOString()
+                                    };
+                                    changed = true;
+                                }
+                                if (activeDirectorSig) {
+                                    if (c.managerSnapshot.directorSignature !== activeDirectorSig) {
+                                        c.managerSnapshot.directorSignature = activeDirectorSig;
+                                        changed = true;
+                                        repairedCount++;
+                                    }
+                                    if (snap.signature_1 !== activeDirectorSig) {
+                                        snap.signature_1 = activeDirectorSig;
+                                        changed = true;
+                                        repairedCount++;
+                                    }
+                                }
+                                if (activeStampVal) {
+                                    if (c.managerSnapshot.stamp !== activeStampVal) {
+                                        c.managerSnapshot.stamp = activeStampVal;
+                                        changed = true;
+                                        repairedCount++;
+                                    }
+                                    if (snap.official_stamp !== activeStampVal) {
+                                        snap.official_stamp = activeStampVal;
+                                        changed = true;
+                                        repairedCount++;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Also sync official_signature / signature_3 if not set
+                        if (!snap.signature_3 && (settings.official_signature || settings.signature_3)) {
+                            snap.signature_3 = settings.official_signature || settings.signature_3;
+                            changed = true;
+                            repairedCount++;
+                        }
+
+                        // ─── Phase D: Check if still missing and flag as historical glitch ───
+                        const visaMissing = !c.assistantSnapshot || !c.assistantSnapshot.visaSignature || !snap.signature_2;
+                        const directorMissing = (c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') && (!c.managerSnapshot || !c.managerSnapshot.directorSignature || !snap.signature_1);
+                        const stampMissing = (c.status === 'FINAL_APPROVED' || c.status === 'ARCHIVED') && (!c.managerSnapshot || !c.managerSnapshot.stamp || !snap.official_stamp);
+
+                        if (visaMissing || directorMissing || stampMissing) {
+                            if (!c.legacyCorruptionDetected) {
+                                c.legacyCorruptionDetected = true;
+                                c.legacyGlitchMark = 'AFFECTED_BY_HISTORICAL_GLITCH';
+                                c.legacyGlitchMessage = 'هذه المعاملة متأثرة بخلل تاريخي في البيانات (فقدان التوقيع أو الختم).';
+                                changed = true;
+                                corruptionFlaggedCount++;
+                            }
+                        } else {
+                            if (c.legacyCorruptionDetected) {
+                                c.legacyCorruptionDetected = false;
+                                c.legacyGlitchMark = undefined;
+                                c.legacyGlitchMessage = undefined;
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    // 2. Clean up duplicate prefixes in rawName if any (e.g. "الدكتور الدكتور أحمد" -> "أحمد")
                     let rawName = c.recipientName || '';
                     let prefix = c.prefix || '';
-
-                    // 1. Clean up duplicate prefixes in rawName if any (e.g. "الدكتور الدكتور أحمد" -> "أحمد")
                     let cleanName = rawName.replace(/\s*\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
                     
                     const sortedTitles = [...new Set(officialTitles)].filter(Boolean).sort((a, b) => b.length - a.length);
@@ -411,7 +549,7 @@ class LocalDatabase {
 
                 if (correctedCount > 0) {
                     localStorage.setItem(certsKey, JSON.stringify(updatedCerts));
-                    console.log(`[Database Migration] Checked and corrected ${correctedCount} certificates for duplicate prefixes.`);
+                    console.log(`[Database Migration] Checked and corrected/repaired certificates. Total: ${correctedCount}, Repaired values: ${repairedCount}, Corrupt flagged: ${corruptionFlaggedCount}.`);
                     window.migratedCertificatesCount = (window.migratedCertificatesCount || 0) + correctedCount;
                 }
             }
@@ -440,6 +578,9 @@ class LocalDatabase {
 const db = new LocalDatabase();
 
 export const localProvider = {
+    __triggerMigration() {
+        db.initStorage();
+    },
     // 🔐 AUTH OPERATIONS
     auth: {
         async login(email, password) {

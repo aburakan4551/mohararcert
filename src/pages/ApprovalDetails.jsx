@@ -298,6 +298,25 @@ export default function ApprovalDetails() {
                 )}
             </div>
 
+            {cert.legacyCorruptionDetected && (
+                <div style={{
+                    padding: '14px 20px',
+                    background: 'var(--color-danger-bg, #fff5f5)',
+                    border: '1.5px dashed var(--color-danger, #e53e3e)',
+                    borderRadius: '16px',
+                    color: 'var(--color-danger, #e53e3e)',
+                    fontSize: 'var(--text-body-sm, 13px)',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    boxShadow: '0 2px 8px rgba(229, 62, 62, 0.08)',
+                }}>
+                    <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                    <span>تنبيه: هذه المعاملة متأثرة بخلل تاريخي في البيانات (فقدان التوقيع أو الختم). تم تجميد الحالة لمنع تلف البيانات الإضافية.</span>
+                </div>
+            )}
+
             {/* ── Split Layout: 7/5 ── */}
             <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '20px', alignItems: 'start' }}>
 
