@@ -4,8 +4,8 @@
  * Decoupled enterprise storage provider supporting full asset registries, version histories, and frozen snapshots.
  */
 
-import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../../config/certificatePreset';
-import { diagnosticsStore } from '../../utils/diagnosticsStore';
+import { CERTIFICATE_SCREENSHOT_PRESET_SETTINGS } from '../../config/certificatePreset.js';
+import { diagnosticsStore } from '../../utils/diagnosticsStore.js';
 
 
 const MOCK_USERS = [

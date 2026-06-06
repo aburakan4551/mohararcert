@@ -162,10 +162,6 @@ const getNavItems = (user, canPerform) => {
                          user.role === 'Super Admin' || 
                          (typeof canPerform === 'function' && canPerform('forms.admin'));
 
-    if (isFormsAdmin) {
-        items.push({ to: '/forms-builder', icon: 'Sliders', label: 'إدارة النماذج (Forms)' });
-    }
-
     items.push({ to: '/fill-forms', icon: 'ClipboardSignature', label: 'تعبئة النماذج' });
 
     if (user.role === 'CREATOR' || user.role === 'SUPER_ADMIN') {
@@ -193,6 +189,10 @@ const getNavItems = (user, canPerform) => {
         items.push({ to: '/audit', icon: 'FileText', label: 'سجل التدقيق الأمني' });
         items.push({ to: '/diagnostics', icon: 'Activity', label: 'التشخيص ومراقبة الأداء' });
         items.push({ to: '/studio', icon: 'Settings2', label: 'مصمم القوالب' });
+    }
+
+    if (isFormsAdmin) {
+        items.push({ to: '/forms-builder', icon: 'Palette', label: 'استوديو تصميم النماذج' });
     }
 
     return items;

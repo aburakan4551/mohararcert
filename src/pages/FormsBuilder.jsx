@@ -58,11 +58,11 @@ export default function FormsBuilder() {
             const templatesData = await templateService.getAll();
             
             setForms(formsData || []);
-            // Only allow linking forms to OFFICIAL/approved templates
-            setTemplates(templatesData.filter(t => String(t.status || '').toUpperCase() === 'OFFICIAL') || []);
+            setTemplates(templatesData || []);
             
             if (templatesData.length > 0) {
-                setSelectedTemplateId(templatesData[0].id);
+                const defaultOrOfficial = templatesData.find(t => t.isOfficial || t.isDefault) || templatesData[0];
+                setSelectedTemplateId(defaultOrOfficial.id);
             }
         } catch (e) {
             console.error("Failed to load forms data:", e);

@@ -50,13 +50,8 @@ export default function TemplateStudio() {
     };
 
     const handleSetOfficial = async (id, tpl) => {
-        const status = String(tpl.status || '').trim().toUpperCase();
-        if (status !== 'OFFICIAL') {
-            return alert('يمكن فقط تعيين قالب معتمد رسمي كقالب افتراضي. الرجاء اعتماد القالب أولاً.');
-        }
-
         try {
-            await templateService.update(id, { isOfficial: true });
+            await templateService.update(id, { isOfficial: true, status: 'OFFICIAL' });
             await loadTemplates();
         } catch (e) {
             alert('فشل تعيين القالب الرسمي: ' + e.message);

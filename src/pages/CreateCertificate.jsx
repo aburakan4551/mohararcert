@@ -107,13 +107,18 @@ export default function CreateCertificate() {
         const fetchTemplates = async () => {
             try {
                 const data = await templateService.getAll();
-                const approvedTemplates = sortOfficialDefaultFirst((data || []).filter(isApprovedTemplate));
-                setTemplates(approvedTemplates);
-                if (approvedTemplates.length > 0 && !editId) {
-                    setSelectedTemplateId(approvedTemplates[0].id);
+                const allTemplates = sortOfficialDefaultFirst(data || []);
+                setTemplates(allTemplates);
+                if (allTemplates.length > 0 && !editId) {
+                    const official = allTemplates.find(t => t.isOfficial);
+                    if (official) {
+                        setSelectedTemplateId(official.id);
+                    } else {
+                        setSelectedTemplateId(allTemplates[0].id);
+                    }
                 }
             } catch (e) {
-                console.error("Failed to load approved templates:", e);
+                console.error("Failed to load templates:", e);
             }
         };
         fetchTemplates();
